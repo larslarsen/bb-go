@@ -10,7 +10,7 @@ import (
 
 var DefaultBootstrapAddresses = []string{
 	"/ip4/192.168.0.105/tcp/4001/ipfs/QmcKJiF12GzzMaPvwsjNb2nsGfA6H7UVg9pw7ifAxbbaTo", // Le Marché Serpette
-	"/ip4/192.168.0.103/tcp/4001/ipfs/QmehY83UcetFGRmhC8XitTkEkNnG29wxZ4PR8G6e8FFVeK", // Brixton Village
+	"/ip4/67.161.185.183/tcp/4001/ipfs/QmehY83UcetFGRmhC8XitTkEkNnG29wxZ4PR8G6e8FFVeK", // Brixton Village
 	"/ip4/139.59.6.222/tcp/4001/ipfs/QmRDcEDK9gSViAevCHiE6ghkaBCU7rTuQj4BDpmCzRvRYg",   // Johari
 	"/ip4/46.101.198.170/tcp/4001/ipfs/QmePWxsFT9wY3QuukgVDB7XZpqdKhrqJTHTXU7ECLDWJqX", // Duo Search
 }
