@@ -81,7 +81,7 @@ func (notifier *smtpNotifier) notify(n interface{}) error {
 		"To: %s",
 		"MIME-Version: 1.0",
 		"Content-Type: text/html; charset=UTF-8",
-		"Subject: [OpenBazaar] %s\r\n",
+		"Subject: [BitBook] %s\r\n",
 		"%s\r\n",
 	}, "\r\n")
 	head, body := notifications.Describe(n)

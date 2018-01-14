@@ -38,7 +38,7 @@ import (
 var log = logging.MustGetLogger("bitcoind")
 
 const (
-	Account = "OpenBazaar"
+	Account = "BitBook"
 )
 
 type BitcoindWallet struct {
