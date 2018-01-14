@@ -106,7 +106,7 @@ type Start struct {
 	DataDir              string   `short:"d" long:"datadir" description:"specify the data directory to be used"`
 	AuthCookie           string   `short:"c" long:"authcookie" description:"turn on API authentication and use this specific cookie"`
 	UserAgent            string   `short:"u" long:"useragent" description:"add a custom user-agent field"`
-	Verbose              bool     `short:"v" long:"verbose" description:"print openbazaar logs to stdout"`
+	Verbose              bool     `short:"v" long:"verbose" description:"print bitbook logs to stdout"`
 	TorPassword          string   `long:"torpassword" description:"Set the tor control password. This will override the tor password in the config."`
 	Tor                  bool     `long:"tor" description:"Automatically configure the daemon to run as a Tor hidden service and use Tor exclusively. Requires Tor to be running."`
 	DualStack            bool     `long:"dualstack" description:"Automatically configure the daemon to run as a Tor hidden service IN ADDITION to using the clear internet. Requires Tor to be running. WARNING: this mode is not private"`
@@ -314,9 +314,9 @@ func (x *Start) Execute(args []string) error {
 			return err
 		}
 		cfg.Bootstrap = testnetBootstrapAddrs
-		dht.ProtocolDHT = "/openbazaar/kad/testnet/1.0.0"
-		bitswap.ProtocolBitswap = "/openbazaar/bitswap/testnet/1.1.0"
-		service.ProtocolOpenBazaar = "/openbazaar/app/testnet/1.0.0"
+		dht.ProtocolDHT = "/bitbook/kad/testnet/1.0.0"
+		bitswap.ProtocolBitswap = "/bitbook/bitswap/testnet/1.1.0"
+		service.ProtocolOpenBazaar = "/bitbook/app/testnet/1.0.0"
 
 		dataSharing.PushTo = []string{}
 	}
@@ -569,7 +569,7 @@ func (x *Start) Execute(args []string) error {
 			RepoPath:     repoPath,
 			CreationDate: creationDate,
 			DB:           sqliteDB,
-			UserAgent:    "OpenBazaar",
+			UserAgent:    "BitBook",
 			TrustedPeer:  tp,
 			Proxy:        torDialer,
 			Logger:       ml,
@@ -987,22 +987,22 @@ func InitializeRepo(dataDir, password, mnemonic string, testnet bool, creationDa
 func printSplashScreen(verbose bool) {
 	blue := color.New(color.FgBlue)
 	white := color.New(color.FgWhite)
-	white.Printf("________             ")
-	blue.Println("         __________")
-	white.Printf(`\_____  \ ______   ____   ____`)
-	blue.Println(`\______   \_____  _____________  _____ _______`)
-	white.Printf(` /   |   \\____ \_/ __ \ /    \`)
-	blue.Println(`|    |  _/\__  \ \___   /\__  \ \__  \\_  __ \ `)
-	white.Printf(`/    |    \  |_> >  ___/|   |  \    `)
-	blue.Println(`|   \ / __ \_/    /  / __ \_/ __ \|  | \/`)
-	white.Printf(`\_______  /   __/ \___  >___|  /`)
-	blue.Println(`______  /(____  /_____ \(____  (____  /__|`)
-	white.Printf(`        \/|__|        \/     \/  `)
-	blue.Println(`     \/      \/      \/     \/     \/`)
+	white.Printf("__________.__  __")
+	blue.Println(" __________               __    ")
+	white.Printf(`\______   \__|/  |`)
+	blue.Println(`\______   \ ____   ____ |  | __`)
+	white.Printf(` |    |  _/  \   __`)
+	blue.Println(`\    |  _//  _ \ /  _ \|  |/ /`)
+	white.Printf(` |    |   \  ||  |`)
+	blue.Println(` |    |   (  <_> |  <_> )    < `)
+	white.Printf(` |______  /__||__|`)
+	blue.Println(` |______  /\____/ \____/|__|_ \`)
+	white.Printf(`        \/`)
+	blue.Println(`                \/                   \/`)
 	blue.DisableColor()
 	white.DisableColor()
 	fmt.Println("")
-	fmt.Println("OpenBazaar Server v" + core.VERSION)
+	fmt.Println("BitBook Server v" + core.VERSION)
 	if !verbose {
 		fmt.Println("[Press Ctrl+C to exit]")
 	}

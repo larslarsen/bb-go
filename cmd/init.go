@@ -53,7 +53,7 @@ func (x *Init) Execute(args []string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("OpenBazaar repo initialized at %s\n", repoPath)
+			fmt.Printf("BitBook repo initialized at %s\n", repoPath)
 			return nil
 		} else {
 			return nil
@@ -61,6 +61,6 @@ func (x *Init) Execute(args []string) error {
 	} else if err != nil {
 		return err
 	}
-	fmt.Printf("OpenBazaar repo initialized at %s\n", repoPath)
+	fmt.Printf("Bitbook repo initialized at %s\n", repoPath)
 	return nil
 }

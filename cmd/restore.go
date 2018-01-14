@@ -150,8 +150,8 @@ func (x *Restore) Execute(args []string) error {
 			return err
 		}
 		cfg.Bootstrap = testnetBootstrapAddrs
-		dht.ProtocolDHT = "/openbazaar/kad/testnet/1.0.0"
-		bitswap.ProtocolBitswap = "/openbazaar/bitswap/testnet/1.1.0"
+		dht.ProtocolDHT = "/bitbook/kad/testnet/1.0.0"
+		bitswap.ProtocolBitswap = "/bitbook/bitswap/testnet/1.1.0"
 	}
 
 	cfg.Identity = identity

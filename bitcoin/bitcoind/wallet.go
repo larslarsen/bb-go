@@ -111,7 +111,7 @@ func GetCredentials(repoPath string) (username, password string, err error) {
 		}
 		password := base64.StdEncoding.EncodeToString(r)
 
-		user := fmt.Sprintf(`rpcuser=%s`, "OpenBazaar")
+		user := fmt.Sprintf(`rpcuser=%s`, "BitBook")
 		pass := fmt.Sprintf(`rpcpassword=%s`, password)
 
 		f, err := os.Create(p)
