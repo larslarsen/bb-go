@@ -13,8 +13,8 @@ import (
 
 	"fmt"
 	"github.com/OpenBazaar/jsonpb"
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"

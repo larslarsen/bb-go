@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"sync"
 
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/repo"
 )
 
 type CouponDB struct {

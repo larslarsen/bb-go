@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/OpenBazaar/openbazaar-go",
+	"ImportPath": "github.com/larslarsen/bb-go",
 	"GoVersion": "go1.9",
 	"GodepVersion": "v79",
 	"Deps": [
@@ -1750,72 +1750,72 @@
 			"Rev": "b8a4059b144b9889b8b62f6458d1662015eec388"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/bitcoin",
+			"ImportPath": "github.com/larslarsen/bb-go/bitcoin",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/OpenBazaar/wallet-interface",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/OpenBazaar/wallet-interface",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/btcsuite/btcd/btcec",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/btcsuite/btcd/btcec",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/btcsuite/btcd/chaincfg",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/btcsuite/btcd/chaincfg",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/btcsuite/btcd/chaincfg/chainhash",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/btcsuite/btcd/chaincfg/chainhash",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/btcsuite/btcd/wire",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/btcsuite/btcd/wire",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/btcsuite/btcutil",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/btcsuite/btcutil",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/btcsuite/btcutil/hdkeychain",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/btcsuite/btcutil/hdkeychain",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/btcsuite/btcutil/base58",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/btcsuite/btcutil/base58",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/btcsuite/btcutil/bech32",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/btcsuite/btcutil/bech32",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/golang.org/x/crypto/ripemd160",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/golang.org/x/crypto/ripemd160",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/bitcoin/exchange",
+			"ImportPath": "github.com/larslarsen/bb-go/bitcoin/exchange",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/github.com/op/go-logging",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/github.com/op/go-logging",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		},
 		{
-			"ImportPath": "github.com/OpenBazaar/openbazaar-go/vendor/golang.org/x/net/proxy",
+			"ImportPath": "github.com/larslarsen/bb-go/vendor/golang.org/x/net/proxy",
 			"Comment": "v0.10.0-4-g80b09c0c",
 			"Rev": "80b09c0c211ac622b2e8ca76491ce4c75b553f79"
 		}

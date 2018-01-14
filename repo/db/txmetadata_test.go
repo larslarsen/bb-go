@@ -2,7 +2,7 @@ package db
 
 import (
 	"database/sql"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/repo"
 	"sync"
 	"testing"
 )

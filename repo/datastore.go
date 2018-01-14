@@ -3,9 +3,9 @@ package repo
 import (
 	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
 
-	notif "github.com/OpenBazaar/openbazaar-go/api/notifications"
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	notif "github.com/larslarsen/bb-go/api/notifications"
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/OpenBazaar/wallet-interface"
 	btc "github.com/btcsuite/btcutil"
 	"time"

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/icrowley/fake"
 )

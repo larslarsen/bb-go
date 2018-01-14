@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
 	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"

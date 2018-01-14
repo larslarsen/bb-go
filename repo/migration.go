@@ -1,7 +1,7 @@
 package repo
 
 import (
-	"github.com/OpenBazaar/openbazaar-go/repo/migrations"
+	"github.com/larslarsen/bb-go/repo/migrations"
 	"io/ioutil"
 	"os"
 	"path"

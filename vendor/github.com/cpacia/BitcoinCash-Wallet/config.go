@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
-	"github.com/OpenBazaar/openbazaar-go/bitcoin"
+	"github.com/larslarsen/bb-go/bitcoin"
 )
 
 type Config struct {

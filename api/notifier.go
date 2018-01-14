@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"errors"
-	"github.com/OpenBazaar/openbazaar-go/api/notifications"
-	"github.com/OpenBazaar/openbazaar-go/core"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/api/notifications"
+	"github.com/larslarsen/bb-go/core"
+	"github.com/larslarsen/bb-go/repo"
 )
 
 // Notification manager intercepts data form 'inChan' which is embedded

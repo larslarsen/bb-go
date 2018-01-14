@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/OpenBazaar/openbazaar-go/core"
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/core"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/icrowley/fake"
 )
 

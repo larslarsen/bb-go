@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OpenBazaar/jsonpb"
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/golang/protobuf/ptypes"
 	"io"
 	"net/url"

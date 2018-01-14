@@ -3,7 +3,7 @@ package main
 import (
 	"math/rand"
 
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/icrowley/fake"
 )
 

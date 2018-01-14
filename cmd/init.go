@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/op/go-logging"
 	"os"
 	"strings"

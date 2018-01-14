@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/OpenBazaar/openbazaar-go/core"
-	"github.com/OpenBazaar/openbazaar-go/pb"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/core"
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/ipfs/go-ipfs/commands"
 	ctxio "github.com/jbenet/go-context/io"
 	"github.com/op/go-logging"

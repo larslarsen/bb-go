@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/OpenBazaar/jsonpb"
-	"github.com/OpenBazaar/openbazaar-go/pb"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
 	"sync"
 	"time"
 )

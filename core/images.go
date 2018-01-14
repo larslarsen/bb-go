@@ -11,8 +11,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/ipfs/go-ipfs/core/coreunix"
 	ipnspb "github.com/ipfs/go-ipfs/namesys/pb"
 	ipnspath "github.com/ipfs/go-ipfs/path"

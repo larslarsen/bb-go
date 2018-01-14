@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/pb"
 )
 
 type messageSender struct {

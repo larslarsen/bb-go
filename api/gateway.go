@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/OpenBazaar/openbazaar-go/core"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/core"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/ipfs/go-ipfs/core/corehttp"
 	"github.com/op/go-logging"
 )

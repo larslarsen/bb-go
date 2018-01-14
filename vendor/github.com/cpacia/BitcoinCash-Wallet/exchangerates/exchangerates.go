@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OpenBazaar/openbazaar-go/bitcoin/exchange"
+	"github.com/larslarsen/bb-go/bitcoin/exchange"
 	"golang.org/x/net/proxy"
 	"net"
 	"net/http"

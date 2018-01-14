@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/pb"
 	"net/url"
 	"strconv"
 	"strings"

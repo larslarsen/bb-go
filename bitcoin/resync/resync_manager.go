@@ -1,7 +1,7 @@
 package resync
 
 import (
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/op/go-logging"
 	"time"

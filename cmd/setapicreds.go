@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/ipfs/go-ipfs/repo/fsrepo"
 	"golang.org/x/crypto/ssh/terminal"
 	"io/ioutil"

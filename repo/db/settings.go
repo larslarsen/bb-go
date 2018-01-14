@@ -6,7 +6,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/repo"
 )
 
 var SettingsNotSetError error = errors.New("Settings not set")

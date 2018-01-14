@@ -3,8 +3,8 @@ package net
 import (
 	"time"
 
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/op/go-logging"
 	"golang.org/x/net/context"

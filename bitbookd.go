@@ -33,7 +33,7 @@ func main() {
 	go func() {
 		for sig := range c {
 			log.Noticef("Received %s\n", sig)
-			log.Info("OpenBazaar Server shutting down...")
+			log.Info("BitBook Server shutting down...")
 			if core.Node != nil {
 				if core.Node.MessageRetriever != nil {
 					close(core.Node.MessageRetriever.DoneChan)
@@ -64,7 +64,7 @@ func main() {
 		&cmd.SetAPICreds{})
 	parser.AddCommand("start",
 		"start the OpenBazaar-Server",
-		"The start command starts the OpenBazaar-Server",
+		"The start command starts the BitBook-Server",
 		&cmd.Start{})
 	parser.AddCommand("stop",
 		"shutdown the server and disconnect",

@@ -2,10 +2,10 @@ package net
 
 import (
 	"context"
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
-	"github.com/OpenBazaar/openbazaar-go/net"
-	"github.com/OpenBazaar/openbazaar-go/pb"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/net"
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-ipfs/commands"
 	"golang.org/x/net/proxy"

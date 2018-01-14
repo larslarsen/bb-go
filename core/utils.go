@@ -10,7 +10,7 @@ import (
 	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
 	"time"
 
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/golang/protobuf/ptypes"

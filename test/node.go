@@ -2,10 +2,10 @@ package test
 
 import (
 	// "github.com/ipfs/go-ipfs/thirdparty/testutil"
-	"github.com/OpenBazaar/openbazaar-go/core"
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
-	"github.com/OpenBazaar/openbazaar-go/net"
-	"github.com/OpenBazaar/openbazaar-go/net/service"
+	"github.com/larslarsen/bb-go/core"
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/net"
+	"github.com/larslarsen/bb-go/net/service"
 	"github.com/OpenBazaar/spvwallet"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/tyler-smith/go-bip39"

@@ -3,7 +3,7 @@ package zcashd
 import (
 	"encoding/json"
 	"errors"
-	"github.com/OpenBazaar/openbazaar-go/bitcoin/exchange"
+	"github.com/larslarsen/bb-go/bitcoin/exchange"
 	"golang.org/x/net/proxy"
 	"net"
 	"net/http"

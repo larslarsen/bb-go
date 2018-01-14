@@ -2,8 +2,8 @@ package bitcoin
 
 import (
 	"encoding/hex"
-	"github.com/OpenBazaar/openbazaar-go/api/notifications"
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/api/notifications"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )

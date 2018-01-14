@@ -7,7 +7,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
+	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/namesys"
 	"github.com/ipfs/go-ipfs/repo/fsrepo"

@@ -24,7 +24,7 @@ Create a directory to store all your Go projects (e.g. `C:\goprojects`):
 ### Install openbazaar-go
 
 - Install `openbazaar-go`:
-    + Open the command prompt and type: `go get github.com/OpenBazaar/openbazaar-go`
+    + Open the command prompt and type: `go get github.com/larslarsen/bb-go`
     + It will put the source code in `%GOPATH%\src\github.com\OpenBazaar\openbazaar-go`
 - To compile and run `openbazaar-go`:
     + Open the command prompt and navigate the source directory: `cd %GOPATH%\src\github.com\OpenBazaar\openbazaar-go` 

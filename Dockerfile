@@ -1,6 +1,6 @@
 # Build stage - Create static binary
 FROM golang:1.8.1
-WORKDIR /go/src/github.com/OpenBazaar/openbazaar-go
+WORKDIR /go/src/github.com/larslarsen/bb-go
 COPY . .
 RUN go build --ldflags '-extldflags "-static"' -o /opt/openbazaard .
 

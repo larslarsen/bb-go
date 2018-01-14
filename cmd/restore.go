@@ -9,8 +9,8 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
-	obnet "github.com/OpenBazaar/openbazaar-go/net"
+	"github.com/larslarsen/bb-go/ipfs"
+	obnet "github.com/larslarsen/bb-go/net"
 	"github.com/ipfs/go-ipfs/commands"
 	ipfscore "github.com/ipfs/go-ipfs/core"
 	bitswap "github.com/ipfs/go-ipfs/exchange/bitswap/network"
@@ -21,8 +21,8 @@ import (
 
 	"bufio"
 	"errors"
-	"github.com/OpenBazaar/openbazaar-go/repo"
-	"github.com/OpenBazaar/openbazaar-go/repo/db"
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/repo/db"
 	"github.com/ipfs/go-ipfs/core/coreunix"
 	ipfspath "github.com/ipfs/go-ipfs/path"
 	"github.com/ipfs/go-ipfs/repo/fsrepo"

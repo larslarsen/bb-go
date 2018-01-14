@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/OpenBazaar/openbazaar-go/repo"
+	"github.com/larslarsen/bb-go/repo"
 	"io/ioutil"
 )
 

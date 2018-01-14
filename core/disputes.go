@@ -11,9 +11,9 @@ import (
 	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
 	libp2p "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
 
-	"github.com/OpenBazaar/openbazaar-go/api/notifications"
-	"github.com/OpenBazaar/openbazaar-go/net"
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/api/notifications"
+	"github.com/larslarsen/bb-go/net"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcutil"
 	hd "github.com/btcsuite/btcutil/hdkeychain"

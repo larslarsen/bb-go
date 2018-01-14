@@ -9,8 +9,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/OpenBazaar/openbazaar-go/repo"
-	"github.com/OpenBazaar/openbazaar-go/repo/db"
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/repo/db"
 	lockfile "github.com/ipfs/go-ipfs/repo/fsrepo/lock"
 	"golang.org/x/crypto/ssh/terminal"
 )

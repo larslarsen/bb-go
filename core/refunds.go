@@ -6,7 +6,7 @@ import (
 
 	"time"
 
-	"github.com/OpenBazaar/openbazaar-go/pb"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/OpenBazaar/wallet-interface"
 	hd "github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/golang/protobuf/proto"

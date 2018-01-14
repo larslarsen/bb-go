@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 	"github.com/OpenBazaar/wallet-interface"
-	"github.com/OpenBazaar/openbazaar-go/bitcoin"
+	"github.com/larslarsen/bb-go/bitcoin"
 )
 
 type httpClient interface {

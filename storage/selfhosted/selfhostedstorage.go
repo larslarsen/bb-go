@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/OpenBazaar/openbazaar-go/ipfs"
+	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/ipfs/go-ipfs/commands"
 	"gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
 )
