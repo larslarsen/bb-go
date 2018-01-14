@@ -110,7 +110,7 @@ func workDomain(b *BlockstackClient, name string, res chan lookupRes) {
 		acc := a.(map[string]interface{})
 		service := strings.ToLower(acc["service"].(string))
 		identifier := acc["identifier"].(string)
-		if service == "openbazaar" {
+		if service == "bitbook" {
 			pid, err := peer.IDB58Decode(identifier)
 			if err != nil {
 				res <- lookupRes{pid, err}
