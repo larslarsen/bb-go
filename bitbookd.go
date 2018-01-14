@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/OpenBazaar/openbazaar-go/cmd"
-	"github.com/OpenBazaar/openbazaar-go/core"
+	"github.com/larslarsen/bb-go/cmd"
+	"github.com/larslarsen/bb-go/core"
 	lockfile "github.com/ipfs/go-ipfs/repo/fsrepo/lock"
 	"github.com/jessevdk/go-flags"
 	"github.com/op/go-logging"
