@@ -36,11 +36,13 @@ Only the reviewer accepts a developer drop or authorizes another implementation 
 ## Workflow
 
 1. Read `docs/handoff/CURRENT_TASK.md` and the referenced ticket.
-2. Verify the exact source baseline before editing.
-3. Modify only the ticket's authorized paths.
-4. Run only its explicitly authorized commands.
-5. Report changed paths, hashes, line counts, test counts, and exact command results.
-6. Stop for reviewer inspection without Git operations.
+2. Read `TESTING.md`; every implementation ticket follows its test-first and
+   test-falsification rules.
+3. Verify the exact source baseline before editing.
+4. Modify only the ticket's authorized paths.
+5. Run only its explicitly authorized commands.
+6. Report changed paths, hashes, line counts, test counts, and exact command results.
+7. Stop for reviewer inspection without Git operations.
 
 If `CURRENT_TASK.md` says no implementation is authorized, inspect or discuss only; do
 not edit production or test source.
