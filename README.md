@@ -83,7 +83,9 @@ cd modern
 
 It stores its stable identity and social state under `~/.bitbook/modern`,
 serves the local API at `http://127.0.0.1:4002`, and prints the BitBook banner
-and dialable peer addresses at startup. See [the maintained daemon
+and dialable peer addresses at startup. Profiles, posts, follows, direct chat,
+offline retry, and desktop-compatible WebSocket events run entirely on the
+isolated BitBook v2 protocols. See [the maintained daemon
 README](modern/README.md) for flags and the currently migrated endpoints.
 
 The historical server can still be run with the Go 1.27 wrapper:

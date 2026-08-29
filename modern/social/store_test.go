@@ -74,6 +74,9 @@ func TestTwoPeersPublishAndFetchSocialState(t *testing.T) {
 	if err := authorStore.Follow(ctx, reader.ID()); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := authorStore.ApplyFollower(ctx, reader.ID(), true, time.Now()); err != nil {
+		t.Fatal(err)
+	}
 	created, err := authorStore.AddPost(ctx, json.RawMessage(`{"status":"A signed social post","tags":["p2p"]}`))
 	if err != nil {
 		t.Fatal(err)
@@ -98,6 +101,45 @@ func TestTwoPeersPublishAndFetchSocialState(t *testing.T) {
 	}
 	if len(state.Following) != 1 || state.Following[0] != reader.ID().String() {
 		t.Fatalf("unexpected following list: %v", state.Following)
+	}
+	if len(state.Followers) != 1 || state.Followers[0] != reader.ID().String() {
+		t.Fatalf("unexpected followers list: %v", state.Followers)
+	}
+}
+
+func TestFollowerUpdatesIgnoreStaleDelivery(t *testing.T) {
+	ctx := context.Background()
+	n := newTestNode(t, ctx)
+	defer n.Close()
+	store, err := NewStore(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := newTestNode(t, ctx)
+	defer other.Close()
+	now := time.Now().UTC()
+	if changed, err := store.ApplyFollower(ctx, other.ID(), true, now); err != nil || !changed {
+		t.Fatalf("applying follow: changed=%t err=%v", changed, err)
+	}
+	if changed, err := store.ApplyFollower(ctx, other.ID(), false, now.Add(-time.Minute)); err != nil || changed {
+		t.Fatalf("stale unfollow: changed=%t err=%v", changed, err)
+	}
+	followers, err := store.LocalFollowers(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(followers) != 1 {
+		t.Fatalf("stale unfollow removed follower: %v", followers)
+	}
+	if changed, err := store.ApplyFollower(ctx, other.ID(), false, now.Add(time.Minute)); err != nil || !changed {
+		t.Fatalf("new unfollow: changed=%t err=%v", changed, err)
+	}
+	followers, err = store.LocalFollowers(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(followers) != 0 {
+		t.Fatalf("new unfollow did not remove follower: %v", followers)
 	}
 }
 

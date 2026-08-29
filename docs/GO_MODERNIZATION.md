@@ -29,21 +29,22 @@ The replacement has started in [`modern/`](../modern). It is a conventional Go
 - go-libp2p-kad-dht 0.42.1.
 
 It now owns peer identity, persistent network and social storage, the BitBook
-DHT, Bitswap block transfer, signed IPNS roots, profiles, posts, and following
-lists. The `modern/cmd/bitbookd` command exposes those functions through the
-social-only portion of the historical `/ob` API. Its integration tests start
-two real libp2p peers, publish signed social state, resolve it by peer ID, and
-retrieve and verify the content from the reader.
+DHT, Bitswap block transfer, signed IPNS roots, profiles, posts, follower
+graphs, and direct chat. The `modern/cmd/bitbookd` command exposes those
+functions through the social-only portion of the historical `/ob` API and
+`/ws` event stream. Its integration tests start real libp2p peers, publish
+signed social state, exchange signed direct messages and read receipts,
+resolve peers by ID, and verify retrieved content.
 
 ```sh
 make modern_test
 ```
 
-The legacy daemon remains buildable through `scripts/go.sh` while followers,
-direct messaging, media, and any required desktop compatibility are moved
-behind the new boundary. The maintained daemon already has no `gx`
-dependency; the root `vendor/gx` tree can be removed after the remaining
-legacy runtime is retired.
+The legacy daemon remains buildable through `scripts/go.sh` while media,
+group chat, and the remaining desktop compatibility are moved behind the new
+boundary. The maintained daemon already has no `gx` dependency; the root
+`vendor/gx` tree can be removed after the remaining legacy runtime is
+retired.
 
 ## Protocol generation
 
@@ -52,3 +53,8 @@ to `/bitbook/ipfs/bitswap/1.2.0`: Boxo's upstream prefix mechanism deliberately
 retains the `ipfs` component. This creates an isolated second-generation
 BitBook network without carrying a permanent Boxo fork solely to reproduce the
 2018 protocol spelling.
+
+Direct follows, chats, typing indicators, and read receipts use
+`/bitbook/direct/1.0.0`. This protocol accepts only its small signed social
+envelope and therefore cannot accidentally process an OpenBazaar order or
+marketplace message.

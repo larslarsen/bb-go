@@ -7,8 +7,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
+	"github.com/larslarsen/bb-go/modern/direct"
 	"github.com/larslarsen/bb-go/modern/network"
 	"github.com/larslarsen/bb-go/modern/social"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -121,8 +125,8 @@ func TestFollowAndSocialOnlyPolicy(t *testing.T) {
 	if unfollowResponse.Code != http.StatusOK {
 		t.Fatalf("unfollowing: %d %s", unfollowResponse.Code, unfollowResponse.Body)
 	}
-	if got := request(t, handler, http.MethodGet, "/ob/followers", "").Code; got != http.StatusNotImplemented {
-		t.Fatalf("followers status = %d, want %d", got, http.StatusNotImplemented)
+	if got := request(t, handler, http.MethodGet, "/ob/followers", "").Code; got != http.StatusOK {
+		t.Fatalf("followers status = %d, want %d", got, http.StatusOK)
 	}
 	if got := request(t, handler, http.MethodGet, "/wallet/currencies", "").Code; got != http.StatusNotFound {
 		t.Fatalf("wallet route status = %d, want %d", got, http.StatusNotFound)
@@ -147,6 +151,102 @@ func TestConfigAndValidation(t *testing.T) {
 	}
 }
 
+func TestChatAPIQueuesAndIndexesOfflineMessage(t *testing.T) {
+	handler, node := newTestHandler(t)
+	defer node.Close()
+	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := peer.IDFromPrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chatResponse := request(t, handler, http.MethodPost, "/ob/chat", `{"peerId":"`+target.String()+`","message":"queued hello"}`)
+	if chatResponse.Code != http.StatusOK {
+		t.Fatalf("sending chat: %d %s", chatResponse.Code, chatResponse.Body)
+	}
+	var sent map[string]any
+	decodeResponse(t, chatResponse, &sent)
+	if sent["queued"] != true || sent["messageId"] == "" {
+		t.Fatalf("unexpected queued chat response: %v", sent)
+	}
+	messagesResponse := request(t, handler, http.MethodGet, "/ob/chatmessages/"+target.String(), "")
+	var messages []direct.ChatMessage
+	decodeResponse(t, messagesResponse, &messages)
+	if len(messages) != 1 || messages[0].Message != "queued hello" || !messages[0].Outgoing {
+		t.Fatalf("unexpected chat messages: %+v", messages)
+	}
+	conversationsResponse := request(t, handler, http.MethodGet, "/ob/chatconversations", "")
+	var conversations []direct.Conversation
+	decodeResponse(t, conversationsResponse, &conversations)
+	if len(conversations) != 1 || conversations[0].PeerID != target.String() {
+		t.Fatalf("unexpected conversations: %+v", conversations)
+	}
+	deleteResponse := request(t, handler, http.MethodDelete, "/ob/chatmessage/"+messages[0].MessageID, "")
+	if deleteResponse.Code != http.StatusOK {
+		t.Fatalf("deleting chat: %d %s", deleteResponse.Code, deleteResponse.Body)
+	}
+}
+
+func TestWebSocketReceivesDirectChat(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	aNode, aDirect, _ := newAPIStack(t, ctx)
+	defer aNode.Close()
+	defer aDirect.Close()
+	bNode, bDirect, bHandler := newAPIStack(t, ctx)
+	defer bNode.Close()
+	defer bDirect.Close()
+	if err := aNode.Connect(ctx, peer.AddrInfo{ID: bNode.ID(), Addrs: bNode.Host.Addrs()}); err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(bHandler)
+	defer server.Close()
+	socketURL := strings.Replace(server.URL, "http://", "ws://", 1) + "/ws"
+	socket, _, err := websocket.DefaultDialer.DialContext(ctx, socketURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer socket.Close()
+	if delivery, err := aDirect.SendFollow(ctx, bNode.ID(), true); err != nil {
+		t.Fatal(err)
+	} else if !delivery.Delivered {
+		t.Fatalf("follow was not delivered: %+v", delivery)
+	}
+	_ = socket.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var notificationEvent map[string]any
+	if err := socket.ReadJSON(&notificationEvent); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := notificationEvent["notification"]; !ok {
+		t.Fatalf("unexpected follow websocket event: %+v", notificationEvent)
+	}
+	followersResponse := request(t, bHandler, http.MethodGet, "/ob/followers", "")
+	var followers []string
+	decodeResponse(t, followersResponse, &followers)
+	if len(followers) != 1 || followers[0] != aNode.ID().String() {
+		t.Fatalf("unexpected API followers: %v", followers)
+	}
+
+	if _, delivery, err := aDirect.SendChat(ctx, bNode.ID(), "", "live hello"); err != nil {
+		t.Fatal(err)
+	} else if !delivery.Delivered {
+		t.Fatalf("chat was not delivered: %+v", delivery)
+	}
+	_ = socket.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var event struct {
+		Message direct.ChatMessage `json:"message"`
+	}
+	if err := socket.ReadJSON(&event); err != nil {
+		t.Fatal(err)
+	}
+	if event.Message.Message != "live hello" || event.Message.PeerID != aNode.ID().String() {
+		t.Fatalf("unexpected websocket event: %+v", event)
+	}
+}
+
 func newTestHandler(t *testing.T) (*Handler, *network.Node) {
 	t.Helper()
 	node, err := network.New(context.Background(), network.Config{
@@ -162,12 +262,47 @@ func newTestHandler(t *testing.T) (*Handler, *network.Node) {
 		node.Close()
 		t.Fatal(err)
 	}
-	handler, err := NewHandler(node, store)
+	directService, err := direct.NewService(node, store)
 	if err != nil {
 		node.Close()
 		t.Fatal(err)
 	}
+	handler, err := NewHandler(node, store, directService)
+	if err != nil {
+		directService.Close()
+		node.Close()
+		t.Fatal(err)
+	}
 	return handler, node
+}
+
+func newAPIStack(t *testing.T, ctx context.Context) (*network.Node, *direct.Service, *Handler) {
+	t.Helper()
+	node, err := network.New(ctx, network.Config{
+		ListenAddrs:           []string{"/ip4/127.0.0.1/tcp/0"},
+		DHTMode:               dht.ModeServer,
+		AllowPrivateAddresses: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := social.NewStore(node)
+	if err != nil {
+		node.Close()
+		t.Fatal(err)
+	}
+	directService, err := direct.NewService(node, store)
+	if err != nil {
+		node.Close()
+		t.Fatal(err)
+	}
+	handler, err := NewHandler(node, store, directService)
+	if err != nil {
+		directService.Close()
+		node.Close()
+		t.Fatal(err)
+	}
+	return node, directService, handler
 }
 
 func request(t *testing.T, handler http.Handler, method, path, body string) *httptest.ResponseRecorder {

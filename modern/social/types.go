@@ -15,6 +15,7 @@ type Manifest struct {
 	Profile   string    `json:"profile"`
 	Posts     string    `json:"posts"`
 	Following string    `json:"following"`
+	Followers string    `json:"followers,omitempty"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
@@ -34,4 +35,10 @@ type State struct {
 	Profile   json.RawMessage `json:"profile"`
 	Posts     []SignedPost    `json:"posts"`
 	Following []string        `json:"following"`
+	Followers []string        `json:"followers"`
+}
+
+type followerState struct {
+	Following bool      `json:"following"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }

@@ -14,4 +14,8 @@ const (
 	BitswapProtocolPrefix protocol.ID = "/bitbook"
 
 	BitswapProtocolCurrent protocol.ID = "/bitbook/ipfs/bitswap/1.2.0"
+
+	// DirectProtocolCurrent carries signed follows, chat messages, typing
+	// indicators, and read receipts between authenticated BitBook peers.
+	DirectProtocolCurrent protocol.ID = "/bitbook/direct/1.0.0"
 )

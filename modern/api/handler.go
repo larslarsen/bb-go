@@ -9,10 +9,12 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/larslarsen/bb-go/modern/direct"
 	"github.com/larslarsen/bb-go/modern/network"
 	"github.com/larslarsen/bb-go/modern/social"
 	lp2pnet "github.com/libp2p/go-libp2p/core/network"
@@ -24,21 +26,29 @@ const maxRequestBytes = 1 << 20
 // Handler implements the maintained, social-only subset of the historical
 // /ob API. Marketplace and wallet routes are intentionally absent.
 type Handler struct {
-	node  *network.Node
-	store *social.Store
+	node   *network.Node
+	store  *social.Store
+	direct *direct.Service
 }
 
-func NewHandler(node *network.Node, store *social.Store) (*Handler, error) {
+func NewHandler(node *network.Node, store *social.Store, directService *direct.Service) (*Handler, error) {
 	if node == nil {
 		return nil, errors.New("nil network node")
 	}
 	if store == nil {
 		return nil, errors.New("nil social store")
 	}
-	return &Handler{node: node, store: store}, nil
+	if directService == nil {
+		return nil, errors.New("nil direct service")
+	}
+	return &Handler{node: node, store: store, direct: directService}, nil
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.TrimSuffix(r.URL.Path, "/") == "/ws" && r.Method == http.MethodGet {
+		h.serveWebSocket(w, r)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
@@ -77,8 +87,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.getLocalFollowing(w, r)
 	case strings.HasPrefix(path, "/ob/following/") && r.Method == http.MethodGet:
 		h.getRemoteFollowing(w, r, strings.TrimPrefix(path, "/ob/following/"))
-	case (path == "/ob/followers" || strings.HasPrefix(path, "/ob/followers/")) && r.Method == http.MethodGet:
-		writeError(w, http.StatusNotImplemented, "followers require the direct follow-notification protocol, which has not migrated yet")
+	case path == "/ob/followers" && r.Method == http.MethodGet:
+		h.getLocalFollowers(w, r)
+	case strings.HasPrefix(path, "/ob/followers/") && r.Method == http.MethodGet:
+		h.getRemoteFollowers(w, r, strings.TrimPrefix(path, "/ob/followers/"))
+	case strings.HasPrefix(path, "/ob/followsme/") && r.Method == http.MethodGet:
+		h.getFollowsMe(w, r, strings.TrimPrefix(path, "/ob/followsme/"))
+	case strings.HasPrefix(path, "/ob/isfollowing/") && r.Method == http.MethodGet:
+		h.getIsFollowing(w, r, strings.TrimPrefix(path, "/ob/isfollowing/"))
 	case path == "/ob/post" && r.Method == http.MethodPost:
 		h.addPost(w, r)
 	case path == "/ob/posts" && r.Method == http.MethodGet:
@@ -89,6 +105,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.getPost(w, r, strings.TrimPrefix(path, "/ob/post/"))
 	case strings.HasPrefix(path, "/ob/post/") && r.Method == http.MethodDelete:
 		h.deletePost(w, r, strings.TrimPrefix(path, "/ob/post/"))
+	case path == "/ob/chat" && r.Method == http.MethodPost:
+		h.sendChat(w, r)
+	case path == "/ob/chatmessages" && r.Method == http.MethodGet:
+		h.getChatMessages(w, r, "")
+	case strings.HasPrefix(path, "/ob/chatmessages/") && r.Method == http.MethodGet:
+		h.getChatMessages(w, r, strings.TrimPrefix(path, "/ob/chatmessages/"))
+	case path == "/ob/chatconversations" && r.Method == http.MethodGet:
+		h.getChatConversations(w, r)
+	case (path == "/ob/markchatasread" || strings.HasPrefix(path, "/ob/markchatasread/")) && r.Method == http.MethodPost:
+		h.markChatAsRead(w, r, strings.TrimPrefix(path, "/ob/markchatasread/"))
+	case strings.HasPrefix(path, "/ob/chatmessage/") && r.Method == http.MethodDelete:
+		h.deleteChatMessage(w, r, strings.TrimPrefix(path, "/ob/chatmessage/"))
+	case strings.HasPrefix(path, "/ob/chatconversation/") && r.Method == http.MethodDelete:
+		h.deleteChatConversation(w, r, strings.TrimPrefix(path, "/ob/chatconversation/"))
 	case path == "/ob/publish" && r.Method == http.MethodPost:
 		h.publish(w, r)
 	default:
@@ -215,7 +245,20 @@ func (h *Handler) follow(w http.ResponseWriter, r *http.Request, following bool)
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, h.commitAndPublish(r.Context()))
+	publication := h.commitAndPublish(r.Context())
+	delivery, err := h.direct.SendFollow(r.Context(), id, following)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	for key, value := range deliveryResponse(delivery) {
+		if key == "warning" {
+			publication["deliveryWarning"] = value
+			continue
+		}
+		publication[key] = value
+	}
+	writeJSON(w, http.StatusOK, publication)
 }
 
 func (h *Handler) getLocalFollowing(w http.ResponseWriter, r *http.Request) {
@@ -233,6 +276,41 @@ func (h *Handler) getRemoteFollowing(w http.ResponseWriter, r *http.Request, enc
 		return
 	}
 	writeJSON(w, http.StatusOK, state.Following)
+}
+
+func (h *Handler) getLocalFollowers(w http.ResponseWriter, r *http.Request) {
+	followers, err := h.store.LocalFollowers(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, followers)
+}
+
+func (h *Handler) getRemoteFollowers(w http.ResponseWriter, r *http.Request, encoded string) {
+	state, ok := h.fetchRemote(w, r, encoded)
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, state.Followers)
+}
+
+func (h *Handler) getFollowsMe(w http.ResponseWriter, r *http.Request, encoded string) {
+	followers, err := h.store.LocalFollowers(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"followsMe": slices.Contains(followers, encoded)})
+}
+
+func (h *Handler) getIsFollowing(w http.ResponseWriter, r *http.Request, encoded string) {
+	following, err := h.store.LocalFollowing(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"isFollowing": slices.Contains(following, encoded)})
 }
 
 func (h *Handler) addPost(w http.ResponseWriter, r *http.Request) {
@@ -327,6 +405,97 @@ func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"root": root.String(), "published": true})
 }
 
+func (h *Handler) sendChat(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		PeerID  string `json:"peerId"`
+		Subject string `json:"subject"`
+		Message string `json:"message"`
+	}
+	if !decodeBody(w, r, &request) {
+		return
+	}
+	recipient, err := peer.Decode(request.PeerID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	message, delivery, err := h.direct.SendChat(r.Context(), recipient, request.Subject, request.Message)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response := deliveryResponse(delivery)
+	response["messageId"] = message.MessageID
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) getChatMessages(w http.ResponseWriter, r *http.Request, peerID string) {
+	limit := -1
+	if encoded := r.URL.Query().Get("limit"); encoded != "" {
+		parsed, err := strconv.Atoi(encoded)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		limit = parsed
+	}
+	messages, err := h.direct.Messages(
+		r.Context(), peerID, r.URL.Query().Get("subject"), r.URL.Query().Get("offsetId"), limit,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, messages)
+}
+
+func (h *Handler) getChatConversations(w http.ResponseWriter, r *http.Request) {
+	conversations, err := h.direct.Conversations(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, conversations)
+}
+
+func (h *Handler) markChatAsRead(w http.ResponseWriter, r *http.Request, encoded string) {
+	if encoded == "" || encoded == "/ob/markchatasread" {
+		writeError(w, http.StatusBadRequest, "peer ID is required")
+		return
+	}
+	recipient, err := peer.Decode(encoded)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	delivery, err := h.direct.MarkAsRead(r.Context(), recipient, r.URL.Query().Get("subject"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, deliveryResponse(delivery))
+}
+
+func (h *Handler) deleteChatMessage(w http.ResponseWriter, r *http.Request, messageID string) {
+	if err := h.direct.DeleteMessage(r.Context(), messageID); err != nil {
+		if errors.Is(err, datastore.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "chat message not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{})
+}
+
+func (h *Handler) deleteChatConversation(w http.ResponseWriter, r *http.Request, peerID string) {
+	if err := h.direct.DeleteConversation(r.Context(), peerID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{})
+}
+
 func (h *Handler) fetchRemote(w http.ResponseWriter, r *http.Request, encoded string) (social.State, bool) {
 	id, err := peer.Decode(encoded)
 	if err != nil {
@@ -349,7 +518,12 @@ func (h *Handler) fetchRemote(w http.ResponseWriter, r *http.Request, encoded st
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return social.State{}, false
 		}
-		return social.State{Profile: profile, Posts: posts, Following: following}, true
+		followers, err := h.store.LocalFollowers(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return social.State{}, false
+		}
+		return social.State{Profile: profile, Posts: posts, Following: following, Followers: followers}, true
 	}
 	state, err := h.store.Fetch(r.Context(), id)
 	if err != nil {
@@ -390,6 +564,14 @@ func postSummaries(posts []social.SignedPost) []map[string]any {
 		delete(post, "vendorID")
 		post["hash"] = signed.CID
 		result = append(result, post)
+	}
+	return result
+}
+
+func deliveryResponse(delivery direct.Delivery) map[string]any {
+	result := map[string]any{"delivered": delivery.Delivered, "queued": delivery.Queued}
+	if delivery.Warning != "" {
+		result["warning"] = delivery.Warning
 	}
 	return result
 }

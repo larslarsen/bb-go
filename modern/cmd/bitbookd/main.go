@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/larslarsen/bb-go/modern/api"
+	"github.com/larslarsen/bb-go/modern/direct"
 	"github.com/larslarsen/bb-go/modern/network"
 	"github.com/larslarsen/bb-go/modern/social"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -85,7 +86,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	handler, err := api.NewHandler(node.Node, store)
+	directService, err := direct.NewService(node.Node, store)
+	if err != nil {
+		return err
+	}
+	defer directService.Close()
+	handler, err := api.NewHandler(node.Node, store, directService)
 	if err != nil {
 		return err
 	}
@@ -109,6 +115,7 @@ func run() error {
 	}
 
 	go republish(ctx, node.Node, store)
+	go retryPending(ctx, directService)
 	serverErrors := make(chan error, 1)
 	go func() {
 		serverErrors <- server.ListenAndServe()
@@ -123,6 +130,30 @@ func run() error {
 			return nil
 		}
 		return err
+	}
+}
+
+func retryPending(ctx context.Context, service *direct.Service) {
+	retry := func() {
+		retryCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+		defer cancel()
+		delivered, err := service.RetryPending(retryCtx)
+		if err != nil {
+			log.Printf("direct outbox retry failed: %v", err)
+		} else if delivered > 0 {
+			log.Printf("delivered %d queued direct messages", delivered)
+		}
+	}
+	retry()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			retry()
+		}
 	}
 }
 

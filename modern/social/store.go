@@ -29,6 +29,7 @@ var (
 	profileKey   = datastore.NewKey("/bitbook/social/profile")
 	postsKey     = datastore.NewKey("/bitbook/social/posts")
 	followingKey = datastore.NewKey("/bitbook/social/following")
+	followersKey = datastore.NewKey("/bitbook/social/followers")
 	rootKey      = datastore.NewKey("/bitbook/social/root")
 )
 
@@ -75,11 +76,16 @@ func (s *Store) SetProfile(ctx context.Context, raw json.RawMessage) (json.RawMe
 	if err != nil {
 		return nil, err
 	}
+	followerStates, err := s.loadFollowerStates(ctx)
+	if err != nil {
+		return nil, err
+	}
 	stats, _ := profile["stats"].(map[string]any)
 	if stats == nil {
 		stats = make(map[string]any)
 	}
 	stats["followingCount"] = len(following)
+	stats["followerCount"] = len(followerIDs(followerStates))
 	profile["stats"] = stats
 
 	normalized, err := json.Marshal(profile)
@@ -230,6 +236,45 @@ func (s *Store) LocalFollowing(ctx context.Context) ([]string, error) {
 	return slices.Clone(following), err
 }
 
+// ApplyFollower records the latest signed follow state received directly from
+// another peer. Older deliveries are ignored so an out-of-order retry cannot
+// undo a newer follow or unfollow.
+func (s *Store) ApplyFollower(ctx context.Context, id peer.ID, following bool, updatedAt time.Time) (bool, error) {
+	if id == s.node.ID() {
+		return false, errors.New("cannot follow self")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	states, err := s.loadFollowerStates(ctx)
+	if err != nil {
+		return false, err
+	}
+	encoded := id.String()
+	previous, exists := states[encoded]
+	if exists && !updatedAt.After(previous.UpdatedAt) {
+		return false, nil
+	}
+	states[encoded] = followerState{Following: following, UpdatedAt: updatedAt.UTC()}
+	if err := s.saveJSON(ctx, followersKey, states); err != nil {
+		return false, err
+	}
+	followers := followerIDs(states)
+	if err := s.updateProfileFollowerCount(ctx, len(followers)); err != nil {
+		return false, err
+	}
+	return !exists || previous.Following != following, nil
+}
+
+func (s *Store) LocalFollowers(ctx context.Context) ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	states, err := s.loadFollowerStates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return followerIDs(states), nil
+}
+
 // Commit writes the current sections and manifest as immutable blocks without
 // requiring network connectivity.
 func (s *Store) Commit(ctx context.Context) (cid.Cid, error) {
@@ -304,7 +349,17 @@ func (s *Store) Fetch(ctx context.Context, owner peer.ID) (State, error) {
 	if err := json.Unmarshal(followingBytes, &following); err != nil {
 		return State{}, fmt.Errorf("decoding following: %w", err)
 	}
-	return State{Manifest: manifest, Profile: profile, Posts: posts, Following: following}, nil
+	var followers []string
+	if manifest.Followers != "" {
+		followersBytes, err := s.fetchSection(ctx, manifest.Followers)
+		if err != nil {
+			return State{}, fmt.Errorf("fetching followers: %w", err)
+		}
+		if err := json.Unmarshal(followersBytes, &followers); err != nil {
+			return State{}, fmt.Errorf("decoding followers: %w", err)
+		}
+	}
+	return State{Manifest: manifest, Profile: profile, Posts: posts, Following: following, Followers: followers}, nil
 }
 
 func VerifyPost(author peer.ID, post SignedPost) error {
@@ -350,6 +405,14 @@ func (s *Store) commitLocked(ctx context.Context) (cid.Cid, error) {
 	if err != nil {
 		return cid.Undef, err
 	}
+	followerStates, err := s.loadFollowerStates(ctx)
+	if err != nil {
+		return cid.Undef, err
+	}
+	followersBytes, err := json.Marshal(followerIDs(followerStates))
+	if err != nil {
+		return cid.Undef, err
+	}
 	profileCID, err := s.node.Put(ctx, profile)
 	if err != nil {
 		return cid.Undef, err
@@ -362,9 +425,14 @@ func (s *Store) commitLocked(ctx context.Context) (cid.Cid, error) {
 	if err != nil {
 		return cid.Undef, err
 	}
+	followersCID, err := s.node.Put(ctx, followersBytes)
+	if err != nil {
+		return cid.Undef, err
+	}
 	manifest := Manifest{
 		Version: ManifestVersion, Author: s.node.ID().String(),
 		Profile: profileCID.String(), Posts: postsCID.String(), Following: followingCID.String(),
+		Followers: followersCID.String(),
 		UpdatedAt: s.now().UTC(),
 	}
 	manifestBytes, err := json.Marshal(manifest)
@@ -392,7 +460,7 @@ func (s *Store) fetchSection(ctx context.Context, encoded string) ([]byte, error
 func (s *Store) loadProfile(ctx context.Context) ([]byte, error) {
 	profile, err := s.node.Datastore.Get(ctx, profileKey)
 	if errors.Is(err, datastore.ErrNotFound) {
-		return []byte(fmt.Sprintf(`{"peerID":%q,"stats":{"followingCount":0}}`, s.node.ID())), nil
+		return []byte(fmt.Sprintf(`{"peerID":%q,"stats":{"followerCount":0,"followingCount":0}}`, s.node.ID())), nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("loading profile: %w", err)
@@ -416,6 +484,14 @@ func (s *Store) loadFollowing(ctx context.Context) ([]string, error) {
 	return following, nil
 }
 
+func (s *Store) loadFollowerStates(ctx context.Context) (map[string]followerState, error) {
+	states := make(map[string]followerState)
+	if err := s.loadJSON(ctx, followersKey, &states); err != nil {
+		return nil, err
+	}
+	return states, nil
+}
+
 func (s *Store) loadJSON(ctx context.Context, key datastore.Key, target any) error {
 	raw, err := s.node.Datastore.Get(ctx, key)
 	if errors.Is(err, datastore.ErrNotFound) {
@@ -436,6 +512,14 @@ func (s *Store) saveJSON(ctx context.Context, key datastore.Key, value any) erro
 }
 
 func (s *Store) updateProfileFollowingCount(ctx context.Context, count int) error {
+	return s.updateProfileCount(ctx, "followingCount", count)
+}
+
+func (s *Store) updateProfileFollowerCount(ctx context.Context, count int) error {
+	return s.updateProfileCount(ctx, "followerCount", count)
+}
+
+func (s *Store) updateProfileCount(ctx context.Context, name string, count int) error {
 	profile, err := s.loadProfile(ctx)
 	if err != nil {
 		return err
@@ -448,10 +532,21 @@ func (s *Store) updateProfileFollowingCount(ctx context.Context, count int) erro
 	if stats == nil {
 		stats = make(map[string]any)
 	}
-	stats["followingCount"] = count
+	stats[name] = count
 	decoded["stats"] = stats
 	decoded["lastModified"] = s.now().UTC().Format(time.RFC3339Nano)
 	return s.saveJSON(ctx, profileKey, decoded)
+}
+
+func followerIDs(states map[string]followerState) []string {
+	followers := make([]string, 0, len(states))
+	for id, state := range states {
+		if state.Following {
+			followers = append(followers, id)
+		}
+	}
+	sort.Strings(followers)
+	return followers
 }
 
 func validatePost(post map[string]any) error {

@@ -10,8 +10,10 @@ This module now contains:
 - Boxo Bitswap isolated at `/bitbook/ipfs/bitswap/1.2.0`;
 - persistent Ed25519 peer identities;
 - signed IPNS roots that preserve peer-ID-based social data discovery;
-- signed profiles, posts, and following lists backed by immutable blocks; and
-- a social-only `/ob` HTTP API and runnable `bitbookd`.
+- signed profiles, posts, and following lists backed by immutable blocks;
+- signed direct follows and chat at `/bitbook/direct/1.0.0`;
+- a durable outbox for peers that are temporarily offline; and
+- a social-only `/ob` HTTP/WebSocket API and runnable `bitbookd`.
 
 Build and run:
 
@@ -29,9 +31,11 @@ to TCP and QUIC port 4001. Identity and state live under
 private-address development network, add `-allow-private`.
 
 Implemented endpoints include config and peer status, local and remote
-profiles, signed posts, following lists, and explicit publication. Wallet and
-marketplace endpoints deliberately return 404. Followers and chat still need
-their direct peer protocols and are the next migration boundary.
+profiles, signed posts, following and follower lists, chat history,
+conversations, typing indicators, read receipts, and explicit publication.
+Live events use the historical desktop's `/ws` JSON shapes. Wallet and
+marketplace endpoints deliberately return 404. Group chat and media are not
+migrated yet.
 
 Run all modern tests independently of the legacy daemon:
 
@@ -44,3 +48,10 @@ supported prefix mechanism retains `/ipfs` within the protocol name. Using it
 lets BitBook stay on upstream Boxo rather than maintaining another fork. The
 legacy network has no maintained bootstrap service, so compatibility with the
 2018 Bitswap namespace would not provide a usable migration path.
+
+Direct messages use a separate generation-two protocol rather than accepting
+the legacy OpenBazaar message multiplexer. Each envelope is signed by its
+libp2p identity, bound to the authenticated stream peer and intended
+recipient, replay-checked, and size-limited. Chat and follow changes that
+cannot be delivered immediately are stored locally and retried once per
+minute.
