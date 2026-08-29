@@ -1,0 +1,22 @@
+name: Go 1.27
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.0
+          cache: false
+      - name: Compile all packages
+        run: ./scripts/go.sh test -vet=off ./... -run '^$' -count=1
+      - name: Test social runtime boundaries
+        run: ./scripts/go.sh test -vet=off ./api ./net/service ./net/retriever ./core ./cmd ./ipfs ./schema -run 'TestSocialOnly|^$' -count=1

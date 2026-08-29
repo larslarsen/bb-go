@@ -1,9 +1,7 @@
 # bb-go
-![banner](https://i.imgur.com/iOnXDXK.png)
 BitBook Server Daemon in Go
 
-[![Build Status](https://travis-ci.org/OpenBazaar/openbazaar-go.svg?branch=master)](https://travis-ci.org/OpenBazaar/openbazaar-go)
-[![Coverage Status](https://coveralls.io/repos/github/OpenBazaar/openbazaar-go/badge.svg?branch=master)](https://coveralls.io/github/OpenBazaar/openbazaar-go?branch=master)
+[![Go 1.27](https://github.com/larslarsen/bb-go/actions/workflows/go.yml/badge.svg)](https://github.com/larslarsen/bb-go/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/larslarsen/bb-go)](https://goreportcard.com/report/github.com/larslarsen/bb-go)
 
 This repository contains the BitBook peer-to-peer social daemon. It uses the mature networking, identity, content distribution, and wallet foundations from OpenBazaar while providing a social-only runtime that excludes marketplace behavior.
@@ -32,7 +30,15 @@ The easiest way to run the server is to download a pre-built binary. You can fin
 
 ### Build from Source
 
-To build from source you will need to have Go installed and properly configured. Detailed instructions for installing Go and openbazaar-go on each operating system can be found in the [docs package](https://github.com/larslarsen/bb-go/tree/master/docs).
+BitBook targets Go 1.27.0. Its embedded IPFS fork still uses the pre-module
+`gx` dependency layout, so use the included compatibility wrapper:
+
+```sh
+./scripts/go.sh build -o bitbookd ./bitbookd.go
+```
+
+See [Go modernization](docs/GO_MODERNIZATION.md) for the current compiler and
+module-migration status.
 
 ### Run via Docker image
 
@@ -44,7 +50,9 @@ docker run -it openbazaar/server:latest [OPTIONS] start [start-OPTIONS]
 
 ## Dependency Management
 
-We use [Godeps](https://github.com/tools/godep) with vendored third-party packages.
+The historical dependency graph is vendored with Godeps and `gx`. Modern Go
+compiler support is provided by `scripts/go.sh`; conversion to Go modules is
+coupled to replacing the embedded IPFS/libp2p stack.
 
 ### IPFS Dependency
 
@@ -56,17 +64,26 @@ You can either pull in remote changes as normal or run `go get -u github.com/lar
 
 ## Usage
 
-You can run the server with `go run bitbookd.go start`. Ensure you are using at least version `1.10` of Golang, otherwise you might get errors while running.
+Run the server with the Go 1.27 wrapper:
+
+```sh
+./scripts/go.sh run bitbookd.go start
+```
 
 ### Social-only mode
 
 Run the BitBook feature set with:
 
 ```
-go run bitbookd.go start --social-only
+./scripts/go.sh run bitbookd.go start --social-only
 ```
 
-This mode exposes profiles, follows, posts, media, chat, peer discovery, IPNS, and wallet routes. It rejects marketplace HTTP endpoints and peer messages, does not start order/dispute maintenance workers, and does not publish to historical OpenBazaar replication or search services. Add `--disablewallet` when no tipping or payment functionality is needed.
+This mode exposes profiles, follows, posts, media, chat, peer discovery, IPNS,
+and wallet routes. It rejects marketplace HTTP endpoints and peer messages,
+does not start order/dispute maintenance workers, and does not publish to
+historical OpenBazaar replication or search services. Add `--disablewallet`
+when no tipping or payment functionality is needed; disabled wallets are not
+constructed and make no blockchain or exchange-rate connections.
 
 ### Options
 

@@ -28,6 +28,7 @@ import (
 	ipfslogging "gx/ipfs/QmbkT7eMTyXfpeyB3ZMxxcxg7XH8t6uXp49jqzz4HB7BGF/go-log/writer"
 	manet "gx/ipfs/Qmc85NSvmSG4Frn9Vb2cBc1rMyULH6D3TNVEfCzSKoUpip/go-multiaddr-net"
 
+	"github.com/OpenBazaar/multiwallet"
 	wi "github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil/base58"
@@ -236,10 +237,13 @@ func (x *Start) Execute(args []string) error {
 		log.Error("scan republish interval config:", err)
 		return err
 	}
-	walletsConfig, err := schema.GetWalletsConfig(configFile)
-	if err != nil {
-		log.Error("scan wallets config:", err)
-		return err
+	var walletsConfig *schema.WalletsConfig
+	if !x.DisableWallet {
+		walletsConfig, err = schema.GetWalletsConfig(configFile)
+		if err != nil {
+			log.Error("scan wallets config:", err)
+			return err
+		}
 	}
 	ipnsExtraConfig, err := schema.GetIPNSExtraConfig(configFile)
 	if err != nil {
@@ -432,39 +436,43 @@ func (x *Start) Execute(args []string) error {
 		params = chaincfg.MainNetParams
 	}
 
-	// Multiwallet setup
-	var walletLogWriter io.Writer
-	if x.NoLogFiles {
-		walletLogWriter = &DummyWriter{}
-	} else {
-		walletLogWriter = &lumberjack.Logger{
-			Filename:   path.Join(repoPath, "logs", "wallet.log"),
-			MaxSize:    10, // Megabytes
-			MaxBackups: 3,
-			MaxAge:     30, // Days
-		}
-	}
-	walletLogFile := logging.NewLogBackend(walletLogWriter, "", 0)
-	walletFileFormatter := logging.NewBackendFormatter(walletLogFile, fileLogFormat)
-	walletLogger := logging.MultiLogger(walletFileFormatter)
-	multiwalletConfig := &wallet.WalletConfig{
-		ConfigFile:           walletsConfig,
-		DB:                   sqliteDB.DB(),
-		Params:               &params,
-		RepoPath:             repoPath,
-		Logger:               walletLogger,
-		Proxy:                torDialer,
-		WalletCreationDate:   creationDate,
-		Mnemonic:             mn,
-		DisableExchangeRates: x.DisableExchangeRates,
-	}
-	mw, err := wallet.NewMultiWallet(multiwalletConfig)
-	if err != nil {
-		return err
-	}
+	// Multiwallet setup. A disabled wallet stays completely uninitialized so a
+	// social-only node does not contact blockchain or exchange-rate services.
+	mw := make(multiwallet.MultiWallet)
 	var resyncManager *resync.ResyncManager
-	if !x.SocialOnly {
-		resyncManager = resync.NewResyncManager(sqliteDB.Sales(), sqliteDB.Purchases(), mw)
+	if !x.DisableWallet {
+		var walletLogWriter io.Writer
+		if x.NoLogFiles {
+			walletLogWriter = &DummyWriter{}
+		} else {
+			walletLogWriter = &lumberjack.Logger{
+				Filename:   path.Join(repoPath, "logs", "wallet.log"),
+				MaxSize:    10, // Megabytes
+				MaxBackups: 3,
+				MaxAge:     30, // Days
+			}
+		}
+		walletLogFile := logging.NewLogBackend(walletLogWriter, "", 0)
+		walletFileFormatter := logging.NewBackendFormatter(walletLogFile, fileLogFormat)
+		walletLogger := logging.MultiLogger(walletFileFormatter)
+		multiwalletConfig := &wallet.WalletConfig{
+			ConfigFile:           walletsConfig,
+			DB:                   sqliteDB.DB(),
+			Params:               &params,
+			RepoPath:             repoPath,
+			Logger:               walletLogger,
+			Proxy:                torDialer,
+			WalletCreationDate:   creationDate,
+			Mnemonic:             mn,
+			DisableExchangeRates: x.DisableExchangeRates,
+		}
+		mw, err = wallet.NewMultiWallet(multiwalletConfig)
+		if err != nil {
+			return err
+		}
+		if !x.SocialOnly {
+			resyncManager = resync.NewResyncManager(sqliteDB.Sales(), sqliteDB.Purchases(), mw)
+		}
 	}
 
 	// Master key setup
@@ -598,10 +606,13 @@ func (x *Start) Execute(args []string) error {
 	}
 	core.Node.PublishLock.Lock()
 
-	// assert reserve wallet is available on startup for later usage
-	_, err = core.Node.ReserveCurrencyConverter()
-	if err != nil {
-		return fmt.Errorf("verifying reserve currency converter: %s", err.Error())
+	// Assert a reserve wallet is available only when wallet functionality is
+	// enabled. Social nodes without tipping have no currency conversion needs.
+	if !x.DisableWallet {
+		_, err = core.Node.ReserveCurrencyConverter()
+		if err != nil {
+			return fmt.Errorf("verifying reserve currency converter: %s", err.Error())
+		}
 	}
 
 	// Offline messaging storage
@@ -943,34 +954,18 @@ func InitializeRepo(dataDir, password, mnemonic string, testnet bool, creationDa
 func printSplashScreen(verbose bool) {
 	blue := color.New(color.FgBlue)
 	white := color.New(color.FgWhite)
-
-	for i, l := range []string{
-		"________             ",
-		"         __________",
-		`\_____  \ ______   ____   ____`,
-		`\______   \_____  _____________  _____ _______`,
-		` /   |   \\____ \_/ __ \ /    \`,
-		`|    |  _/\__  \ \___   /\__  \ \__  \\_  __ \ `,
-		`/    |    \  |_> >  ___/|   |  \    `,
-		`|   \ / __ \_/    /  / __ \_/ __ \|  | \/`,
-		`\_______  /   __/ \___  >___|  /`,
-		`______  /(____  /_____ \(____  (____  /__|`,
-		`        \/|__|        \/     \/  `,
-		`     \/      \/      \/     \/     \/`,
-	} {
-		if i%2 == 0 {
-			if _, err := white.Printf(l); err != nil {
-				log.Debug(err)
-				return
-			}
-			continue
-		}
-		if _, err := blue.Println(l); err != nil {
-			log.Debug(err)
-			return
-		}
-	}
-
+	white.Printf("__________.__  __")
+	blue.Println(" __________               __    ")
+	white.Printf(`\______   \__|/  |`)
+	blue.Println(`\______   \ ____   ____ |  | __`)
+	white.Printf(` |    |  _/  \   __`)
+	blue.Println(`\    |  _//  _ \ /  _ \|  |/ /`)
+	white.Printf(` |    |   \  ||  |`)
+	blue.Println(` |    |   (  <_> |  <_> )    < `)
+	white.Printf(` |______  /__||__|`)
+	blue.Println(` |______  /\____/ \____/|__|_ \`)
+	white.Printf(`        \/`)
+	blue.Println(`                \/                   \/`)
 	blue.DisableColor()
 	white.DisableColor()
 	fmt.Println("")
