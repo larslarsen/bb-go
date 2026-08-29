@@ -1,28 +1,48 @@
-package db
+package db_test
 
 import (
-	"database/sql"
+	"math/big"
 	"sync"
 	"testing"
+
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/repo/db"
+	"github.com/larslarsen/bb-go/schema"
 )
 
-var ivdb InventoryDB
-
-func init() {
-	conn, _ := sql.Open("sqlite3", ":memory:")
-	initDatabaseTables(conn, "")
-	ivdb = InventoryDB{
-		db:   conn,
-		lock: new(sync.Mutex),
+func buildNewInventoryStore() (repo.InventoryStore, func(), error) {
+	appSchema := schema.MustNewCustomSchemaManager(schema.SchemaContext{
+		DataPath:        schema.GenerateTempPath(),
+		TestModeEnabled: true,
+	})
+	if err := appSchema.BuildSchemaDirectories(); err != nil {
+		return nil, nil, err
 	}
+	if err := appSchema.InitializeDatabase(); err != nil {
+		return nil, nil, err
+	}
+	database, err := appSchema.OpenDatabase()
+	if err != nil {
+		return nil, nil, err
+	}
+	return db.NewInventoryStore(database, new(sync.Mutex)), appSchema.DestroySchemaDirectories, nil
 }
 
 func TestPutInventory(t *testing.T) {
-	err := ivdb.Put("slug", 0, 5)
+	ivdb, teardown, err := buildNewInventoryStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = ivdb.Put("slug", 0, big.NewInt(5))
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, err := ivdb.db.Prepare("select slug, variantIndex, count from inventory where slug=?")
+	stmt, err := ivdb.PrepareQuery("select slug, variantIndex, count from inventory where slug=?")
+	if err != nil {
+		t.Error(err)
+	}
 	defer stmt.Close()
 	var slug string
 	var variant int
@@ -43,62 +63,119 @@ func TestPutInventory(t *testing.T) {
 }
 
 func TestPutReplaceInventory(t *testing.T) {
-	ivdb.Put("slug", 0, 6)
-	err := ivdb.Put("slug", 0, 5)
+	ivdb, teardown, err := buildNewInventoryStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = ivdb.Put("slug", 0, big.NewInt(6))
+	if err != nil {
+		t.Log(err)
+	}
+	err = ivdb.Put("slug", 0, big.NewInt(5))
 	if err != nil {
 		t.Error("Error replacing inventory value")
 	}
 }
 
 func TestGetSpecificInventory(t *testing.T) {
-	ivdb.Put("slug", 0, 5)
+	ivdb, teardown, err := buildNewInventoryStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = ivdb.Put("slug", 0, big.NewInt(5))
+	if err != nil {
+		t.Log(err)
+	}
 	count, err := ivdb.GetSpecific("slug", 0)
-	if err != nil || count != 5 {
+	if err != nil || count.Cmp(big.NewInt(5)) != 0 {
 		t.Error("Error in inventory get")
 	}
-	count, err = ivdb.GetSpecific("xyz", 0)
+	_, err = ivdb.GetSpecific("xyz", 0)
 	if err == nil {
 		t.Error("Error in inventory get")
 	}
 }
 
 func TestDeleteInventory(t *testing.T) {
-	ivdb.Put("slug", 0, 5)
-	err := ivdb.Delete("slug", 0)
+	ivdb, teardown, err := buildNewInventoryStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = ivdb.Put("slug", 0, big.NewInt(5))
+	if err != nil {
+		t.Log(err)
+	}
+	err = ivdb.Delete("slug", 0)
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, _ := ivdb.db.Prepare("select slug from inventory where slug=?")
+	stmt, _ := ivdb.PrepareQuery("select slug from inventory where slug=?")
 	defer stmt.Close()
 	var slug string
-	stmt.QueryRow("inventory").Scan(&slug)
+	err = stmt.QueryRow("inventory").Scan(&slug)
+	if err != nil {
+		t.Log(err)
+	}
 	if slug != "" {
 		t.Error("Failed to delete inventory")
 	}
 }
 
 func TestDeleteAllInventory(t *testing.T) {
-	ivdb.Put("slug", 0, 5)
-	ivdb.Put("slug", 1, 10)
-	err := ivdb.DeleteAll("slug")
+	ivdb, teardown, err := buildNewInventoryStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = ivdb.Put("slug", 0, big.NewInt(5))
+	if err != nil {
+		t.Log(err)
+	}
+	err = ivdb.Put("slug", 1, big.NewInt(10))
+	if err != nil {
+		t.Log(err)
+	}
+	err = ivdb.DeleteAll("slug")
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, _ := ivdb.db.Prepare("select slug from inventory where slug=?")
+	stmt, _ := ivdb.PrepareQuery("select slug from inventory where slug=?")
 	defer stmt.Close()
 	var slug string
-	stmt.QueryRow("slug").Scan(&slug)
+	err = stmt.QueryRow("slug").Scan(&slug)
+	if err != nil {
+		t.Log(err)
+	}
 	if slug != "" {
 		t.Error("Failed to delete inventory")
 	}
 }
 
 func TestGetAllInventory(t *testing.T) {
+	ivdb, teardown, err := buildNewInventoryStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
 	for i := 0; i < 100; i++ {
-		ivdb.Put("slug1", i, i)
+		err = ivdb.Put("slug1", i, big.NewInt(int64(i)))
+		if err != nil {
+			t.Log(err)
+		}
 	}
 	for i := 0; i < 100; i++ {
-		ivdb.Put("slug2", i, i)
+		err = ivdb.Put("slug2", i, big.NewInt(int64(i)))
+		if err != nil {
+			t.Log(err)
+		}
 	}
 	inventory, err := ivdb.GetAll()
 	if err != nil {
@@ -116,8 +193,17 @@ func TestGetAllInventory(t *testing.T) {
 }
 
 func TestGetInventory(t *testing.T) {
+	ivdb, teardown, err := buildNewInventoryStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
 	for i := 0; i < 100; i++ {
-		ivdb.Put("slug", i, i)
+		err = ivdb.Put("slug", i, big.NewInt(int64(i)))
+		if err != nil {
+			t.Log(err)
+		}
 	}
 	inventory, err := ivdb.Get("slug")
 	if err != nil {

@@ -1,10 +1,11 @@
 package coreunix
 
 import (
+	dag "gx/ipfs/QmPJNbVw8o3ohC43ppSXyNXwYKsWShG4zygnirHptfbHri/go-merkledag"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	ft "gx/ipfs/QmcYUTQ7tBZeH1CLsZM2S3xhMEZdvUgXvbjhpMsLDpk3oJ/go-unixfs"
+
 	core "github.com/ipfs/go-ipfs/core"
-	dag "github.com/ipfs/go-ipfs/merkledag"
-	ft "github.com/ipfs/go-ipfs/unixfs"
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
 )
 
 func AddMetadataTo(n *core.IpfsNode, skey string, m *ft.Metadata) (string, error) {
@@ -25,16 +26,16 @@ func AddMetadataTo(n *core.IpfsNode, skey string, m *ft.Metadata) (string, error
 	}
 
 	mdnode.SetData(mdata)
-	if err := mdnode.AddNodeLinkClean("file", nd); err != nil {
+	if err := mdnode.AddNodeLink("file", nd); err != nil {
 		return "", err
 	}
 
-	nk, err := n.DAG.Add(mdnode)
+	err = n.DAG.Add(n.Context(), mdnode)
 	if err != nil {
 		return "", err
 	}
 
-	return nk.String(), nil
+	return mdnode.Cid().String(), nil
 }
 
 func Metadata(n *core.IpfsNode, skey string) (*ft.Metadata, error) {

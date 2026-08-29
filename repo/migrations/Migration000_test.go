@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var testConfig string = `{
+var testConfig = `{
     "Wallet": {
 	    "Binary": "",
 	    "FeeAPI": "https://bitcoinfees.21.co/api/v1/fees/recommended",
@@ -27,9 +27,12 @@ func TestMigration000(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f.Write([]byte(testConfig))
+	_, err = f.Write([]byte(testConfig))
+	if err != nil {
+		t.Error(err)
+	}
 	f.Close()
-	var m migration000
+	var m Migration000
 
 	// Up
 	err = m.Up("./", "", false)

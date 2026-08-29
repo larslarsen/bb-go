@@ -34,30 +34,21 @@ import (
 	"time"
 
 	context "context"
-	path "github.com/ipfs/go-ipfs/path"
-	ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
-)
 
-const (
-	// DefaultDepthLimit is the default depth limit used by Resolve.
-	DefaultDepthLimit = 32
-
-	// UnlimitedDepth allows infinite recursion in ResolveN.  You
-	// probably don't want to use this, but it's here if you absolutely
-	// trust resolution to eventually complete and can't put an upper
-	// limit on how many steps it will take.
-	UnlimitedDepth = 0
+	path "gx/ipfs/QmQAgv6Gaoe2tQpcabqwKXKChp2MZ7i3UXv9DqTTaxCaTR/go-path"
+	ci "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	opts "gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core/options/namesys"
 )
 
 // ErrResolveFailed signals an error when attempting to resolve.
-var ErrResolveFailed = errors.New("Could not resolve name.")
+var ErrResolveFailed = errors.New("could not resolve name")
 
 // ErrResolveRecursion signals a recursion-depth limit.
 var ErrResolveRecursion = errors.New(
-	"Could not resolve name (recursion limit exceeded).")
+	"could not resolve name (recursion limit exceeded)")
 
 // ErrPublishFailed signals an error when attempting to publish.
-var ErrPublishFailed = errors.New("Could not publish name.")
+var ErrPublishFailed = errors.New("could not publish name")
 
 // Namesys represents a cohesive name publishing and resolving system.
 //
@@ -69,6 +60,12 @@ var ErrPublishFailed = errors.New("Could not publish name.")
 type NameSystem interface {
 	Resolver
 	Publisher
+}
+
+// Result is the return type for Resolver.ResolveAsync.
+type Result struct {
+	Path path.Path
+	Err  error
 }
 
 // Resolver is an object capable of resolving names.
@@ -87,17 +84,13 @@ type Resolver interface {
 	//
 	// There is a default depth-limit to avoid infinite recursion.  Most
 	// users will be fine with this default limit, but if you need to
-	// adjust the limit you can use ResolveN.
-	Resolve(ctx context.Context, name string) (value path.Path, err error)
+	// adjust the limit you can specify it as an option.
+	Resolve(ctx context.Context, name string, options ...opts.ResolveOpt) (value path.Path, err error)
 
-	// ResolveN performs a recursive lookup, returning the dereferenced
-	// path.  The only difference from Resolve is that the depth limit
-	// is configurable.  You can use DefaultDepthLimit, UnlimitedDepth,
-	// or a depth limit of your own choosing.
-	//
-	// Most users should use Resolve, since the default limit works well
-	// in most real-world situations.
-	ResolveN(ctx context.Context, name string, depth int) (value path.Path, err error)
+	// ResolveAsync performs recursive name lookup, like Resolve, but it returns
+	// entries as they are discovered in the DHT. Each returned result is guaranteed
+	// to be "better" (which usually means newer) than the previous one.
+	ResolveAsync(ctx context.Context, name string, options ...opts.ResolveOpt) <-chan Result
 }
 
 // Publisher is an object capable of publishing particular names.

@@ -1,34 +1,46 @@
 package repo
 
 import (
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
+	"database/sql"
+	"math/big"
 
-	notif "github.com/larslarsen/bb-go/api/notifications"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	"time"
+
 	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/larslarsen/bb-go/pb"
 	"github.com/OpenBazaar/wallet-interface"
 	btc "github.com/btcsuite/btcutil"
-	"time"
 )
 
 type Datastore interface {
 	Config() Config
-	Followers() Followers
-	Following() Following
-	OfflineMessages() OfflineMessages
-	Pointers() Pointers
-	Settings() Settings
-	Inventory() Inventory
-	Purchases() Purchases
-	Sales() Sales
-	Cases() Cases
-	Chat() Chat
-	Notifications() Notifications
-	Coupons() Coupons
-	TxMetadata() TxMetadata
-	ModeratedStores() ModeratedStores
+	Followers() FollowerStore
+	Following() FollowingStore
+	OfflineMessages() OfflineMessageStore
+	Pointers() PointerStore
+	Settings() ConfigurationStore
+	Inventory() InventoryStore
+	Purchases() PurchaseStore
+	Sales() SaleStore
+	Cases() CaseStore
+	Chat() ChatStore
+	Notifications() NotificationStore
+	Coupons() CouponStore
+	TxMetadata() TransactionMetadataStore
+	ModeratedStores() ModeratedStore
+	Messages() MessageStore
 	Ping() error
 	Close()
+}
+
+type Queryable interface {
+	Lock()
+	Unlock()
+	BeginTransaction() (*sql.Tx, error)
+	PrepareQuery(string) (*sql.Stmt, error)
+	PrepareAndExecuteQuery(string, ...interface{}) (*sql.Rows, error)
+	ExecuteQuery(string, ...interface{}) (sql.Result, error)
 }
 
 type Config interface {
@@ -49,7 +61,9 @@ type Config interface {
 	IsEncrypted() bool
 }
 
-type Followers interface {
+type FollowerStore interface {
+	Queryable
+
 	// Put a B58 encoded follower ID and proof to the database
 	Put(follower string, proof []byte) error
 
@@ -67,7 +81,9 @@ type Followers interface {
 	FollowsMe(peerId string) bool
 }
 
-type Following interface {
+type FollowingStore interface {
+	Queryable
+
 	// Put a B58 encoded peer ID to the database
 	Put(peer string) error
 
@@ -85,7 +101,9 @@ type Following interface {
 	IsFollowing(peerId string) bool
 }
 
-type OfflineMessages interface {
+type OfflineMessageStore interface {
+	Queryable
+
 	// Put a URL from a retrieved message
 	Put(url string) error
 
@@ -102,7 +120,9 @@ type OfflineMessages interface {
 	DeleteMessage(url string) error
 }
 
-type Pointers interface {
+type PointerStore interface {
+	Queryable
+
 	// Put a pointer to the database
 	Put(p ipfs.Pointer) error
 
@@ -122,7 +142,9 @@ type Pointers interface {
 	GetAll() ([]ipfs.Pointer, error)
 }
 
-type Settings interface {
+type ConfigurationStore interface {
+	Queryable
+
 	// Put settings to the database, overriding all fields
 	Put(settings SettingsData) error
 
@@ -136,19 +158,21 @@ type Settings interface {
 	Delete() error
 }
 
-type Inventory interface {
+type InventoryStore interface {
+	Queryable
+
 	/* Put an inventory count for a listing
 	   Override the existing count if it exists */
-	Put(slug string, variantIndex int, count int) error
+	Put(slug string, variantIndex int, count *big.Int) error
 
 	// Return the count for a specific listing including variants
-	GetSpecific(slug string, variantIndex int) (int, error)
+	GetSpecific(slug string, variantIndex int) (*big.Int, error)
 
 	// Get the count for all variants of a given listing
-	Get(slug string) (map[int]int, error)
+	Get(slug string) (map[int]*big.Int, error)
 
 	// Fetch all inventory maps for each slug
-	GetAll() (map[string]map[int]int, error)
+	GetAll() (map[string]map[int]*big.Int, error)
 
 	// Delete a listing and related count
 	Delete(slug string, variant int) error
@@ -157,7 +181,9 @@ type Inventory interface {
 	DeleteAll(slug string) error
 }
 
-type Purchases interface {
+type PurchaseStore interface {
+	Queryable
+
 	// Save or update an order
 	Put(orderID string, contract pb.RicardianContract, state pb.OrderState, read bool) error
 
@@ -177,16 +203,35 @@ type Purchases interface {
 	GetByPaymentAddress(addr btc.Address) (contract *pb.RicardianContract, state pb.OrderState, funded bool, records []*wallet.TransactionRecord, err error)
 
 	// Return a purchase given the order ID
-	GetByOrderId(orderId string) (contract *pb.RicardianContract, state pb.OrderState, funded bool, records []*wallet.TransactionRecord, read bool, err error)
+	GetByOrderId(orderId string) (contract *pb.RicardianContract, state pb.OrderState, funded bool, records []*wallet.TransactionRecord, read bool, currencyCode *CurrencyCode, err error)
 
 	// Return the metadata for all purchases. Also returns the original size of the query.
 	GetAll(stateFilter []pb.OrderState, searchTerm string, sortByAscending bool, sortByRead bool, limit int, exclude []string) ([]Purchase, int, error)
 
+	// Return unfunded orders.
+	GetUnfunded() ([]UnfundedOrder, error)
+
 	// Return the number of purchases in the database
 	Count() int
+
+	// GetPurchasesForDisputeTimeoutNotification returns []*PurchaseRecord including
+	// each record which needs buyerDisputeTimeout Notifications to be generated.
+	GetPurchasesForDisputeTimeoutNotification() ([]*PurchaseRecord, error)
+
+	// GetPurchasesForDisputeExpiryNotification returns []*PurchaseRecord including
+	// each record which needs buyerDisputeExpiry Notifications to be generated.
+	GetPurchasesForDisputeExpiryNotification() ([]*PurchaseRecord, error)
+
+	// UpdatePurchasesLastDisputeTimeoutNotifiedAt  accepts []*PurchaseRecord and updates each records lastDisputeTimeoutNotifiedAt by its OrderID
+	UpdatePurchasesLastDisputeTimeoutNotifiedAt([]*PurchaseRecord) error
+
+	// UpdatePurchasesLastDisputeExpiryNotifiedAt  accepts []*PurchaseRecord and updates each records lastDisputeExpiryNotifiedAt by its OrderID
+	UpdatePurchasesLastDisputeExpiryNotifiedAt([]*PurchaseRecord) error
 }
 
-type Sales interface {
+type SaleStore interface {
+	Queryable
+
 	// Save or update a sale
 	Put(orderID string, contract pb.RicardianContract, state pb.OrderState, read bool) error
 
@@ -206,24 +251,33 @@ type Sales interface {
 	GetByPaymentAddress(addr btc.Address) (contract *pb.RicardianContract, state pb.OrderState, funded bool, records []*wallet.TransactionRecord, err error)
 
 	// Return a sale given the order ID
-	GetByOrderId(orderId string) (contract *pb.RicardianContract, state pb.OrderState, funded bool, records []*wallet.TransactionRecord, read bool, err error)
+	GetByOrderId(orderId string) (contract *pb.RicardianContract, state pb.OrderState, funded bool, records []*wallet.TransactionRecord, read bool, currencyCode *CurrencyCode, err error)
 
 	// Return the metadata for all sales. Also returns the original size of the query.
 	GetAll(stateFilter []pb.OrderState, searchTerm string, sortByAscending bool, sortByRead bool, limit int, exclude []string) ([]Sale, int, error)
 
-	// Return unfunded orders which failed to detect funding because the chain was synced passed the block containing the transaction when the order was recorded.
-	GetNeedsResync() ([]UnfundedSale, error)
-
-	// Set whether the given order needs a blockchain resync
-	SetNeedsResync(orderID string, needsResync bool) error
+	// Return unfunded orders.
+	GetUnfunded() ([]UnfundedOrder, error)
 
 	// Return the number of sales in the database
 	Count() int
+
+	// GetSalesForDisputeTimeoutNotification returns []*SaleRecord including
+	// each record which needs Notifications to be generated.
+	GetSalesForDisputeTimeoutNotification() ([]*SaleRecord, error)
+
+	// UpdateSalesLastDisputeTimeoutNotifiedAt  accepts []*SaleRecord and updates each records lastDisputeTimeoutNotifiedAt by its CaseID
+	UpdateSalesLastDisputeTimeoutNotifiedAt([]*SaleRecord) error
 }
 
-type Cases interface {
+type CaseStore interface {
+	Queryable
+
 	// Save a new case
-	Put(caseID string, state pb.OrderState, buyerOpened bool, claim string) error
+	Put(caseID string, state pb.OrderState, buyerOpened bool, claim string, paymentCoin string, coinType string) error
+
+	// Save a new case
+	PutRecord(*DisputeCaseRecord) error
 
 	// Update a case with the buyer info
 	UpdateBuyerInfo(caseID string, buyerContract *pb.RicardianContract, buyerValidationErrors []string, buyerPayoutAddress string, buyerOutpoints []*pb.Outpoint) error
@@ -246,17 +300,25 @@ type Cases interface {
 	// Return the case metadata given a case ID
 	GetCaseMetadata(caseID string) (buyerContract, vendorContract *pb.RicardianContract, buyerValidationErrors, vendorValidationErrors []string, state pb.OrderState, read bool, timestamp time.Time, buyerOpened bool, claim string, resolution *pb.DisputeResolution, err error)
 
-	// Return the dispute payout data for a case
-	GetPayoutDetails(caseID string) (buyerContract, vendorContract *pb.RicardianContract, buyerPayoutAddress, vendorPayoutAddress string, buyerOutpoints, vendorOutpoints []*pb.Outpoint, state pb.OrderState, err error)
+	// GetByCaseID returns the dispute payout data for a case
+	GetByCaseID(caseID string) (*DisputeCaseRecord, error)
 
 	// Return the metadata for all cases given the search terms. Also returns the original size of the query.
 	GetAll(stateFilter []pb.OrderState, searchTerm string, sortByAscending bool, sortByRead bool, limit int, exclude []string) ([]Case, int, error)
 
 	// Return the number of cases in the database
 	Count() int
+
+	// GetDisputesForDisputeExpiryNotification returns []*DisputeCaseRecord including
+	// each record which needs Notifications to be generated.
+	GetDisputesForDisputeExpiryNotification() ([]*DisputeCaseRecord, error)
+
+	// UpdateDisputesLastDisputeExpiryNotifiedAt accepts []*DisputeCaseRecord and updates each records lastDisputeExpiryNotifiedAt by its CaseID
+	UpdateDisputesLastDisputeExpiryNotifiedAt([]*DisputeCaseRecord) error
 }
 
-type Chat interface {
+type ChatStore interface {
+	Queryable
 
 	// Put a new chat message to the database
 	Put(messageId string, peerId string, subject string, message string, timestamp time.Time, read bool, outgoing bool) error
@@ -282,10 +344,11 @@ type Chat interface {
 	DeleteConversation(peerID string) error
 }
 
-type Notifications interface {
+type NotificationStore interface {
+	Queryable
 
-	// Put a new notification to the database
-	Put(notifID string, notification notif.Data, notifType string, timestamp time.Time) error
+	// PutRecord persists a Notification to the database
+	PutRecord(*Notification) error
 
 	// Mark notification as read
 	MarkAsRead(notifID string) error
@@ -294,7 +357,7 @@ type Notifications interface {
 	MarkAllAsRead() error
 
 	// Fetch notifications from database
-	GetAll(offsetID string, limit int, typeFilter []string) ([]notif.Notification, int, error)
+	GetAll(offsetID string, limit int, typeFilter []string) ([]*Notification, int, error)
 
 	// Returns the unread count for all notifications
 	GetUnreadCount() (int, error)
@@ -303,7 +366,8 @@ type Notifications interface {
 	Delete(notifID string) error
 }
 
-type Coupons interface {
+type CouponStore interface {
+	Queryable
 
 	// Put a list of coupons to the db
 	Put(coupons []Coupon) error
@@ -315,7 +379,8 @@ type Coupons interface {
 	Delete(slug string) error
 }
 
-type TxMetadata interface {
+type TransactionMetadataStore interface {
+	Queryable
 
 	// Put metadata for a transaction to the db
 	Put(m Metadata) error
@@ -330,7 +395,9 @@ type TxMetadata interface {
 	Delete(txid string) error
 }
 
-type ModeratedStores interface {
+type ModeratedStore interface {
+	Queryable
+
 	// Put a B58 encoded peer ID to the database
 	Put(peerId string) error
 
@@ -340,4 +407,47 @@ type ModeratedStores interface {
 
 	// Delete a moderated store from the database
 	Delete(peerId string) error
+}
+
+type KeyStore interface {
+	Queryable
+	wallet.Keys
+}
+
+type SpentTransactionOutputStore interface {
+	Queryable
+	wallet.Stxos
+}
+
+type TransactionStore interface {
+	Queryable
+	wallet.Txns
+}
+
+type UnspentTransactionOutputStore interface {
+	Queryable
+	wallet.Utxos
+}
+
+type WatchedScriptStore interface {
+	Queryable
+	wallet.WatchedScripts
+}
+
+// MessageStore is the messages table interface
+type MessageStore interface {
+	Queryable
+
+	// Save a new message
+	Put(messageID, orderID string, mType pb.Message_MessageType, peerID string, msg Message, err string, receivedAt int64, pubkey []byte) error
+
+	// GetByOrderIDType returns the message for specified order and type
+	GetByOrderIDType(orderID string, mType pb.Message_MessageType) (*Message, string, error)
+
+	// GetAllErrored returns the all messages with error
+	GetAllErrored() ([]OrderMessage, error)
+
+	// MarkAsResolved sets the message as resolved and will no longer return
+	// with GetAllErrored
+	MarkAsResolved(OrderMessage) error
 }

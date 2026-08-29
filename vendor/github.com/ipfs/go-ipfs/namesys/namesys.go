@@ -5,12 +5,15 @@ import (
 	"strings"
 	"time"
 
-	path "github.com/ipfs/go-ipfs/path"
-
-	routing "gx/ipfs/QmPR2JzfKd9poHx9XBhzoFeBBC31ZM3W5iUPKJZWyaoZZm/go-libp2p-routing"
-	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
-	ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
+	path "gx/ipfs/QmQAgv6Gaoe2tQpcabqwKXKChp2MZ7i3UXv9DqTTaxCaTR/go-path"
+	lru "gx/ipfs/QmQjMHF8ptRgx4E57UFMiT4YM6kqaJeYxZ1MCDX23aw4rK/golang-lru"
+	ci "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	ds "gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
+	opts "gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core/options/namesys"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	routing "gx/ipfs/QmYxUdYY9S6yg5tSPVin5GFTvtfsLauVcr7reHDD3dM8xf/go-libp2p-routing"
+	isd "gx/ipfs/QmZmmuAXgX73UQmX1jRKjTGmjzq24Jinqkq8vzkBtno4uX/go-is-domain"
+	mh "gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
 )
 
 // mpns (a multi-protocol NameSystem) implements generic IPFS naming.
@@ -23,36 +26,32 @@ import (
 // It can only publish to: (a) IPFS routing naming.
 //
 type mpns struct {
-	resolvers  map[string]resolver
-	publishers map[string]Publisher
+	dnsResolver, proquintResolver, ipnsResolver resolver
+	ipnsPublisher                               Publisher
+
+	cache *lru.Cache
 }
 
 // NewNameSystem will construct the IPFS naming system based on Routing
-func NewNameSystem(r routing.ValueStore, ds ds.Datastore, cachesize int, dnsResolver Resolver) NameSystem {
-	m := &mpns{
-		resolvers: map[string]resolver{
-			"proquint": new(ProquintResolver),
-			"dht":      NewRoutingResolver(r, cachesize, ds),
-		},
-		publishers: map[string]Publisher{
-			"/ipns/": NewRoutingPublisher(r, ds),
-		},
+func NewNameSystem(r routing.ValueStore, ds ds.Datastore, cachesize int) NameSystem {
+	var cache *lru.Cache
+	if cachesize > 0 {
+		cache, _ = lru.New(cachesize)
 	}
-	if dnsResolver != nil {
-		m.resolvers["dns"] = dnsResolver.(*DNSResolver)
+
+	return &mpns{
+		dnsResolver:      NewDNSResolver(),
+		proquintResolver: new(ProquintResolver),
+		ipnsResolver:     NewIpnsResolver(r),
+		ipnsPublisher:    NewIpnsPublisher(r, ds),
+		cache:            cache,
 	}
-	return m
 }
 
 const DefaultResolverCacheTTL = time.Minute
 
 // Resolve implements Resolver.
-func (ns *mpns) Resolve(ctx context.Context, name string) (path.Path, error) {
-	return ns.ResolveN(ctx, name, DefaultDepthLimit)
-}
-
-// ResolveN implements Resolver.
-func (ns *mpns) ResolveN(ctx context.Context, name string, depth int) (path.Path, error) {
+func (ns *mpns) Resolve(ctx context.Context, name string, options ...opts.ResolveOpt) (path.Path, error) {
 	if strings.HasPrefix(name, "/ipfs/") {
 		return path.ParsePath(name)
 	}
@@ -61,83 +60,132 @@ func (ns *mpns) ResolveN(ctx context.Context, name string, depth int) (path.Path
 		return path.ParsePath("/ipfs/" + name)
 	}
 
-	return resolve(ctx, ns, name, depth, "/ipns/")
+	return resolve(ctx, ns, name, opts.ProcessOpts(options))
+}
+
+func (ns *mpns) ResolveAsync(ctx context.Context, name string, options ...opts.ResolveOpt) <-chan Result {
+	res := make(chan Result, 1)
+	if strings.HasPrefix(name, "/ipfs/") {
+		p, err := path.ParsePath(name)
+		res <- Result{p, err}
+		return res
+	}
+
+	if !strings.HasPrefix(name, "/") {
+		p, err := path.ParsePath("/ipfs/" + name)
+		res <- Result{p, err}
+		return res
+	}
+
+	return resolveAsync(ctx, ns, name, opts.ProcessOpts(options))
 }
 
 // resolveOnce implements resolver.
-func (ns *mpns) resolveOnce(ctx context.Context, name string) (path.Path, error) {
-	if !strings.HasPrefix(name, "/ipns/") {
-		name = "/ipns/" + name
+func (ns *mpns) resolveOnceAsync(ctx context.Context, name string, options opts.ResolveOpts) <-chan onceResult {
+	out := make(chan onceResult, 1)
+
+	if !strings.HasPrefix(name, ipnsPrefix) {
+		name = ipnsPrefix + name
 	}
 	segments := strings.SplitN(name, "/", 4)
 	if len(segments) < 3 || segments[0] != "" {
-		log.Warningf("Invalid name syntax for %s", name)
-		return "", ErrResolveFailed
+		log.Debugf("invalid name syntax for %s", name)
+		out <- onceResult{err: ErrResolveFailed}
+		close(out)
+		return out
 	}
 
-	for protocol, resolver := range ns.resolvers {
-		log.Debugf("Attempting to resolve %s with %s", segments[2], protocol)
-		p, err := resolver.resolveOnce(ctx, segments[2])
-		if err == nil {
-			if len(segments) > 3 {
-				return path.FromSegments("", strings.TrimRight(p.String(), "/"), segments[3])
-			} else {
-				return p, err
+	key := segments[2]
+
+	if p, ok := ns.cacheGet(key); ok {
+		if len(segments) > 3 {
+			var err error
+			p, err = path.FromSegments("", strings.TrimRight(p.String(), "/"), segments[3])
+			if err != nil {
+				emitOnceResult(ctx, out, onceResult{value: p, err: err})
 			}
 		}
+
+		out <- onceResult{value: p}
+		close(out)
+		return out
 	}
-	log.Warningf("No resolver found for %s", name)
-	return "", ErrResolveFailed
+
+	// Resolver selection:
+	// 1. if it is a multihash resolve through "ipns".
+	// 2. if it is a domain name, resolve through "dns"
+	// 3. otherwise resolve through the "proquint" resolver
+
+	var res resolver
+	if _, err := mh.FromB58String(key); err == nil {
+		res = ns.ipnsResolver
+	} else if isd.IsDomain(key) {
+		res = ns.dnsResolver
+	} else {
+		res = ns.proquintResolver
+	}
+
+	resCh := res.resolveOnceAsync(ctx, key, options)
+	var best onceResult
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case res, ok := <-resCh:
+				if !ok {
+					if best != (onceResult{}) {
+						ns.cacheSet(key, best.value, best.ttl)
+					}
+					return
+				}
+				if res.err == nil {
+					best = res
+				}
+				p := res.value
+
+				// Attach rest of the path
+				if len(segments) > 3 {
+					var err error
+					p, err = path.FromSegments("", strings.TrimRight(p.String(), "/"), segments[3])
+					if err != nil {
+						emitOnceResult(ctx, out, onceResult{value: p, ttl: res.ttl, err: err})
+					}
+				}
+
+				emitOnceResult(ctx, out, onceResult{value: p, ttl: res.ttl, err: res.err})
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out
+}
+
+func emitOnceResult(ctx context.Context, outCh chan<- onceResult, r onceResult) {
+	select {
+	case outCh <- r:
+	case <-ctx.Done():
+	}
 }
 
 // Publish implements Publisher
 func (ns *mpns) Publish(ctx context.Context, name ci.PrivKey, value path.Path) error {
-	err := ns.publishers["/ipns/"].Publish(ctx, name, value)
-	if err != nil {
-		return err
-	}
-	ns.addToDHTCache(name, value, time.Now().Add(DefaultRecordTTL))
-	return nil
+	return ns.PublishWithEOL(ctx, name, value, time.Now().Add(DefaultRecordEOL))
 }
 
 func (ns *mpns) PublishWithEOL(ctx context.Context, name ci.PrivKey, value path.Path, eol time.Time) error {
-	err := ns.publishers["/ipns/"].PublishWithEOL(ctx, name, value, eol)
+	id, err := peer.IDFromPrivateKey(name)
 	if err != nil {
 		return err
 	}
-	ns.addToDHTCache(name, value, eol)
+	if err := ns.ipnsPublisher.PublishWithEOL(ctx, name, value, eol); err != nil {
+		return err
+	}
+	ttl := DefaultResolverCacheTTL
+	if ttEol := eol.Sub(time.Now()); ttEol < ttl {
+		ttl = ttEol
+	}
+	ns.cacheSet(peer.IDB58Encode(id), value, ttl)
 	return nil
-}
-
-func (ns *mpns) addToDHTCache(key ci.PrivKey, value path.Path, eol time.Time) {
-	rr, ok := ns.resolvers["dht"].(*routingResolver)
-	if !ok {
-		// should never happen, purely for sanity
-		log.Panicf("unexpected type %T as DHT resolver.", ns.resolvers["dht"])
-	}
-	if rr.cache == nil {
-		// resolver has no caching
-		return
-	}
-
-	var err error
-	value, err = path.ParsePath(value.String())
-	if err != nil {
-		log.Error("could not parse path")
-		return
-	}
-
-	name, err := peer.IDFromPrivateKey(key)
-	if err != nil {
-		log.Error("while adding to cache, could not get peerid from private key")
-		return
-	}
-
-	if time.Now().Add(DefaultResolverCacheTTL).Before(eol) {
-		eol = time.Now().Add(DefaultResolverCacheTTL)
-	}
-	rr.cache.Add(name.Pretty(), cacheEntry{
-		val: value,
-		eol: eol,
-	})
 }

@@ -14,14 +14,14 @@ class SMTPTest(OpenBazaarTestFramework):
 
     def __init__(self):
         super().__init__()
-        self.num_nodes = 2
+        self.num_nodes = 3
 
     def run_test(self):
-        alice = self.nodes[0]
-        bob = self.nodes[1]
+        alice = self.nodes[1]
+        bob = self.nodes[2]
 
         # post profile for alice
-        with open('testdata/profile.json') as profile_file:
+        with open('testdata/'+ self.vendor_version +'/profile.json') as profile_file:
             profile_json = json.load(profile_file, object_pairs_hook=OrderedDict)
         api_url = alice["gateway_url"] + "ob/profile"
         requests.post(api_url, data=json.dumps(profile_json, indent=4))
@@ -64,7 +64,7 @@ class SMTPTest(OpenBazaarTestFramework):
 
         # generate some coins and send them to bob
         time.sleep(4)
-        api_url = bob["gateway_url"] + "wallet/address"
+        api_url = bob["gateway_url"] + "wallet/address/" + self.cointype
         r = requests.get(api_url)
         if r.status_code == 200:
             resp = json.loads(r.text)
@@ -77,10 +77,13 @@ class SMTPTest(OpenBazaarTestFramework):
         time.sleep(20)
 
         # post listing to alice
-        with open('testdata/listing.json') as listing_file:
+        with open('testdata/'+ self.vendor_version +'/listing.json') as listing_file:
             listing_json = json.load(listing_file, object_pairs_hook=OrderedDict)
-        if self.bitcoincash:
-            listing_json["metadata"]["pricingCurrency"] = "tbch"
+        if self.vendor_version == "v4":
+            listing_json["metadata"]["priceCurrency"] = "t" + self.cointype
+        else:
+            listing_json["item"]["priceCurrency"]["code"] = "t" + self.cointype
+        listing_json["metadata"]["acceptedCurrencies"] = ["t" + self.cointype]
 
         api_url = alice["gateway_url"] + "ob/listing"
         r = requests.post(api_url, data=json.dumps(listing_json, indent=4))
@@ -100,9 +103,10 @@ class SMTPTest(OpenBazaarTestFramework):
         listingId = resp[0]["hash"]
 
         # bob send order
-        with open('testdata/order_direct.json') as order_file:
+        with open('testdata/'+ self.buyer_version +'/order_direct.json') as order_file:
             order_json = json.load(order_file, object_pairs_hook=OrderedDict)
         order_json["items"][0]["listingHash"] = listingId
+        order_json["paymentCoin"] = "t" + self.cointype
         api_url = bob["gateway_url"] + "ob/purchase"
         r = requests.post(api_url, data=json.dumps(order_json, indent=4))
         if r.status_code == 404:
@@ -117,10 +121,16 @@ class SMTPTest(OpenBazaarTestFramework):
 
         # fund order
         spend = {
+            "currencyCode": "T" + self.cointype,
             "address": payment_address,
-            "amount": payment_amount,
-            "feeLevel": "NORMAL"
+            "amount": payment_amount["amount"],
+            "feeLevel": "NORMAL",
+            "requireAssociateOrder": False
         }
+        if self.buyer_version == "v4":
+            spend["amount"] = payment_amount
+            spend["wallet"] = "T" + self.cointype
+
         api_url = bob["gateway_url"] + "wallet/spend"
         r = requests.post(api_url, data=json.dumps(spend, indent=4))
         if r.status_code == 404:
@@ -136,13 +146,13 @@ class SMTPTest(OpenBazaarTestFramework):
 To: user.openbazaar@test.org
 MIME-Version: 1.0
 Content-Type: text/html; charset=UTF-8
-Subject: [OpenBazaar] Order received
+Subject: [BitBook] Order received
 
 You received an order "Ron Swanson Tshirt".
 
 Order ID: QmNiPgKNq27qQE8fRxMbtDfRcFDEYMH5wDRgdqtqoWBpGg
-Buyer: QmVQzkdi3Fq6LRFG9UNqDZfSry67weCZV6ZL26QVx64UFy
-Thumbnail: zb2rhXn3SHBuEXkHxrupGfjKcuMewMdUJyN6jLMYDEzCyue15
+Buyer: Qmd5qDpcYkHCmkj9pMXU9TKBqEDWgEmtoHD5xjdJgumaHg
+Thumbnail: QmXSEqXLCzpCByJU4wqbJ37TcBEj77FKMUWUP1qLh56847
 Timestamp: 1487699826
 '''
         expected_lines = [e for e in expected.splitlines() if not e.startswith('Timestamp:') and not e.startswith('Order ID:')]

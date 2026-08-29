@@ -9,15 +9,15 @@ class FulfillDirectOnlineTest(OpenBazaarTestFramework):
 
     def __init__(self):
         super().__init__()
-        self.num_nodes = 2
+        self.num_nodes = 3
 
     def run_test(self):
-        alice = self.nodes[0]
-        bob = self.nodes[1]
+        alice = self.nodes[1]
+        bob = self.nodes[2]
 
         # generate some coins and send them to bob
         time.sleep(4)
-        api_url = bob["gateway_url"] + "wallet/address"
+        api_url = bob["gateway_url"] + "wallet/address/" + self.cointype
         r = requests.get(api_url)
         if r.status_code == 200:
             resp = json.loads(r.text)
@@ -30,16 +30,19 @@ class FulfillDirectOnlineTest(OpenBazaarTestFramework):
         time.sleep(20)
 
         # post profile for alice
-        with open('testdata/profile.json') as profile_file:
+        with open('testdata/'+ self.vendor_version +'/profile.json') as profile_file:
             profile_json = json.load(profile_file, object_pairs_hook=OrderedDict)
         api_url = alice["gateway_url"] + "ob/profile"
         requests.post(api_url, data=json.dumps(profile_json, indent=4))
 
         # post listing to alice
-        with open('testdata/listing.json') as listing_file:
+        with open('testdata/'+ self.vendor_version +'/listing.json') as listing_file:
             listing_json = json.load(listing_file, object_pairs_hook=OrderedDict)
-        if self.bitcoincash:
-            listing_json["metadata"]["pricingCurrency"] = "tbch"
+        if self.vendor_version == "v4":
+            listing_json["metadata"]["priceCurrency"] = "t" + self.cointype
+        else:
+            listing_json["item"]["priceCurrency"]["code"] = "t" + self.cointype
+        listing_json["metadata"]["acceptedCurrencies"] = ["t" + self.cointype]
 
         api_url = alice["gateway_url"] + "ob/listing"
         r = requests.post(api_url, data=json.dumps(listing_json, indent=4))
@@ -53,7 +56,7 @@ class FulfillDirectOnlineTest(OpenBazaarTestFramework):
         time.sleep(4)
 
         # get listing hash
-        api_url = alice["gateway_url"] + "ipns/" + alice["peerId"] + "/listings.json"
+        api_url = alice["gateway_url"] + "ob/listings/" + alice["peerId"]
         r = requests.get(api_url)
         if r.status_code != 200:
             raise TestFailure("FulfillDirectOnlineTest - FAIL: Couldn't get listing index")
@@ -61,9 +64,10 @@ class FulfillDirectOnlineTest(OpenBazaarTestFramework):
         listingId = resp[0]["hash"]
 
         # bob send order
-        with open('testdata/order_direct.json') as order_file:
+        with open('testdata/'+ self.buyer_version +'/order_direct.json') as order_file:
             order_json = json.load(order_file, object_pairs_hook=OrderedDict)
         order_json["items"][0]["listingHash"] = listingId
+        order_json["paymentCoin"] = "t" + self.cointype
         api_url = bob["gateway_url"] + "ob/purchase"
         r = requests.post(api_url, data=json.dumps(order_json, indent=4))
         if r.status_code == 404:
@@ -100,10 +104,16 @@ class FulfillDirectOnlineTest(OpenBazaarTestFramework):
 
         # fund order
         spend = {
+            "currencyCode": "T" + self.cointype,
             "address": payment_address,
-            "amount": payment_amount,
-            "feeLevel": "NORMAL"
+            "amount": payment_amount["amount"],
+            "feeLevel": "NORMAL",
+            "requireAssociateOrder": False
         }
+        if self.buyer_version == "v4":
+            spend["amount"] = payment_amount
+            spend["wallet"] = "T" + self.cointype
+
         api_url = bob["gateway_url"] + "wallet/spend"
         r = requests.post(api_url, data=json.dumps(spend, indent=4))
         if r.status_code == 404:
@@ -134,9 +144,9 @@ class FulfillDirectOnlineTest(OpenBazaarTestFramework):
             raise TestFailure("FulfillDirectOnlineTest - FAIL: Alice failed to detect payment")
         if resp["funded"] == False:
             raise TestFailure("FulfillDirectOnlineTest - FAIL: Alice incorrectly saved as unfunded")
-        
+
         # alice send order fulfillment
-        with open('testdata/fulfillment.json') as fulfillment_file:
+        with open('testdata/'+ self.vendor_version +'/fulfillment.json') as fulfillment_file:
             fulfillment_json = json.load(fulfillment_file, object_pairs_hook=OrderedDict)
         fulfillment_json["orderId"] = orderId
         fulfillment_json["slug"] = slug
@@ -168,6 +178,7 @@ class FulfillDirectOnlineTest(OpenBazaarTestFramework):
             raise TestFailure("FulfillDirectOnlineTest - FAIL: Alice failed to order fulfillment")
 
         print("FulfillDirectOnlineTest - PASS")
+
 
 if __name__ == '__main__':
     print("Running FulfillDirectOnlineTest")

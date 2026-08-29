@@ -1,9 +1,10 @@
 package db
 
 import (
-	"github.com/larslarsen/bb-go/pb"
 	"strconv"
 	"strings"
+
+	"github.com/larslarsen/bb-go/pb"
 )
 
 type query struct {

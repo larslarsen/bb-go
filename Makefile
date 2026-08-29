@@ -1,14 +1,32 @@
+.DEFAULT_GOAL := help
+
+##
+## Global ENV vars
+##
+
+GIT_SHA ?= $(shell git rev-parse --short=8 HEAD)
+GIT_TAG ?= $(shell git describe --tags --abbrev=0)
+
+##
+## Helpful Help
+##
+
+.PHONY: help
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+
 ##
 ## Building
 ##
-deploy:
-	./deploy.sh
 
-build:
-	./build.sh
+.PHONY: ios_framework
+ios_framework: ## Build iOS Framework for mobile
+	gomobile bind -target=ios/arm64,ios/amd64 -iosversion=10 -ldflags="-s -w" github.com/larslarsen/bb-go/mobile
 
-linux_binary:
-	./build.sh linux/amd64
+.PHONY: android_framework
+android_framework: ## Build Android Framework for mobile
+	gomobile bind -target=android/arm,android/arm64,android/amd64 -ldflags="-s -w" github.com/larslarsen/bb-go/mobile
 
 ##
 ## Protobuf compilation
@@ -18,40 +36,63 @@ P_ANY = Mgoogle/protobuf/any.proto=github.com/golang/protobuf/ptypes/any
 
 PKGMAP = $(P_TIMESTAMP),$(P_ANY)
 
-protos:
-	cd pb/protos && protoc --go_out=$(PKGMAP):.. *.proto
+.PHONY: protos
+protos: ## Build go files for proto definitions
+	cd pb/protos && PATH=$(PATH):$(GOPATH)/bin protoc --go_out=$(PKGMAP):.. *.proto
+
+
+##
+## Testing
+##
+BITBOOKD_NAME ?= bitbookd-$(GIT_SHA)
+BITCOIND_PATH ?= .
+
+.PHONY: bitbookd
+bitbookd: ## Build daemon
+	$(info "Building openbazaar daemon...")
+	go build -o ./$(BITBOOKD_NAME) .
+
+.PHONY: qa_test
+qa_test: bitbookd ## Run QA test suite against current working copy
+	$(info "Running QA... (bitbookd: ../$(BITBOOKD_NAME) bitcoind: $(BITCOIND_PATH)/bin/bitcoind)")
+	(cd qa && ./runtests.sh ../$(BITBOOKD_NAME) $(BITCOIND_PATH)/bin/bitcoind)
+
+.PHONY: qa_eth_test
+qa_eth_test: bitbookd ## Run ETH-based QA test suite against current working copy
+	$(info "Running ETH QA... (bitbookd: ../$(BITBOOKD_NAME))")
+	(cd qa && ./runtests_eth.sh ../$(BITBOOKD_NAME))
 
 ##
 ## Docker
 ##
-DOCKER_PROFILE ?= openbazaar
-DOCKER_SERVER_VERSION ?= $(shell git describe --tags --abbrev=0)
-DOCKER_SERVER_IMAGE_NAME ?= $(DOCKER_PROFILE)/server:$(DOCKER_SERVER_VERSION)
-DOCKER_DUMMY_IMAGE_NAME ?= $(DOCKER_PROFILE)/server_dummy:$(DOCKER_SERVER_VERSION)
+PUBLIC_DOCKER_REGISTRY ?= openbazaar
+QA_DEV_TAG ?= 0.10
 
-docker:
+DOCKER_SERVER_IMAGE_NAME ?= $(PUBLIC_DOCKER_REGISTRY)/server:$(GIT_TAG)
+DOCKER_QA_IMAGE_NAME ?= $(PUBLIC_DOCKER_REGISTRY)/server-qa:$(QA_DEV_TAG)
+DOCKER_DEV_IMAGE_NAME ?= $(PUBLIC_DOCKER_REGISTRY)/server-dev:$(QA_DEV_TAG)
+
+
+.PHONY: docker_build
+docker_build: ## Build container for daemon
 	docker build -t $(DOCKER_SERVER_IMAGE_NAME) .
 
-push_docker:
+.PHONY: docker_push
+docker_push: docker ## Push container for daemon
 	docker push $(DOCKER_SERVER_IMAGE_NAME)
 
-deploy_docker: docker push_docker
+.PHONY: qa_docker_build
+qa_docker_build: ## Build container with QA test dependencies included
+	docker build -t $(DOCKER_QA_IMAGE_NAME) -f ./Dockerfile.qa .
 
-dummy_docker:
-	docker build -t $(DOCKER_DUMMY_IMAGE_NAME) -f Dockerfile.dummy .
+.PHONY: qa_docker_push
+qa_docker_push: qa_docker_build ## Push container for daemon QA test environment
+	docker push $(DOCKER_QA_IMAGE_NAME)
 
-push_dummy_docker:
-	docker push $(DOCKER_DUMMY_IMAGE_NAME)
+.PHONY: dev_docker_build
+dev_docker: ## Build container with dev dependencies included
+	docker build -t $(DOCKER_DEV_IMAGE_NAME) -f ./Dockerfile.dev .
 
-deploy_dummy_docker: dummy_docker push_dummy_docker
-
-##
-## Cleanup
-##
-clean_build:
-	rm -f ./dist/*
-
-clean_docker:
-	docker rmi -f $(DOCKER_SERVER_IMAGE_NAME) $(DOCKER_DUMMY_IMAGE_NAME) || true
-
-clean: clean_build clean_docker
+.PHONY: dev_docker_push
+dev_docker_push: dev_docker_build ## Push container for daemon dev environment
+	docker push $(DOCKER_DEV_IMAGE_NAME)

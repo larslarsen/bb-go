@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var testConfig1 string = `{
+var testConfig1 = `{
     "Datastore": {
 	    "BloomFilterSize": 0,
 	    "GCPeriod": "1h",
@@ -32,9 +32,12 @@ func TestMigration001(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f.Write([]byte(testConfig1))
+	_, err = f.Write([]byte(testConfig1))
+	if err != nil {
+		t.Error(err)
+	}
 	f.Close()
-	var m migration001
+	var m Migration001
 
 	// Up
 	err = m.Up("./", "", false)

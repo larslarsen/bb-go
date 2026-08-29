@@ -5,35 +5,42 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	libp2p "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
+	"fmt"
+	libp2p "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path"
+	"strings"
 	"time"
 
-	"fmt"
 	"github.com/OpenBazaar/jsonpb"
-	"github.com/larslarsen/bb-go/ipfs"
-	"github.com/larslarsen/bb-go/pb"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/wire"
-	hd "github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
 )
 
 const (
-	RatingMin           = 1
-	RatingMax           = 5
+	// RatingMin - min raring
+	RatingMin = 1
+	// RatingMax - max rating
+	RatingMax = 5
+	// ReviewMaxCharacters - max size for review
 	ReviewMaxCharacters = 3000
 )
 
+// OrderRatings - record ratings for an order
 type OrderRatings struct {
-	OrderId string       `json:"orderId"`
+	OrderID string       `json:"orderId"`
 	Ratings []RatingData `json:"ratings"`
 }
 
+// RatingData - record rating in detail
 type RatingData struct {
 	Slug            string `json:"slug"`
 	Overall         int    `json:"overall"`
@@ -45,6 +52,7 @@ type RatingData struct {
 	Anonymous       bool   `json:"anonymous"`
 }
 
+// SavedRating - represent saved rating
 type SavedRating struct {
 	Slug    string   `json:"slug"`
 	Count   int      `json:"count"`
@@ -52,15 +60,16 @@ type SavedRating struct {
 	Ratings []string `json:"ratings"`
 }
 
+// CompleteOrder - complete the order
 func (n *OpenBazaarNode) CompleteOrder(orderRatings *OrderRatings, contract *pb.RicardianContract, records []*wallet.TransactionRecord) error {
 
-	orderId, err := n.CalcOrderId(contract.BuyerOrder)
+	orderID, err := n.CalcOrderID(contract.BuyerOrder)
 	if err != nil {
 		return err
 	}
 
 	oc := new(pb.OrderCompletion)
-	oc.OrderId = orderId
+	oc.OrderId = orderID
 	oc.Ratings = []*pb.Rating{}
 
 	ts, err := ptypes.TimestampProto(time.Now())
@@ -77,7 +86,7 @@ func (n *OpenBazaarNode) CompleteOrder(orderRatings *OrderRatings, contract *pb.
 		var rk []byte
 		if contract.DisputeResolution != nil {
 			if contract.VendorOrderConfirmation == nil {
-				return errors.New("Cannot leave review because the vendor never accepted this order")
+				return errors.New("cannot leave review because the vendor never accepted this order")
 			}
 			for _, sig := range contract.VendorOrderConfirmation.RatingSignatures {
 				if sig.Metadata.ListingSlug == r.Slug {
@@ -86,7 +95,7 @@ func (n *OpenBazaarNode) CompleteOrder(orderRatings *OrderRatings, contract *pb.
 				}
 			}
 			if len(contract.BuyerOrder.RatingKeys) < len(orderRatings.Ratings) {
-				return errors.New("Invalid number of rating keys in buyer order")
+				return errors.New("invalid number of rating keys in buyer order")
 			}
 			rk = contract.BuyerOrder.RatingKeys[z]
 
@@ -139,7 +148,7 @@ func (n *OpenBazaarNode) CompleteOrder(orderRatings *OrderRatings, contract *pb.
 			return err
 		}
 
-		ratingKey, err := n.Wallet.MasterPrivateKey().Child(uint32(contract.BuyerOrder.Timestamp.Seconds))
+		ratingKey, err := n.MasterPrivateKey.Child(uint32(contract.BuyerOrder.Timestamp.Seconds))
 		if err != nil {
 			return err
 		}
@@ -156,66 +165,72 @@ func (n *OpenBazaarNode) CompleteOrder(orderRatings *OrderRatings, contract *pb.
 		oc.Ratings = append(oc.Ratings, rating)
 	}
 
+	order, err := repo.ToV5Order(contract.BuyerOrder, n.LookupCurrency)
+	if err != nil {
+		return err
+	}
+
+	wal, err := n.Multiwallet.WalletForCurrencyCode(order.Payment.AmountCurrency.Code)
+	if err != nil {
+		return err
+	}
+
 	// Payout order if moderated and not disputed
-	if contract.BuyerOrder.Payment.Method == pb.Order_Payment_MODERATED && contract.DisputeResolution == nil {
+	if order.Payment.Method == pb.Order_Payment_MODERATED && contract.DisputeResolution == nil {
 		var ins []wallet.TransactionInput
-		var outValue int64
+		outValue := new(big.Int)
 		for _, r := range records {
-			if !r.Spent && r.Value > 0 {
-				outpointHash, err := hex.DecodeString(r.Txid)
+			if !r.Spent && r.Value.Cmp(big.NewInt(0)) > 0 {
+				addr, err := wal.DecodeAddress(r.Address)
 				if err != nil {
 					return err
 				}
-				outValue += r.Value
-				in := wallet.TransactionInput{OutpointIndex: r.Index, OutpointHash: outpointHash, Value: r.Value}
+				outpointHash, err := hex.DecodeString(strings.TrimPrefix(r.Txid, "0x"))
+				if err != nil {
+					return fmt.Errorf("decoding transaction hash: %s", err.Error())
+				}
+				outValue.Add(outValue, &r.Value)
+				in := wallet.TransactionInput{
+					LinkedAddress: addr,
+					OutpointIndex: r.Index,
+					OutpointHash:  outpointHash,
+					Value:         r.Value,
+				}
 				ins = append(ins, in)
 			}
 		}
 
-		payoutAddress, err := n.Wallet.DecodeAddress(contract.VendorOrderFulfillment[0].Payout.PayoutAddress)
+		payoutAddress, err := wal.DecodeAddress(contract.VendorOrderFulfillment[0].Payout.PayoutAddress)
 		if err != nil {
 			return err
 		}
-		var output wallet.TransactionOutput
-		outputScript, err := n.Wallet.AddressToScript(payoutAddress)
-		if err != nil {
-			return err
-		}
-		output.ScriptPubKey = outputScript
-		output.Value = outValue
-
-		chaincode, err := hex.DecodeString(contract.BuyerOrder.Payment.Chaincode)
-		if err != nil {
-			return err
-		}
-		parentFP := []byte{0x00, 0x00, 0x00, 0x00}
-		mPrivKey := n.Wallet.MasterPrivateKey()
-		if err != nil {
-			return err
-		}
-		mECKey, err := mPrivKey.ECPrivKey()
-		if err != nil {
-			return err
-		}
-		hdKey := hd.NewExtendedKey(
-			n.Wallet.Params().HDPrivateKeyID[:],
-			mECKey.Serialize(),
-			chaincode,
-			parentFP,
-			0,
-			0,
-			true)
-
-		buyerKey, err := hdKey.Child(0)
-		if err != nil {
-			return err
-		}
-		redeemScript, err := hex.DecodeString(contract.BuyerOrder.Payment.RedeemScript)
-		if err != nil {
-			return err
+		var output = wallet.TransactionOutput{
+			Address: payoutAddress,
+			Value:   *outValue,
 		}
 
-		buyerSignatures, err := n.Wallet.CreateMultisigSignature(ins, []wallet.TransactionOutput{output}, buyerKey, redeemScript, contract.VendorOrderFulfillment[0].Payout.PayoutFeePerByte)
+		chaincode, err := hex.DecodeString(order.Payment.Chaincode)
+		if err != nil {
+			return err
+		}
+		mECKey, err := n.MasterPrivateKey.ECPrivKey()
+		if err != nil {
+			return err
+		}
+		buyerKey, err := wal.ChildKey(mECKey.Serialize(), chaincode, true)
+		if err != nil {
+			return err
+		}
+		redeemScript, err := hex.DecodeString(order.Payment.RedeemScript)
+		if err != nil {
+			return err
+		}
+		fulfillment := repo.ToV5OrderFulfillment(contract.VendorOrderFulfillment[0])
+		n, ok := new(big.Int).SetString(fulfillment.Payout.BigPayoutFeePerByte, 10)
+		if !ok {
+			return errors.New("invalid payout fee per byte value")
+		}
+		buyerSignatures, err := wal.CreateMultisigSignature(ins, []wallet.TransactionOutput{output}, buyerKey, redeemScript, *n)
 		if err != nil {
 			return err
 		}
@@ -227,15 +242,6 @@ func (n *OpenBazaarNode) CompleteOrder(orderRatings *OrderRatings, contract *pb.
 			pbSigs = append(pbSigs, sig)
 		}
 		oc.PayoutSigs = pbSigs
-		var vendorSignatures []wallet.Signature
-		for _, s := range contract.VendorOrderFulfillment[0].Payout.Sigs {
-			sig := wallet.Signature{InputIndex: s.InputIndex, Signature: s.Signature}
-			vendorSignatures = append(vendorSignatures, sig)
-		}
-		_, err = n.Wallet.Multisign(ins, []wallet.TransactionOutput{output}, buyerSignatures, vendorSignatures, redeemScript, contract.VendorOrderFulfillment[0].Payout.PayoutFeePerByte, true)
-		if err != nil {
-			return err
-		}
 	}
 
 	rc := new(pb.RicardianContract)
@@ -259,7 +265,7 @@ func (n *OpenBazaarNode) CompleteOrder(orderRatings *OrderRatings, contract *pb.
 			contract.Signatures = append(contract.Signatures, sig)
 		}
 	}
-	err = n.Datastore.Purchases().Put(orderId, *contract, pb.OrderState_COMPLETED, true)
+	err = n.Datastore.Purchases().Put(orderID, *contract, pb.OrderState_COMPLETED, true)
 	if err != nil {
 		return err
 	}
@@ -267,82 +273,133 @@ func (n *OpenBazaarNode) CompleteOrder(orderRatings *OrderRatings, contract *pb.
 	return nil
 }
 
-var EscrowTimeLockedError error
+var (
+	// EscrowTimeLockedError - custom err for time locked escrow
+	EscrowTimeLockedError error
+	// ErrPrematureReleaseOfTimedoutEscrowFunds - custom err for premature escrow funds release
+	ErrPrematureReleaseOfTimedoutEscrowFunds = fmt.Errorf("escrow can only be released when in dispute for %s days", (time.Duration(repo.DisputeTotalDurationHours) * time.Hour).String())
+)
 
+// DisputeIsActive - check if the dispute is active
+func (n *OpenBazaarNode) DisputeIsActive(contract *pb.RicardianContract) (bool, error) {
+	var (
+		dispute         = contract.GetDispute()
+		disputeDuration = time.Duration(repo.DisputeTotalDurationHours) * time.Hour
+	)
+	if dispute != nil {
+		disputeStart, err := ptypes.Timestamp(dispute.Timestamp)
+		if err != nil {
+			return false, fmt.Errorf("sale dispute timestamp: %s", err.Error())
+		}
+		if n.TestnetEnable {
+			// Time hack until we can stub this more nicely in test env
+			disputeDuration = time.Duration(10) * time.Second
+		}
+		disputeExpiration := disputeStart.Add(disputeDuration)
+		if time.Now().Before(disputeExpiration) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// ReleaseFundsAfterTimeout - release funds
 func (n *OpenBazaarNode) ReleaseFundsAfterTimeout(contract *pb.RicardianContract, records []*wallet.TransactionRecord) error {
-	minConfirms := contract.VendorListings[0].Metadata.EscrowTimeoutHours * 6
-	var utxos []wallet.Utxo
+	if active, err := n.DisputeIsActive(contract); err != nil {
+		return err
+	} else if active {
+		return ErrPrematureReleaseOfTimedoutEscrowFunds
+	}
+	order, err := repo.ToV5Order(contract.BuyerOrder, n.LookupCurrency)
+	if err != nil {
+		return err
+	}
+	wal, err := n.Multiwallet.WalletForCurrencyCode(order.Payment.AmountCurrency.Code)
+	if err != nil {
+		return err
+	}
+	defn, err := repo.AllCurrencies().Lookup(order.Payment.AmountCurrency.Code)
+	if err != nil {
+		log.Errorf("Failed ReleaseFundsAfterTimeout(): %s", err.Error())
+		return err
+	}
+
+	minConfirms := contract.VendorListings[0].Metadata.EscrowTimeoutHours *
+		defn.ConfirmationsPerHour()
+	var txInputs []wallet.TransactionInput
 	for _, r := range records {
-		if !r.Spent && r.Value > 0 {
-			var utxo wallet.Utxo
-			utxo.Value = r.Value
-
-			hash, err := chainhash.NewHashFromStr(r.Txid)
+		if !r.Spent && r.Value.Cmp(big.NewInt(0)) > 0 {
+			hash, err := chainhash.NewHashFromStr(strings.TrimPrefix(r.Txid, "0x"))
 			if err != nil {
 				return err
 			}
 
-			confirms, _, err := n.Wallet.GetConfirmations(*hash)
+			confirms, _, err := wal.GetConfirmations(*hash)
 			if err != nil {
 				return err
 			}
+
 			if confirms < minConfirms {
-				EscrowTimeLockedError = fmt.Errorf("Tx %s needs %d more confirmations before it can be spent", r.Txid, int(minConfirms-confirms))
+				EscrowTimeLockedError = fmt.Errorf("tx %s needs %d more confirmations before it can be spent", r.Txid, int(minConfirms-confirms))
 				return EscrowTimeLockedError
 			}
-			outpoint := wire.NewOutPoint(hash, r.Index)
-			utxo.Op = *outpoint
-			utxos = append(utxos, utxo)
+
+			addr, err := wal.DecodeAddress(r.Address)
+			if err != nil {
+				return err
+			}
+			outpointHash, err := hex.DecodeString(strings.TrimPrefix(r.Txid, "0x"))
+			if err != nil {
+				return fmt.Errorf("decoding transaction hash: %s", err.Error())
+			}
+			var txInput = wallet.TransactionInput{
+				Value:         r.Value,
+				LinkedAddress: addr,
+				OutpointIndex: r.Index,
+				OutpointHash:  outpointHash,
+			}
+			txInputs = append(txInputs, txInput)
 		}
 	}
 
-	chaincode, err := hex.DecodeString(contract.BuyerOrder.Payment.Chaincode)
-	if err != nil {
-		return err
+	if len(txInputs) == 0 {
+		return errors.New("there are no inputs available for this transaction")
 	}
-	parentFP := []byte{0x00, 0x00, 0x00, 0x00}
-	mPrivKey := n.Wallet.MasterPrivateKey()
-	if err != nil {
-		return err
-	}
-	mECKey, err := mPrivKey.ECPrivKey()
-	if err != nil {
-		return err
-	}
-	hdKey := hd.NewExtendedKey(
-		n.Wallet.Params().HDPrivateKeyID[:],
-		mECKey.Serialize(),
-		chaincode,
-		parentFP,
-		0,
-		0,
-		true)
 
-	vendorKey, err := hdKey.Child(0)
+	chaincode, err := hex.DecodeString(order.Payment.Chaincode)
 	if err != nil {
 		return err
 	}
-	redeemScript, err := hex.DecodeString(contract.BuyerOrder.Payment.RedeemScript)
+	mECKey, err := n.MasterPrivateKey.ECPrivKey()
 	if err != nil {
 		return err
 	}
-	_, err = n.Wallet.SweepAddress(utxos, nil, vendorKey, &redeemScript, wallet.NORMAL)
+	vendorKey, err := wal.ChildKey(mECKey.Serialize(), chaincode, true)
+	if err != nil {
+		return err
+	}
+	redeemScript, err := hex.DecodeString(order.Payment.RedeemScript)
+	if err != nil {
+		return err
+	}
+	_, err = wal.SweepAddress(txInputs, nil, vendorKey, &redeemScript, wallet.NORMAL)
 	if err != nil {
 		return err
 	}
 
-	orderId, err := n.CalcOrderId(contract.BuyerOrder)
+	orderID, err := n.CalcOrderID(contract.BuyerOrder)
 	if err != nil {
 		return err
 	}
 
-	err = n.Datastore.Purchases().Put(orderId, *contract, pb.OrderState_PAYMENT_FINALIZED, true)
+	err = n.Datastore.Sales().Put(orderID, *contract, pb.OrderState_PAYMENT_FINALIZED, true)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+// SignOrderCompletion - sign order on completion
 func (n *OpenBazaarNode) SignOrderCompletion(contract *pb.RicardianContract) (*pb.RicardianContract, error) {
 	serializedOrderFulfil, err := proto.Marshal(contract.BuyerOrderCompletion)
 	if err != nil {
@@ -350,9 +407,6 @@ func (n *OpenBazaarNode) SignOrderCompletion(contract *pb.RicardianContract) (*p
 	}
 	s := new(pb.Signature)
 	s.Section = pb.Signature_ORDER_COMPLETION
-	if err != nil {
-		return contract, err
-	}
 	guidSig, err := n.IpfsNode.PrivateKey.Sign(serializedOrderFulfil)
 	if err != nil {
 		return contract, err
@@ -362,6 +416,7 @@ func (n *OpenBazaarNode) SignOrderCompletion(contract *pb.RicardianContract) (*p
 	return contract, nil
 }
 
+// ValidateOrderCompletion - validate order signatures on completion
 func (n *OpenBazaarNode) ValidateOrderCompletion(contract *pb.RicardianContract) error {
 	if err := verifySignaturesOnOrderCompletion(contract); err != nil {
 		return err
@@ -372,6 +427,7 @@ func (n *OpenBazaarNode) ValidateOrderCompletion(contract *pb.RicardianContract)
 	return nil
 }
 
+// ValidateAndSaveRating - validates rating
 func (n *OpenBazaarNode) ValidateAndSaveRating(contract *pb.RicardianContract) (retErr error) {
 	for _, rating := range contract.BuyerOrderCompletion.Ratings {
 		valid, err := ValidateRating(rating)
@@ -407,13 +463,13 @@ func (n *OpenBazaarNode) ValidateAndSaveRating(contract *pb.RicardianContract) (
 			Indent:       "    ",
 			OrigName:     false,
 		}
-		ratingJson, err := m.MarshalToString(rating)
+		ratingJSON, err := m.MarshalToString(rating)
 		if err != nil {
 			retErr = err
 			continue
 		}
 
-		mh, err := EncodeMultihash([]byte(ratingJson))
+		mh, err := ipfs.EncodeMultihash([]byte(ratingJSON))
 		if err != nil {
 			retErr = err
 			continue
@@ -425,15 +481,14 @@ func (n *OpenBazaarNode) ValidateAndSaveRating(contract *pb.RicardianContract) (
 			retErr = err
 			continue
 		}
-		defer f.Close()
 
-		go ipfs.AddFile(n.Context, ratingPath)
-
-		_, werr := f.Write([]byte(ratingJson))
+		_, werr := f.Write([]byte(ratingJSON))
 		if werr != nil {
+			f.Close()
 			retErr = err
 			continue
 		}
+		f.Close()
 
 		if err := n.updateRatingIndex(rating, ratingPath); err != nil {
 			retErr = err
@@ -450,7 +505,7 @@ func (n *OpenBazaarNode) ValidateAndSaveRating(contract *pb.RicardianContract) (
 			continue
 		}
 	}
-	return
+	return retErr
 }
 
 func (n *OpenBazaarNode) updateRatingIndex(rating *pb.Rating, ratingPath string) error {
@@ -458,7 +513,7 @@ func (n *OpenBazaarNode) updateRatingIndex(rating *pb.Rating, ratingPath string)
 
 	var index []SavedRating
 
-	ratingHash, err := ipfs.GetHashOfFile(n.Context, ratingPath)
+	ratingHash, err := ipfs.GetHashOfFile(n.IpfsNode, ratingPath)
 	if err != nil {
 		return err
 	}
@@ -483,7 +538,7 @@ func (n *OpenBazaarNode) updateRatingIndex(rating *pb.Rating, ratingPath string)
 			index[i].Ratings = append(index[i].Ratings, ratingHash)
 			total := index[i].Average * float32(index[i].Count)
 			total += float32(rating.RatingData.Overall)
-			index[i].Count += 1
+			index[i].Count++
 			index[i].Average = total / float32(index[i].Count)
 			exists = true
 			break
@@ -503,10 +558,10 @@ func (n *OpenBazaarNode) updateRatingIndex(rating *pb.Rating, ratingPath string)
 
 	// Write it back to file
 	f, err := os.Create(indexPath)
-	defer f.Close()
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	j, jerr := json.MarshalIndent(index, "", "    ")
 	if jerr != nil {
 		return jerr
@@ -528,11 +583,11 @@ func verifySignaturesOnOrderCompletion(contract *pb.RicardianContract) error {
 	); err != nil {
 		switch err.(type) {
 		case noSigError:
-			return errors.New("Contract does not contain a signature for the order completion")
+			return errors.New("contract does not contain a signature for the order completion")
 		case invalidSigError:
-			return errors.New("Buyer's guid signature on contact failed to verify")
+			return errors.New("buyer's guid signature on contact failed to verify")
 		case matchKeyError:
-			return errors.New("Public key in order does not match reported buyer ID")
+			return errors.New("public key in order does not match reported buyer ID")
 		default:
 			return err
 		}

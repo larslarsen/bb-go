@@ -6,26 +6,36 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/schema"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/namesys"
 	"github.com/ipfs/go-ipfs/repo/fsrepo"
-	"github.com/mitchellh/go-homedir"
 	"github.com/op/go-logging"
 	"github.com/tyler-smith/go-bip39"
-	"path/filepath"
-	"runtime"
-	"time"
 )
 
-const RepoVersion = "5"
+const RepoVersion = "34"
 
 var log = logging.MustGetLogger("repo")
 var ErrRepoExists = errors.New("IPFS configuration file exists. Reinitializing would overwrite your keys. Use -f to force overwrite.")
 
+func init() {
+	ipfs.InstallDatabasePlugins()
+}
+
 func DoInit(repoRoot string, nBitsForKeypair int, testnet bool, password string, mnemonic string, creationDate time.Time, dbInit func(string, []byte, string, time.Time) error) error {
-	if err := maybeCreateOBDirectories(repoRoot); err != nil {
+	nodeSchema, err := schema.NewCustomSchemaManager(schema.SchemaContext{
+		DataPath:        repoRoot,
+		TestModeEnabled: testnet,
+		Mnemonic:        mnemonic,
+	})
+	if err != nil {
+		return err
+	}
+	if err := nodeSchema.BuildSchemaDirectories(); err != nil {
 		return err
 	}
 
@@ -41,10 +51,7 @@ func DoInit(repoRoot string, nBitsForKeypair int, testnet bool, password string,
 		return err
 	}
 
-	conf, err := InitConfig(repoRoot)
-	if err != nil {
-		return err
-	}
+	conf := schema.MustDefaultConfig()
 
 	if mnemonic == "" {
 		mnemonic, err = createMnemonic(bip39.NewEntropy, bip39.NewMnemonic)
@@ -64,14 +71,14 @@ func DoInit(repoRoot string, nBitsForKeypair int, testnet bool, password string,
 	if err != nil {
 		return err
 	}
+	conf.Identity = identity
 
 	log.Infof("Initializing OpenBazaar node at %s\n", repoRoot)
 	if err := fsrepo.Init(repoRoot, conf); err != nil {
 		return err
 	}
-	conf.Identity = identity
 
-	if err := addConfigExtensions(repoRoot, testnet); err != nil {
+	if err := addConfigExtensions(repoRoot); err != nil {
 		return err
 	}
 
@@ -87,58 +94,10 @@ func DoInit(repoRoot string, nBitsForKeypair int, testnet bool, password string,
 	if werr != nil {
 		return werr
 	}
-	f.Close()
-
-	return initializeIpnsKeyspace(repoRoot, identityKey)
-}
-
-func maybeCreateOBDirectories(repoRoot string) error {
-	if err := os.MkdirAll(path.Join(repoRoot, "root"), os.ModePerm); err != nil {
+	if err := initializeIpnsKeyspace(repoRoot, identityKey); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "listings"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "ratings"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "images"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "images", "tiny"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "images", "small"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "images", "medium"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "images", "large"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "images", "original"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "feed"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "posts"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "channel"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "root", "files"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "outbox"), os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path.Join(repoRoot, "logs"), os.ModePerm); err != nil {
-		return err
-	}
-	return nil
+	return nodeSchema.CleanIdentityFromConfig()
 }
 
 func checkWriteable(dir string) error {
@@ -151,7 +110,7 @@ func checkWriteable(dir string) error {
 			if os.IsPermission(err) {
 				return fmt.Errorf("%s is not writeable by the current user", dir)
 			}
-			return fmt.Errorf("Unexpected error while checking writeablility of repo root: %s", err)
+			return fmt.Errorf("unexpected error while checking writeablility of repo root: %s", err)
 		}
 		fi.Close()
 		return os.Remove(testfile)
@@ -163,7 +122,7 @@ func checkWriteable(dir string) error {
 	}
 
 	if os.IsPermission(err) {
-		return fmt.Errorf("Cannot write to %s, incorrect permissions", err)
+		return fmt.Errorf("cannot write to %s, incorrect permissions", err)
 	}
 
 	return err
@@ -177,6 +136,7 @@ func initializeIpnsKeyspace(repoRoot string, privKeyBytes []byte) error {
 	if err != nil { // NB: repo is owned by the node
 		return err
 	}
+
 	cfg, err := r.Config()
 	if err != nil {
 		log.Error(err)
@@ -188,74 +148,64 @@ func initializeIpnsKeyspace(repoRoot string, privKeyBytes []byte) error {
 	}
 
 	cfg.Identity = identity
+
 	nd, err := core.NewNode(ctx, &core.BuildCfg{Repo: r})
 	if err != nil {
 		return err
 	}
 	defer nd.Close()
 
-	err = nd.SetupOfflineRouting()
-	if err != nil {
-		return err
-	}
-
-	return namesys.InitializeKeyspace(ctx, nd.DAG, nd.Namesys, nd.Pinning, nd.PrivateKey)
+	return namesys.InitializeKeyspace(ctx, nd.Namesys, nd.Pinning, nd.PrivateKey)
 }
 
-func addConfigExtensions(repoRoot string, testnet bool) error {
+func addConfigExtensions(repoRoot string) error {
 	r, err := fsrepo.Open(repoRoot)
 	if err != nil { // NB: repo is owned by the node
 		return err
 	}
-	var w WalletConfig = WalletConfig{
-		Type:             "spvwallet",
-		MaxFee:           2000,
-		FeeAPI:           "https://btc.fees.openbazaar.org",
-		HighFeeDefault:   160,
-		MediumFeeDefault: 60,
-		LowFeeDefault:    20,
-		TrustedPeer:      "",
+	var (
+		a = schema.APIConfig{
+			Enabled:     true,
+			AllowedIPs:  []string{},
+			HTTPHeaders: nil,
+		}
+
+		ds = schema.DataSharing{
+			AcceptStoreRequests: false,
+			PushTo:              schema.DataPushNodes,
+		}
+		ie = schema.IpnsExtraConfig{
+			DHTQuorumSize: 1,
+			APIRouter:     schema.IPFSCachingRouterDefaultURI,
+		}
+
+		t = schema.TorConfig{}
+	)
+	if err := r.SetConfigKey("Wallets", schema.DefaultWalletsConfig()); err != nil {
+		return err
+	}
+	if err := r.SetConfigKey("DataSharing", ds); err != nil {
+		return err
+	}
+	if err := r.SetConfigKey("Bootstrap-testnet", schema.BootstrapAddressesTestnet); err != nil {
+		return err
+	}
+	if err := r.SetConfigKey("Dropbox-api-token", ""); err != nil {
+		return err
+	}
+	if err := r.SetConfigKey("IpnsExtra", ie); err != nil {
+		return err
+	}
+	if err := r.SetConfigKey("RepublishInterval", "24h"); err != nil {
+		return err
+	}
+	if err := r.SetConfigKey("JSON-API", a); err != nil {
+		return err
+	}
+	if err := r.SetConfigKey("Tor-config", t); err != nil {
+		return err
 	}
 
-	var a APIConfig = APIConfig{
-		Enabled:     true,
-		AllowedIPs:  []string{},
-		HTTPHeaders: nil,
-	}
-
-	var ds DataSharing = DataSharing{
-		AcceptStoreRequests: false,
-		PushTo:              DataPushNodes,
-	}
-
-	var t TorConfig = TorConfig{}
-	if err := extendConfigFile(r, "Wallet", w); err != nil {
-		return err
-	}
-	var resolvers ResolverConfig = ResolverConfig{
-		Id: "https://resolver.onename.com/",
-	}
-	if err := extendConfigFile(r, "DataSharing", ds); err != nil {
-		return err
-	}
-	if err := extendConfigFile(r, "Resolvers", resolvers); err != nil {
-		return err
-	}
-	if err := extendConfigFile(r, "Bootstrap-testnet", TestnetBootstrapAddresses); err != nil {
-		return err
-	}
-	if err := extendConfigFile(r, "Dropbox-api-token", ""); err != nil {
-		return err
-	}
-	if err := extendConfigFile(r, "RepublishInterval", "24h"); err != nil {
-		return err
-	}
-	if err := extendConfigFile(r, "JSON-API", a); err != nil {
-		return err
-	}
-	if err := extendConfigFile(r, "Tor-config", t); err != nil {
-		return err
-	}
 	if err := r.Close(); err != nil {
 		return err
 	}
@@ -274,32 +224,17 @@ func createMnemonic(newEntropy func(int) ([]byte, error), newMnemonic func([]byt
 	return mnemonic, nil
 }
 
-/* Returns the directory to store repo data in.
-   It depends on the OS and whether or not we are on testnet. */
-func GetRepoPath(isTestnet bool) (string, error) {
-	// Set default base path and directory name
-	path := "~"
-	directoryName := "OpenBazaar2.0"
-
-	// Override OS-specific names
-	switch runtime.GOOS {
-	case "linux":
-		directoryName = ".openbazaar2.0"
-	case "darwin":
-		path = "~/Library/Application Support"
+// GetRepoPath returns the directory to store repo data in.
+func GetRepoPath(isTestnet bool, repoPath string) (string, error) {
+	ctx := schema.SchemaContext{
+		TestModeEnabled: isTestnet,
 	}
-
-	// Append testnet flag if on testnet
-	if isTestnet {
-		directoryName += "-testnet"
+	if repoPath != "" {
+		ctx.DataPath = repoPath
 	}
-
-	// Join the path and directory name, then expand the home path
-	fullPath, err := homedir.Expand(filepath.Join(path, directoryName))
+	paths, err := schema.NewCustomSchemaManager(ctx)
 	if err != nil {
 		return "", err
 	}
-
-	// Return the shortest lexical representation of the path
-	return filepath.Clean(fullPath), nil
+	return paths.DataPath(), nil
 }

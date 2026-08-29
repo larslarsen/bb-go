@@ -8,10 +8,10 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"syscall"
 
 	core "github.com/ipfs/go-ipfs/core"
 
+	unix "gx/ipfs/QmVGjyM9i2msKvLXwh9VosCTgP4mL91kC7hDmqnwTTx6Hu/sys/unix"
 	"gx/ipfs/QmYRGECuvQnRX73fcvPnGbYijBcGN2HbKZQ7jh26qmLiHG/semver"
 )
 
@@ -74,7 +74,7 @@ Please install it yourself by running:
 You can also stop ipfs from running these checks and use whatever OSXFUSE
 version you have by running:
 
-	ipfs config %s true
+	ipfs --json config %s true
 
 [1]: https://github.com/ipfs/go-ipfs/issues/177
 [2]: https://github.com/ipfs/go-ipfs/pull/533
@@ -165,7 +165,7 @@ func tryGFV() (string, error) {
 }
 
 func trySysctl() (string, error) {
-	v, err := syscall.Sysctl("osxfuse.version.number")
+	v, err := unix.Sysctl("osxfuse.version.number")
 	if err != nil {
 		log.Debug("mount: sysctl osxfuse.version.number:", "failed")
 		return "", err

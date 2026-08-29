@@ -4,12 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/larslarsen/bb-go/core"
-	"github.com/larslarsen/bb-go/repo"
-	"github.com/gorilla/websocket"
-	"github.com/ipfs/go-ipfs/commands"
 	"net/http"
 	"strings"
+
+	"github.com/larslarsen/bb-go/core"
+	"github.com/larslarsen/bb-go/schema"
+	"github.com/gorilla/websocket"
+	"github.com/op/go-logging"
 )
 
 type connection struct {
@@ -27,6 +28,7 @@ func (c *connection) reader() {
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
+			log.Errorf("Websocket read error: %s", err.Error())
 			break
 		}
 		log.Debugf("Incoming websocket message: %s", string(message))
@@ -41,6 +43,7 @@ func (c *connection) writer() {
 	for message := range c.send {
 		err := c.ws.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
+			log.Errorf("Websocket write error: %s", err.Error())
 			break
 		}
 	}
@@ -58,16 +61,16 @@ var handler wsHandler
 type wsHandler struct {
 	h             *hub
 	path          string
-	context       commands.Context
 	enabled       bool
 	authenticated bool
 	allowedIPs    map[string]bool
 	cookie        http.Cookie
 	username      string
 	password      string
+	logger        *logging.Logger
 }
 
-func newWSAPIHandler(node *core.OpenBazaarNode, ctx commands.Context, authCookie http.Cookie, config repo.APIConfig) (*wsHandler, error) {
+func newWSAPIHandler(node *core.OpenBazaarNode, authCookie http.Cookie, config schema.APIConfig) *wsHandler {
 	hub := newHub()
 	go hub.run()
 	allowedIps := make(map[string]bool)
@@ -76,24 +79,19 @@ func newWSAPIHandler(node *core.OpenBazaarNode, ctx commands.Context, authCookie
 	}
 	handler = wsHandler{
 		h:             hub,
-		path:          ctx.ConfigRoot,
-		context:       ctx,
+		path:          node.RepoPath,
 		enabled:       config.Enabled,
 		authenticated: config.Authenticated,
 		allowedIPs:    allowedIps,
 		cookie:        authCookie,
 		username:      config.Username,
 		password:      config.Password,
+		logger:        logging.MustGetLogger("api"),
 	}
-	return &handler, nil
+	return &handler
 }
 
 func (wsh wsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ws, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Error("Error upgrading to websockets:", err)
-		return
-	}
 	if !wsh.enabled {
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprint(w, "403 - Forbidden")
@@ -102,6 +100,7 @@ func (wsh wsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(wsh.allowedIPs) > 0 {
 		remoteAddr := strings.Split(r.RemoteAddr, ":")
 		if !wsh.allowedIPs[remoteAddr[0]] {
+			wsh.logger.Errorf("refused websocket connection from ip: %s", remoteAddr[0])
 			w.WriteHeader(http.StatusForbidden)
 			fmt.Fprint(w, "403 - Forbidden")
 			return
@@ -111,11 +110,13 @@ func (wsh wsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if wsh.username == "" || wsh.password == "" {
 			cookie, err := r.Cookie("OpenBazaar_Auth_Cookie")
 			if err != nil {
+				wsh.logger.Error("refused websocket connection: no cookie present")
 				w.WriteHeader(http.StatusForbidden)
 				fmt.Fprint(w, "403 - Forbidden")
 				return
 			}
 			if wsh.cookie.Value != cookie.Value {
+				wsh.logger.Error("refused websocket connection: invalid cookie")
 				w.WriteHeader(http.StatusForbidden)
 				fmt.Fprint(w, "403 - Forbidden")
 				return
@@ -124,13 +125,21 @@ func (wsh wsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			username, password, ok := r.BasicAuth()
 			h := sha256.Sum256([]byte(password))
 			password = hex.EncodeToString(h[:])
-			if !ok || username != wsh.username || strings.ToLower(password) != strings.ToLower(wsh.password) {
+			if !ok || username != wsh.username || !strings.EqualFold(password, wsh.password) {
+				wsh.logger.Error("refused websocket connection: invalid username and/or password")
 				w.WriteHeader(http.StatusForbidden)
 				fmt.Fprint(w, "403 - Forbidden")
 				return
 			}
 		}
 	}
+
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		wsh.logger.Error("upgrading websocket:", err)
+		return
+	}
+	wsh.logger.Info("websocket connection established")
 	c := &connection{send: make(chan []byte, 256), ws: ws, h: wsh.h}
 	c.h.register <- c
 	defer func() { c.h.unregister <- c }()

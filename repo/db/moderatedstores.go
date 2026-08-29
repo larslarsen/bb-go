@@ -2,28 +2,34 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 	"sync"
+
+	"github.com/larslarsen/bb-go/repo"
 )
 
 type ModeratedDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
+}
+
+func NewModeratedStore(db *sql.DB, lock *sync.Mutex) repo.ModeratedStore {
+	return &ModeratedDB{modelStore{db, lock}}
 }
 
 func (m *ModeratedDB) Put(peerId string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	tx, _ := m.db.Begin()
-	stmt, _ := tx.Prepare("insert into moderatedstores(peerID) values(?)")
-
-	defer stmt.Close()
-	_, err := stmt.Exec(peerId)
+	stmt, err := m.PrepareQuery("insert into moderatedstores(peerID) values(?)")
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("prepare moderated store sql: %s", err.Error())
 	}
-	tx.Commit()
+	defer stmt.Close()
+
+	_, err = stmt.Exec(peerId)
+	if err != nil {
+		return fmt.Errorf("commit moderated store: %s", err.Error())
+	}
 	return nil
 }
 
@@ -45,7 +51,10 @@ func (m *ModeratedDB) Get(offsetId string, limit int) ([]string, error) {
 
 	for rows.Next() {
 		var peerID string
-		rows.Scan(&peerID)
+		err = rows.Scan(&peerID)
+		if err != nil {
+			log.Error(err)
+		}
 		ret = append(ret, peerID)
 	}
 	return ret, nil
@@ -54,6 +63,9 @@ func (m *ModeratedDB) Get(offsetId string, limit int) ([]string, error) {
 func (m *ModeratedDB) Delete(follower string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	m.db.Exec("delete from moderatedstores where peerID=?", follower)
+	_, err := m.db.Exec("delete from moderatedstores where peerID=?", follower)
+	if err != nil {
+		log.Error(err)
+	}
 	return nil
 }

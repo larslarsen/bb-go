@@ -4,56 +4,79 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math/big"
+	"sync"
+	"time"
+
 	"github.com/OpenBazaar/jsonpb"
 	"github.com/larslarsen/bb-go/pb"
 	"github.com/larslarsen/bb-go/repo"
-	"sync"
-	"time"
 )
 
 type CasesDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
 }
 
-func (c *CasesDB) Put(caseID string, state pb.OrderState, buyerOpened bool, claim string) error {
+func NewCaseStore(db *sql.DB, lock *sync.Mutex) repo.CaseStore {
+	return &CasesDB{modelStore{db, lock}}
+}
+
+func (c *CasesDB) PutRecord(dispute *repo.DisputeCaseRecord) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	readInt := 0
+	if dispute.PaymentCoin.String() == "" {
+		return errors.New("payment coin field is empty")
+	}
 
-	buyerOpenedInt := 0
-	if buyerOpened {
+	var readInt, buyerOpenedInt uint
+	if dispute.IsBuyerInitiated {
 		buyerOpenedInt = 1
 	}
 
-	tx, err := c.db.Begin()
+	stm := `insert or replace into cases(caseID, state, read, timestamp, buyerOpened, claim, buyerPayoutAddress, vendorPayoutAddress, paymentCoin, coinType) values(?,?,?,?,?,?,?,?,?,?)`
+	stmt, err := c.PrepareQuery(stm)
 	if err != nil {
 		return err
 	}
-	stm := `insert or replace into cases(caseID, state, read, timestamp, buyerOpened, claim, buyerPayoutAddress, vendorPayoutAddress) values(?,?,?,?,?,?,?,?)`
-	stmt, err := tx.Prepare(stm)
-	if err != nil {
-		return err
-	}
-
 	defer stmt.Close()
+
 	_, err = stmt.Exec(
-		caseID,
-		int(state),
+		dispute.CaseID,
+		int(dispute.OrderState),
 		readInt,
-		int(time.Now().Unix()),
+		int(dispute.Timestamp.Unix()),
 		buyerOpenedInt,
-		claim,
+		dispute.Claim,
 		"",
 		"",
+		dispute.PaymentCoin.String(),
+		dispute.CoinType,
 	)
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("update dispute case: %s", err.Error())
 	}
-	tx.Commit()
+
 	return nil
+}
+
+func (c *CasesDB) Put(caseID string, state pb.OrderState, buyerOpened bool, claim string, paymentCoin string, coinType string) error {
+	def, err := repo.AllCurrencies().Lookup(paymentCoin)
+	if err != nil {
+		return fmt.Errorf("verifying paymentCoin: %s", err.Error())
+	}
+	cc := def.CurrencyCode()
+	record := &repo.DisputeCaseRecord{
+		CaseID:           caseID,
+		Claim:            claim,
+		IsBuyerInitiated: buyerOpened,
+		OrderState:       state,
+		PaymentCoin:      &cc,
+		CoinType:         coinType,
+		Timestamp:        time.Now(),
+	}
+	return c.PutRecord(record)
 }
 
 func (c *CasesDB) UpdateBuyerInfo(caseID string, buyerContract *pb.RicardianContract, buyerValidationErrors []string, buyerPayoutAddress string, buyerOutpoints []*pb.Outpoint) error {
@@ -150,7 +173,7 @@ func (c *CasesDB) MarkAsUnread(orderID string) error {
 
 func (c *CasesDB) MarkAsClosed(caseID string, resolution *pb.DisputeResolution) error {
 	if resolution == nil {
-		return errors.New("Dispute resolution should not be nil")
+		return errors.New("dispute resolution should not be nil")
 	}
 	m := jsonpb.Marshaler{
 		EnumsAsInts:  false,
@@ -189,7 +212,7 @@ func (c *CasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sortByA
 
 	q := query{
 		table:           "cases",
-		columns:         []string{"caseID", "timestamp", "buyerContract", "vendorContract", "buyerOpened", "state", "read"},
+		columns:         []string{"caseID", "timestamp", "buyerContract", "vendorContract", "buyerOpened", "state", "read", "coinType", "paymentCoin"},
 		stateFilter:     stateFilter,
 		searchTerm:      searchTerm,
 		searchColumns:   []string{"caseID", "timestamp", "claim"},
@@ -207,10 +230,10 @@ func (c *CasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sortByA
 	defer rows.Close()
 	var ret []repo.Case
 	for rows.Next() {
-		var caseID string
+		var caseID, coinType, paymentCoin string
 		var buyerContract, vendorContract []byte
 		var timestamp, buyerOpenedInt, stateInt, readInt int
-		if err := rows.Scan(&caseID, &timestamp, &buyerContract, &vendorContract, &buyerOpenedInt, &stateInt, &readInt); err != nil {
+		if err := rows.Scan(&caseID, &timestamp, &buyerContract, &vendorContract, &buyerOpenedInt, &stateInt, &readInt, &coinType, &paymentCoin); err != nil {
 			return ret, 0, err
 		}
 		read := false
@@ -222,39 +245,56 @@ func (c *CasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sortByA
 		if buyerOpenedInt > 0 {
 			buyerOpened = true
 		}
-		var total uint64
+		total := new(big.Int)
 		var title, thumbnail, vendorId, vendorHandle, buyerId, buyerHandle string
 
 		contract := new(pb.RicardianContract)
 		err := jsonpb.UnmarshalString(string(buyerContract), contract)
 		if err != nil {
-			jsonpb.UnmarshalString(string(vendorContract), contract)
+			err = jsonpb.UnmarshalString(string(vendorContract), contract)
+			if err != nil {
+				log.Errorf("Error unmarshaling case contract: %s", err)
+				continue
+			}
 		}
 		var slug string
-		if contract != nil {
-			if len(contract.VendorListings) > 0 {
-				slug = contract.VendorListings[0].Slug
-				if contract.VendorListings[0].VendorID != nil {
-					vendorId = contract.VendorListings[0].VendorID.PeerID
-					vendorHandle = contract.VendorListings[0].VendorID.Handle
-				}
-				if contract.VendorListings[0].Item != nil {
-					title = contract.VendorListings[0].Item.Title
-					if len(contract.VendorListings[0].Item.Images) > 0 {
-						thumbnail = contract.VendorListings[0].Item.Images[0].Tiny
-					}
+		if len(contract.VendorListings) > 0 {
+			slug = contract.VendorListings[0].Slug
+			if contract.VendorListings[0].VendorID != nil {
+				vendorId = contract.VendorListings[0].VendorID.PeerID
+				vendorHandle = contract.VendorListings[0].VendorID.Handle
+			}
+			if contract.VendorListings[0].Item != nil {
+				title = contract.VendorListings[0].Item.Title
+				if len(contract.VendorListings[0].Item.Images) > 0 {
+					thumbnail = contract.VendorListings[0].Item.Images[0].Tiny
 				}
 			}
-			if contract.BuyerOrder != nil {
-				slug = contract.VendorListings[0].Slug
-				if contract.BuyerOrder.BuyerID != nil {
-					buyerId = contract.BuyerOrder.BuyerID.PeerID
-					buyerHandle = contract.BuyerOrder.BuyerID.Handle
-				}
-				if contract.BuyerOrder.Payment != nil {
-					total = contract.BuyerOrder.Payment.Amount
+
+			if contract.VendorListings[0].Metadata != nil && contract.VendorListings[0].Metadata.ContractType != pb.Listing_Metadata_CRYPTOCURRENCY {
+				coinType = ""
+			}
+		}
+		if contract.BuyerOrder != nil {
+			slug = contract.VendorListings[0].Slug
+			if contract.BuyerOrder.BuyerID != nil {
+				buyerId = contract.BuyerOrder.BuyerID.PeerID
+				buyerHandle = contract.BuyerOrder.BuyerID.Handle
+			}
+			if contract.BuyerOrder.Payment != nil {
+				if contract.BuyerOrder.Payment.BigAmount != "" {
+					total0, _ := new(big.Int).SetString(contract.BuyerOrder.Payment.BigAmount, 10)
+					total = total0
+				} else {
+					total1 := new(big.Int).SetUint64(contract.BuyerOrder.Payment.Amount)
+					total = total1
 				}
 			}
+		}
+
+		cv, err := repo.NewCurrencyValueWithLookup(total.String(), paymentCoin)
+		if err != nil {
+			return nil, 0, err
 		}
 
 		ret = append(ret, repo.Case{
@@ -263,12 +303,14 @@ func (c *CasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sortByA
 			Timestamp:    time.Unix(int64(timestamp), 0),
 			Title:        title,
 			Thumbnail:    thumbnail,
-			Total:        total,
+			Total:        *cv,
 			VendorId:     vendorId,
 			VendorHandle: vendorHandle,
 			BuyerId:      buyerId,
 			BuyerHandle:  buyerHandle,
 			BuyerOpened:  buyerOpened,
+			CoinType:     coinType,
+			PaymentCoin:  paymentCoin,
 			State:        pb.OrderState(stateInt).String(),
 			Read:         read,
 		})
@@ -289,18 +331,24 @@ func (c *CasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sortByA
 func (c *CasesDB) GetCaseMetadata(caseID string) (buyerContract, vendorContract *pb.RicardianContract, buyerValidationErrors, vendorValidationErrors []string, state pb.OrderState, read bool, timestamp time.Time, buyerOpened bool, claim string, resolution *pb.DisputeResolution, err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	stmt, err := c.db.Prepare("select buyerContract, vendorContract, buyerValidationErrors, vendorValidationErrors, state, read, timestamp, buyerOpened, claim, disputeResolution from cases where caseID=?")
+	stmt, err := c.PrepareQuery("select buyerContract, vendorContract, buyerValidationErrors, vendorValidationErrors, state, read, timestamp, buyerOpened, claim, disputeResolution from cases where caseID=?")
+	if err != nil {
+		return nil, nil, []string{}, []string{}, pb.OrderState(0), false, time.Time{}, false, "", nil, err
+	}
 	defer stmt.Close()
-	var buyerCon []byte
-	var vendorCon []byte
-	var buyerErrors []byte
-	var vendorErrors []byte
-	var stateInt int
-	var readInt *int
-	var ts int
-	var buyerOpenedInt int
-	var disputResolution []byte
-	err = stmt.QueryRow(caseID).Scan(&buyerCon, &vendorCon, &buyerErrors, &vendorErrors, &stateInt, &readInt, &ts, &buyerOpenedInt, &claim, &disputResolution)
+
+	var (
+		buyerCon          []byte
+		vendorCon         []byte
+		buyerErrors       []byte
+		vendorErrors      []byte
+		stateInt          int
+		readInt           *int
+		ts                int
+		buyerOpenedInt    int
+		disputeResolution []byte
+	)
+	err = stmt.QueryRow(caseID).Scan(&buyerCon, &vendorCon, &buyerErrors, &vendorErrors, &stateInt, &readInt, &ts, &buyerOpenedInt, &claim, &disputeResolution)
 	if err != nil {
 		return nil, nil, []string{}, []string{}, pb.OrderState(0), false, time.Time{}, false, "", nil, err
 	}
@@ -336,21 +384,21 @@ func (c *CasesDB) GetCaseMetadata(caseID string) (buyerContract, vendorContract 
 	if string(buyerErrors) != "" {
 		err = json.Unmarshal(buyerErrors, &berr)
 		if err != nil {
-			return nil, nil, []string{}, []string{}, pb.OrderState(0), false, time.Time{}, false, "", nil, err
+			return nil, nil, []string{}, []string{}, pb.OrderState(0), false, time.Time{}, false, "", nil, fmt.Errorf("unmarshal dispute case: %s", err.Error())
 		}
 	}
 	var verr []string
 	if string(vendorErrors) != "" {
 		err = json.Unmarshal(vendorErrors, &verr)
 		if err != nil {
-			return nil, nil, []string{}, []string{}, pb.OrderState(0), false, time.Time{}, false, "", nil, err
+			return nil, nil, []string{}, []string{}, pb.OrderState(0), false, time.Time{}, false, "", nil, fmt.Errorf("unmarshal dispute vendor errors: %s", err.Error())
 		}
 	}
 	resolution = new(pb.DisputeResolution)
-	if string(disputResolution) != "" {
-		err = jsonpb.UnmarshalString(string(disputResolution), resolution)
+	if string(disputeResolution) != "" {
+		err = jsonpb.UnmarshalString(string(disputeResolution), resolution)
 		if err != nil {
-			return nil, nil, []string{}, []string{}, pb.OrderState(0), false, time.Time{}, false, "", nil, err
+			return nil, nil, []string{}, []string{}, pb.OrderState(0), false, time.Time{}, false, "", nil, fmt.Errorf("unmarhsal dispute case resolution: %s", err.Error())
 		}
 	} else {
 		resolution = nil
@@ -359,28 +407,48 @@ func (c *CasesDB) GetCaseMetadata(caseID string) (buyerContract, vendorContract 
 	return brc, vrc, berr, verr, pb.OrderState(stateInt), read, time.Unix(int64(ts), 0), buyerOpened, claim, resolution, nil
 }
 
-func (c *CasesDB) GetPayoutDetails(caseID string) (buyerContract, vendorContract *pb.RicardianContract, buyerPayoutAddress, vendorPayoutAddress string, buyerOutpoints, vendorOutpoints []*pb.Outpoint, state pb.OrderState, err error) {
+func (c *CasesDB) GetByCaseID(caseID string) (*repo.DisputeCaseRecord, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	stmt, err := c.db.Prepare("select buyerContract, vendorContract, buyerPayoutAddress, vendorPayoutAddress, buyerOutpoints, vendorOutpoints, state from cases where caseID=?")
-	var buyerCon []byte
-	var vendorCon []byte
-	var buyerOuts []byte
-	var vendorOuts []byte
-	var buyerAddr string
-	var vendorAddr string
-	var stateInt int
+	var (
+		buyerAddr        string
+		buyerCon         []byte
+		buyerInitiated   bool
+		buyerOuts        []byte
+		createdAt        int64
+		isBuyerInitiated int
+		paymentCoin      string
+		stateInt         int
+		vendorAddr       string
+		vendorCon        []byte
+		vendorOuts       []byte
+	)
 
-	err = stmt.QueryRow(caseID).Scan(&buyerCon, &vendorCon, &buyerAddr, &vendorAddr, &buyerOuts, &vendorOuts, &stateInt)
+	stmt, err := c.PrepareQuery("select buyerContract, vendorContract, buyerPayoutAddress, vendorPayoutAddress, buyerOutpoints, vendorOutpoints, state, buyerOpened, timestamp, paymentCoin from cases where caseID=?")
 	if err != nil {
-		return nil, nil, "", "", nil, nil, pb.OrderState(0), err
+		return nil, err
+	}
+	defer stmt.Close()
+
+	err = stmt.QueryRow(caseID).Scan(&buyerCon, &vendorCon, &buyerAddr, &vendorAddr, &buyerOuts, &vendorOuts, &stateInt, &isBuyerInitiated, &createdAt, &paymentCoin)
+	if err != nil {
+		return nil, err
+	}
+
+	def, err := repo.AllCurrencies().Lookup(paymentCoin)
+	if err != nil {
+		return nil, fmt.Errorf("validating payment coin: %s", err.Error())
+	}
+
+	if isBuyerInitiated == 1 {
+		buyerInitiated = true
 	}
 
 	brc := new(pb.RicardianContract)
 	if string(buyerCon) != "" {
 		err = jsonpb.UnmarshalString(string(buyerCon), brc)
 		if err != nil {
-			return nil, nil, "", "", nil, nil, pb.OrderState(0), err
+			return nil, err
 		}
 	} else {
 		brc = nil
@@ -389,7 +457,7 @@ func (c *CasesDB) GetPayoutDetails(caseID string) (buyerContract, vendorContract
 	if string(vendorCon) != "" {
 		err = jsonpb.UnmarshalString(string(vendorCon), vrc)
 		if err != nil {
-			return nil, nil, "", "", nil, nil, pb.OrderState(0), err
+			return nil, err
 		}
 	} else {
 		vrc = nil
@@ -399,14 +467,14 @@ func (c *CasesDB) GetPayoutDetails(caseID string) (buyerContract, vendorContract
 	if len(buyerOuts) > 0 {
 		err = json.Unmarshal(buyerOuts, &buyerOutpointsOut)
 		if err != nil {
-			return nil, nil, "", "", nil, nil, pb.OrderState(0), err
+			return nil, err
 		}
 	}
 	var vendorOutpointsOut []pb.Outpoint
 	if len(vendorOuts) > 0 {
 		err = json.Unmarshal(vendorOuts, &vendorOutpointsOut)
 		if err != nil {
-			return nil, nil, "", "", nil, nil, pb.OrderState(0), err
+			return nil, err
 		}
 	}
 
@@ -416,11 +484,25 @@ func (c *CasesDB) GetPayoutDetails(caseID string) (buyerContract, vendorContract
 		}
 		ret := make([]*pb.Outpoint, len(op))
 		for i, o := range op {
-			ret[i] = &o
+			var newOutpoint = o
+			ret[i] = &newOutpoint
 		}
 		return ret
 	}
-	return brc, vrc, buyerAddr, vendorAddr, toPointer(buyerOutpointsOut), toPointer(vendorOutpointsOut), pb.OrderState(stateInt), nil
+	cc := def.CurrencyCode()
+	return &repo.DisputeCaseRecord{
+		BuyerContract:       brc,
+		BuyerOutpoints:      toPointer(buyerOutpointsOut),
+		BuyerPayoutAddress:  buyerAddr,
+		CaseID:              caseID,
+		IsBuyerInitiated:    buyerInitiated,
+		OrderState:          pb.OrderState(stateInt),
+		PaymentCoin:         &cc,
+		Timestamp:           time.Unix(createdAt, 0),
+		VendorContract:      vrc,
+		VendorOutpoints:     toPointer(vendorOutpointsOut),
+		VendorPayoutAddress: vendorAddr,
+	}, nil
 }
 
 func (c *CasesDB) Count() int {
@@ -428,6 +510,96 @@ func (c *CasesDB) Count() int {
 	defer c.lock.Unlock()
 	row := c.db.QueryRow("select Count(*) from cases")
 	var count int
-	row.Scan(&count)
+	err := row.Scan(&count)
+	if err != nil {
+		log.Error(err)
+	}
 	return count
+}
+
+// GetDisputesForDisputeExpiryNotification returns []*repo.DisputeCaseRecord including
+// each record which needs Notifications to be generated. Currently,
+// notifications are generated at 0, 15, 30, 44, and 45 days after opening.
+func (c *CasesDB) GetDisputesForDisputeExpiryNotification() ([]*repo.DisputeCaseRecord, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	rows, err := c.db.Query("select caseID, state, buyerContract, vendorContract, timestamp, buyerOpened, lastDisputeExpiryNotifiedAt from cases where (lastDisputeExpiryNotifiedAt - timestamp) < ? and state = ?",
+		int(repo.ModeratorDisputeExpiry_lastInterval.Seconds()),
+		int(pb.OrderState_DISPUTED),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("selecting dispute case: %s", err.Error())
+	}
+	result := make([]*repo.DisputeCaseRecord, 0)
+	for rows.Next() {
+		var (
+			orderState                    int
+			lastDisputeExpiryNotifiedAt   int64
+			isBuyerInitiated              int
+			buyerContract, vendorContract []byte
+
+			r = &repo.DisputeCaseRecord{
+				BuyerContract:  &pb.RicardianContract{},
+				VendorContract: &pb.RicardianContract{},
+			}
+			timestamp = sql.NullInt64{}
+		)
+		if err := rows.Scan(&r.CaseID, &orderState, &buyerContract, &vendorContract, &timestamp, &isBuyerInitiated, &lastDisputeExpiryNotifiedAt); err != nil {
+			return nil, fmt.Errorf("scanning dispute case: %s", err.Error())
+		}
+		if len(buyerContract) > 0 {
+			if err := jsonpb.UnmarshalString(string(buyerContract), r.BuyerContract); err != nil {
+				return nil, fmt.Errorf("unmarshaling buyer contract: %s\n", err.Error())
+			}
+		}
+		if len(vendorContract) > 0 {
+			if err := jsonpb.UnmarshalString(string(vendorContract), r.VendorContract); err != nil {
+				return nil, fmt.Errorf("unmarshaling vendor contract: %s\n", err.Error())
+			}
+		}
+		if isBuyerInitiated != 0 {
+			r.IsBuyerInitiated = true
+		}
+		if timestamp.Valid {
+			r.Timestamp = time.Unix(timestamp.Int64, 0)
+		} else {
+			r.Timestamp = time.Now()
+		}
+		r.LastDisputeExpiryNotifiedAt = time.Unix(lastDisputeExpiryNotifiedAt, 0)
+		r.OrderState = pb.OrderState(orderState)
+		result = append(result, r)
+	}
+	return result, nil
+}
+
+// UpdateDisputesLastDisputeExpiryNotifiedAt accepts []*repo.DisputeCaseRecord and updates
+// each DisputeCaseRecord by their CaseID to the set LastDisputeExpiryNotifiedAt value. The
+// update will be attempted atomically with a rollback attempted in the event of
+// an error.
+func (c *CasesDB) UpdateDisputesLastDisputeExpiryNotifiedAt(disputeCases []*repo.DisputeCaseRecord) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	tx, err := c.BeginTransaction()
+	if err != nil {
+		return fmt.Errorf("begin update disputes transaction: %s", err.Error())
+	}
+	for _, d := range disputeCases {
+		_, err = tx.Exec("update cases set lastDisputeExpiryNotifiedAt = ? where caseID = ?", int(d.LastDisputeExpiryNotifiedAt.Unix()), d.CaseID)
+		if err != nil {
+			if rErr := tx.Rollback(); rErr != nil {
+				return fmt.Errorf("update dispute case: (%s) w rollback error: (%s)", err.Error(), rErr.Error())
+			}
+			return fmt.Errorf("update dispute case: %s", err.Error())
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		if rErr := tx.Rollback(); rErr != nil {
+			return fmt.Errorf("commit dispute case: (%s) w rollback error: (%s)", err.Error(), rErr.Error())
+		}
+		return fmt.Errorf("commit disputes case: %s", err.Error())
+	}
+
+	return nil
 }

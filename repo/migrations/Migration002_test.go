@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var testConfig2 string = `{
+var testConfig2 = `{
     "Crosspost-gateways": [
 	    "https://gateway.ob1.io/",
 	    "https://gateway.duosear.ch/"
@@ -19,9 +19,12 @@ func TestMigration002(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f.Write([]byte(testConfig2))
+	_, err = f.Write([]byte(testConfig2))
+	if err != nil {
+		t.Error(err)
+	}
 	f.Close()
-	var m migration002
+	var m Migration002
 
 	// Up
 	err = m.Up("./", "", false)

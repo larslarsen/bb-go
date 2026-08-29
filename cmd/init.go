@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/larslarsen/bb-go/repo"
-	"github.com/op/go-logging"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/OpenBazaar/wallet-interface"
+	"github.com/op/go-logging"
 )
 
 var log = logging.MustGetLogger("cmd")
@@ -24,7 +26,7 @@ type Init struct {
 
 func (x *Init) Execute(args []string) error {
 	// Set repo path
-	repoPath, err := repo.GetRepoPath(x.Testnet)
+	repoPath, err := repo.GetRepoPath(x.Testnet, x.DataDir)
 	if err != nil {
 		return err
 	}
@@ -38,29 +40,28 @@ func (x *Init) Execute(args []string) error {
 	if x.WalletCreationDate != "" {
 		creationDate, err = time.Parse(time.RFC3339, x.WalletCreationDate)
 		if err != nil {
-			return errors.New("Wallet creation date timestamp must be in RFC3339 format")
+			return errors.New("wallet creation date timestamp must be in RFC3339 format")
 		}
 	}
 
-	_, err = InitializeRepo(repoPath, x.Password, x.Mnemonic, x.Testnet, creationDate)
+	_, err = InitializeRepo(repoPath, x.Password, x.Mnemonic, x.Testnet, creationDate, wallet.Bitcoin)
 	if err == repo.ErrRepoExists && x.Force {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Force overwriting the db will destroy your existing keys and history. Are you really, really sure you want to continue? (y/n): ")
 		resp, _ := reader.ReadString('\n')
 		if strings.ToLower(resp) == "y\n" || strings.ToLower(resp) == "yes\n" || strings.ToLower(resp)[:1] == "y" {
 			os.RemoveAll(repoPath)
-			_, err = InitializeRepo(repoPath, x.Password, x.Mnemonic, x.Testnet, creationDate)
+			_, err = InitializeRepo(repoPath, x.Password, x.Mnemonic, x.Testnet, creationDate, wallet.Bitcoin)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("BitBook repo initialized at %s\n", repoPath)
 			return nil
-		} else {
-			return nil
 		}
+		return nil
 	} else if err != nil {
 		return err
 	}
-	fmt.Printf("Bitbook repo initialized at %s\n", repoPath)
+	fmt.Printf("BitBook repo initialized at %s\n", repoPath)
 	return nil
 }

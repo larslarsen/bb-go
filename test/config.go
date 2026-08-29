@@ -1,21 +1,21 @@
 package test
 
 import (
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 
-	"github.com/larslarsen/bb-go/repo"
-	"io/ioutil"
+	"github.com/larslarsen/bb-go/schema"
 )
 
 // NewAPIConfig returns a new config object for the API tests
-func NewAPIConfig() (*repo.APIConfig, error) {
+func NewAPIConfig() (*schema.APIConfig, error) {
 	configFile, err := ioutil.ReadFile(path.Join(GetRepoPath(), "config"))
 	if err != nil {
 		return nil, err
 	}
-	apiConfig, err := repo.GetAPIConfig(configFile)
+	apiConfig, err := schema.GetAPIConfig(configFile)
 	if err != nil {
 		return nil, err
 	}

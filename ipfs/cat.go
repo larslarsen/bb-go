@@ -1,38 +1,60 @@
 package ipfs
 
 import (
-	"github.com/ipfs/go-ipfs/commands"
-	"github.com/ipfs/go-ipfs/path"
-	"io"
+	"context"
+	ipath "gx/ipfs/QmQAgv6Gaoe2tQpcabqwKXKChp2MZ7i3UXv9DqTTaxCaTR/go-path"
+	"gx/ipfs/QmQmhotPUzVrMEWNK3x1R5jQ5ZHWyL7tVUrmRPjrBrvyCb/go-ipfs-files"
+	"gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	"io/ioutil"
+	"strings"
 	"time"
+
+	"github.com/go-errors/errors"
+
+	coreiface "gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core"
+
+	"github.com/ipfs/go-ipfs/core/coreapi"
+
+	"github.com/ipfs/go-ipfs/core"
 )
 
 // Fetch data from IPFS given the hash
-func Cat(ctx commands.Context, hash string, timeout time.Duration) ([]byte, error) {
-	args := []string{"cat", hash}
-	req, cmd, err := NewRequestWithTimeout(ctx, args, timeout)
-	if err != nil {
-		return nil, err
-	}
-	res := commands.NewResponse(req)
-	cmd.Run(req, res)
+func Cat(n *core.IpfsNode, path string, timeout time.Duration) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	if res.Error() != nil {
-		return nil, res.Error()
+	if !strings.HasPrefix(path, "/ipfs/") {
+		path = "/ipfs/" + path
 	}
-	resp := res.Output()
-	reader := resp.(io.Reader)
-	b := make([]byte, res.Length())
-	_, err = reader.Read(b)
+	api, err := coreapi.NewCoreAPI(n)
 	if err != nil {
 		return nil, err
 	}
-	return b, nil
+	pth, err := coreiface.ParsePath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	nd, err := api.Unixfs().Get(ctx, pth)
+	if err != nil {
+		return nil, err
+	}
+
+	r, ok := nd.(files.File)
+	if !ok {
+		return nil, errors.New("Received incorrect type from Unixfs().Get()")
+	}
+
+	return ioutil.ReadAll(r)
 }
 
-func ResolveThenCat(ctx commands.Context, ipnsPath path.Path, timeout time.Duration) ([]byte, error) {
+func ResolveThenCat(n *core.IpfsNode, ipnsPath ipath.Path, timeout time.Duration, quorum uint, usecache bool) ([]byte, error) {
 	var ret []byte
-	hash, err := Resolve(ctx, ipnsPath.Segments()[0], timeout)
+	pid, err := peer.IDB58Decode(ipnsPath.Segments()[0])
+	if err != nil {
+		return nil, err
+	}
+	hash, err := Resolve(n, pid, timeout, quorum, usecache)
 	if err != nil {
 		return ret, err
 	}
@@ -41,7 +63,7 @@ func ResolveThenCat(ctx commands.Context, ipnsPath path.Path, timeout time.Durat
 	for i := 0; i < len(ipnsPath.Segments())-1; i++ {
 		p[i+1] = ipnsPath.Segments()[i+1]
 	}
-	b, err := Cat(ctx, path.Join(p), timeout)
+	b, err := Cat(n, ipath.Join(p), timeout)
 	if err != nil {
 		return ret, err
 	}

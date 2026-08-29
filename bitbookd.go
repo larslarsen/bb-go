@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/larslarsen/bb-go/cmd"
-	"github.com/larslarsen/bb-go/core"
-	lockfile "github.com/ipfs/go-ipfs/repo/fsrepo/lock"
-	"github.com/jessevdk/go-flags"
-	"github.com/op/go-logging"
 	"os"
 	"os/signal"
 	"path/filepath"
+
+	"github.com/larslarsen/bb-go/cmd"
+	"github.com/larslarsen/bb-go/core"
+	"github.com/ipfs/go-ipfs/repo/fsrepo"
+	"github.com/jessevdk/go-flags"
+	"github.com/op/go-logging"
 )
 
 var log = logging.MustGetLogger("main")
@@ -17,11 +18,6 @@ var log = logging.MustGetLogger("main")
 type Opts struct {
 	Version bool `short:"v" long:"version" description:"Print the version number and exit"`
 }
-type Stop struct{}
-type Restart struct{}
-
-var stopServer Stop
-var restartServer Restart
 
 var opts Opts
 
@@ -36,56 +32,79 @@ func main() {
 			log.Info("BitBook Server shutting down...")
 			if core.Node != nil {
 				if core.Node.MessageRetriever != nil {
+					core.Node.RecordAgingNotifier.Stop()
+					core.Node.InboundMsgScanner.Stop()
 					close(core.Node.MessageRetriever.DoneChan)
 					core.Node.MessageRetriever.Wait()
 				}
 				core.OfflineMessageWaitGroup.Wait()
-				core.PublishLock.Lock()
+				core.Node.PublishLock.Lock()
 				core.Node.Datastore.Close()
-				repoLockFile := filepath.Join(core.Node.RepoPath, lockfile.LockFile)
+				repoLockFile := filepath.Join(core.Node.RepoPath, fsrepo.LockFile)
 				os.Remove(repoLockFile)
-				core.Node.Wallet.Close()
+				core.Node.Multiwallet.Close()
 				core.Node.IpfsNode.Close()
 			}
 			os.Exit(1)
 		}
 	}()
-	parser.AddCommand("init",
+
+	_, err := parser.AddCommand("gencerts",
+		"Generate certificates",
+		"Generate self-signed certificates",
+		&cmd.GenerateCertificates{})
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = parser.AddCommand("init",
 		"initialize a new repo and exit",
 		"Initializes a new repo without starting the server",
 		&cmd.Init{})
-	parser.AddCommand("status",
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = parser.AddCommand("status",
 		"get the repo status",
 		"Returns the status of the repo ― Uninitialized, Encrypted, Decrypted. Also returns whether Tor is available.",
 		&cmd.Status{})
-	parser.AddCommand("setapicreds",
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = parser.AddCommand("setapicreds",
 		"set API credentials",
 		"The API password field in the config file takes a SHA256 hash of the password. This command will generate the hash for you and save it to the config file.",
 		&cmd.SetAPICreds{})
-	parser.AddCommand("start",
-		"start the OpenBazaar-Server",
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = parser.AddCommand("start",
+		"start the BitBook-Server",
 		"The start command starts the BitBook-Server",
 		&cmd.Start{})
-	parser.AddCommand("stop",
-		"shutdown the server and disconnect",
-		"The stop command disconnects from peers and shuts down OpenBazaar-Server",
-		&stopServer)
-	parser.AddCommand("restart",
-		"restart the server",
-		"The restart command shuts down the server and restarts",
-		&restartServer)
-	parser.AddCommand("encryptdatabase",
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = parser.AddCommand("encryptdatabase",
 		"encrypt your database",
 		"This command encrypts the database containing your bitcoin private keys, identity key, and contracts",
 		&cmd.EncryptDatabase{})
-	parser.AddCommand("decryptdatabase",
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = parser.AddCommand("decryptdatabase",
 		"decrypt your database",
 		"This command decrypts the database containing your bitcoin private keys, identity key, and contracts.\n [Warning] doing so may put your bitcoins at risk.",
 		&cmd.DecryptDatabase{})
-	parser.AddCommand("restore",
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = parser.AddCommand("restore",
 		"restore user data",
 		"This command will attempt to restore user data (profile, listings, ratings, etc) by downloading them from the network. This will only work if the IPNS mapping is still available in the DHT. Optionally it will take a mnemonic seed to restore from.",
 		&cmd.Restore{})
+	if err != nil {
+		log.Error(err)
+	}
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
 		fmt.Println(core.VERSION)
 		return

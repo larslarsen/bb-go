@@ -1,94 +1,59 @@
 package ipfs
 
 import (
-	"errors"
-	"github.com/ipfs/go-ipfs/commands"
-	"github.com/ipfs/go-ipfs/core/coreunix"
+	"context"
+	"gx/ipfs/QmQmhotPUzVrMEWNK3x1R5jQ5ZHWyL7tVUrmRPjrBrvyCb/go-ipfs-files"
+	"gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core/options"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
-	"path"
 	"strconv"
+
+	"github.com/ipfs/go-ipfs/core"
+	"github.com/ipfs/go-ipfs/core/coreapi"
+	"github.com/ipfs/go-ipfs/core/coreunix"
+	_ "github.com/ipfs/go-ipfs/core/mock"
 )
 
-var addErr = errors.New(`Add directory failed`)
-
-// Resursively add a directory to IPFS and return the root hash
-func AddDirectory(ctx commands.Context, fpath string) (rootHash string, err error) {
-	_, root := path.Split(fpath)
-	args := []string{"add", "-r", "--cid-version", strconv.Itoa(1), fpath}
-	req, cmd, err := NewRequest(ctx, args)
+// Recursively add a directory to IPFS and return the root hash
+func AddDirectory(n *core.IpfsNode, root string) (rootHash string, err error) {
+	api, err := coreapi.NewCoreAPI(n)
 	if err != nil {
 		return "", err
 	}
-	res := commands.NewResponse(req)
-	cmd.PreRun(req)
-	cmd.Run(req, res)
-	for r := range res.Output().(<-chan interface{}) {
-		if r.(*coreunix.AddedObject).Name == root {
-			rootHash = r.(*coreunix.AddedObject).Hash
-		}
-	}
-	cmd.PostRun(req, res)
-	if res.Error() != nil {
-		return "", res.Error()
-	}
-	if rootHash == "" {
-		return "", addErr
-	}
-	return rootHash, nil
-}
-
-func AddFile(ctx commands.Context, fpath string) (string, error) {
-	args := []string{"add", "--cid-version", strconv.Itoa(1), fpath}
-	req, cmd, err := NewRequest(ctx, args)
+	stat, err := os.Lstat(root)
 	if err != nil {
 		return "", err
 	}
-	res := commands.NewResponse(req)
-	cmd.PreRun(req)
-	cmd.Run(req, res)
-	var fileHash string
-	for r := range res.Output().(<-chan interface{}) {
-		fileHash = r.(*coreunix.AddedObject).Hash
-	}
-	cmd.PostRun(req, res)
-	if res.Error() != nil {
-		return "", res.Error()
-	}
-	if fileHash == "" {
-		return "", addErr
-	}
-	return fileHash, nil
-}
 
-func GetHashOfFile(ctx commands.Context, fpath string) (string, error) {
-	args := []string{"add", "-n", "--cid-version", strconv.Itoa(1), fpath}
-	req, cmd, err := NewRequest(ctx, args)
+	f, err := files.NewSerialFile(root, false, stat)
 	if err != nil {
 		return "", err
 	}
-	res := commands.NewResponse(req)
-	cmd.PreRun(req)
-	cmd.Run(req, res)
-	var fileHash string
-	for r := range res.Output().(<-chan interface{}) {
-		fileHash = r.(*coreunix.AddedObject).Hash
+
+	opts := []options.UnixfsAddOption{
+		options.Unixfs.CidVersion(0),
+		options.Unixfs.Pin(true),
+		options.Unixfs.Wrap(true),
 	}
-	cmd.PostRun(req, res)
-	if res.Error() != nil {
-		return "", res.Error()
+	pth, err := api.Unixfs().Add(context.Background(), files.ToDir(f), opts...)
+	if err != nil {
+		return "", err
 	}
-	if fileHash == "" {
-		return "", addErr
-	}
-	return fileHash, nil
+	return pth.Root().String(), nil
 }
 
-func GetHash(ctx commands.Context, reader io.Reader) (string, error) {
-	tmpPath := path.Join(ctx.ConfigRoot, strconv.Itoa(rand.Int()))
-	f, err := os.Create(tmpPath)
+func AddFile(n *core.IpfsNode, file string) (string, error) {
+	return addAndPin(n, file)
+}
+
+func GetHashOfFile(n *core.IpfsNode, fpath string) (string, error) {
+	return AddFile(n, fpath)
+}
+
+func GetHash(n *core.IpfsNode, reader io.Reader) (string, error) {
+	f, err := ioutil.TempFile("", strconv.Itoa(rand.Int()))
 	if err != nil {
 		return "", err
 	}
@@ -96,8 +61,36 @@ func GetHash(ctx commands.Context, reader io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	f.Write(b)
+	_, err = f.Write(b)
+	if err != nil {
+		return "", err
+	}
 	defer f.Close()
-	defer os.Remove(tmpPath)
-	return GetHashOfFile(ctx, tmpPath)
+	return GetHashOfFile(n, f.Name())
+}
+
+func addAndPin(n *core.IpfsNode, root string) (rootHash string, err error) {
+	defer n.Blockstore.PinLock().Unlock()
+
+	stat, err := os.Lstat(root)
+	if err != nil {
+		return "", err
+	}
+
+	f, err := files.NewSerialFile(root, false, stat)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	fileAdder, err := coreunix.NewAdder(n.Context(), n.Pinning, n.Blockstore, n.DAG)
+	if err != nil {
+		return "", err
+	}
+
+	node, err := fileAdder.AddAllAndPin(f)
+	if err != nil {
+		return "", err
+	}
+	return node.Cid().String(), nil
 }

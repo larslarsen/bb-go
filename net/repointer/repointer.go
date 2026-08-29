@@ -1,14 +1,14 @@
 package net
 
 import (
+	"gx/ipfs/QmSY3nkMNLzh9GdbFKK5tT7YMfLpf52iUZ8ZRkr29MJaa5/go-libp2p-kad-dht"
+	"gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
 	"time"
 
 	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/larslarsen/bb-go/repo"
-	"github.com/ipfs/go-ipfs/core"
 	"github.com/op/go-logging"
 	"golang.org/x/net/context"
-	"gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
 )
 
 var log = logging.MustGetLogger("service")
@@ -17,15 +17,15 @@ const kRepointFrequency = time.Hour * 12
 const kPointerExpiration = time.Hour * 24 * 30
 
 type PointerRepublisher struct {
-	ipfsNode    *core.IpfsNode
+	routing     *dht.IpfsDHT
 	db          repo.Datastore
 	pushNodes   []peer.ID
 	isModerator func() bool
 }
 
-func NewPointerRepublisher(node *core.IpfsNode, database repo.Datastore, pushNodes []peer.ID, isModerator func() bool) *PointerRepublisher {
+func NewPointerRepublisher(dht *dht.IpfsDHT, database repo.Datastore, pushNodes []peer.ID, isModerator func() bool) *PointerRepublisher {
 	return &PointerRepublisher{
-		ipfsNode:    node,
+		routing:     dht,
 		db:          database,
 		pushNodes:   pushNodes,
 		isModerator: isModerator,
@@ -53,19 +53,40 @@ func (r *PointerRepublisher) Republish() {
 	for _, p := range pointers {
 		switch p.Purpose {
 		case ipfs.MESSAGE:
-			if time.Now().Sub(p.Timestamp) > kPointerExpiration {
-				r.db.Pointers().Delete(p.Value.ID)
+			if time.Since(p.Timestamp) > kPointerExpiration {
+				err = r.db.Pointers().Delete(p.Value.ID)
+				if err != nil {
+					log.Error(err)
+				}
 			} else {
-				go ipfs.PublishPointer(r.ipfsNode, ctx, p)
-				for _, peer := range r.pushNodes {
-					go ipfs.PutPointerToPeer(r.ipfsNode, context.Background(), peer, p)
+				go func(d *dht.IpfsDHT, ctx context.Context, pointer ipfs.Pointer) {
+					err := ipfs.PublishPointer(d, ctx, pointer)
+					if err != nil {
+						log.Error(err)
+					}
+				}(r.routing, ctx, p)
+				for _, peer0 := range r.pushNodes {
+					go func(d *dht.IpfsDHT, ctx context.Context, peerID peer.ID, pointer ipfs.Pointer) {
+						err := ipfs.PutPointerToPeer(d, ctx, peerID, pointer)
+						if err != nil {
+							log.Error(err)
+						}
+					}(r.routing, context.Background(), peer0, p)
 				}
 			}
 		case ipfs.MODERATOR:
 			if republishModerator {
-				go ipfs.PublishPointer(r.ipfsNode, ctx, p)
+				go func(d *dht.IpfsDHT, ctx context.Context, pointer ipfs.Pointer) {
+					err := ipfs.PublishPointer(d, ctx, pointer)
+					if err != nil {
+						log.Error(err)
+					}
+				}(r.routing, ctx, p)
 			} else {
-				r.db.Pointers().Delete(p.Value.ID)
+				err = r.db.Pointers().Delete(p.Value.ID)
+				if err != nil {
+					log.Error(err)
+				}
 			}
 		default:
 			continue

@@ -3,19 +3,19 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	"gx/ipfs/Qmc85NSvmSG4Frn9Vb2cBc1rMyULH6D3TNVEfCzSKoUpip/go-multiaddr-net"
+
 	"io/ioutil"
 	"net/http"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/OpenBazaar/jsonpb"
 	"github.com/larslarsen/bb-go/test"
-
-	manet "gx/ipfs/QmX3U3YXCQ6UYBxq2LVWF8dARS1hPUTEYLrSx654Qyxyw6/go-multiaddr-net"
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
-	"os"
-
+	"github.com/golang/protobuf/proto"
 	"github.com/op/go-logging"
 )
 
@@ -54,75 +54,95 @@ func newTestGateway() (*Gateway, error) {
 		return nil, err
 	}
 
-	return NewGateway(node, *test.GetAuthCookie(), listener.NetListener(), *apiConfig, logging.NewLogBackend(os.Stdout, "", 0))
+	return NewGateway(node, *test.GetAuthCookie(), manet.NetListener(listener), *apiConfig, logging.NewLogBackend(os.Stdout, "", 0))
 }
 
 // apiTest is a test case to be run against the api blackbox
 type apiTest struct {
-	method      string
-	path        string
-	requestBody string
+	method, path string
+	requestBody  interface{}
 
 	expectedResponseCode int
-	expectedResponseBody string
+	expectedResponseBody interface{}
 }
+
+// setupAction is used to change state before and after a set of []apiTest
+type setupAction func(*test.Repository) error
 
 // apiTests is a slice of apiTest
 type apiTests []apiTest
 
-// request issues an http request directly to the blackbox handler
-func request(req *http.Request) (*http.Response, error) {
-	resp, err := testHTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
-// buildRequest issues an http request directly to the blackbox handler
-func buildRequest(method string, path string, body string) (*http.Request, error) {
-	// Create a JSON request to the given endpoint
-	req, err := http.NewRequest(method, testURIRoot+path, bytes.NewBufferString(body))
-	if err != nil {
-		return nil, err
-	}
-
-	// Set headers/auth/cookie
-	req.Header.Add("Content-Type", "application/json")
-	req.SetBasicAuth("test", "test")
-	req.AddCookie(test.GetAuthCookie())
-
-	return req, nil
-}
-
 func runAPITests(t *testing.T, tests apiTests) {
-	// Create test repo
-	repository, err := test.NewRepository()
+	_, err := test.ResetRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Reset repo state
-	repository.Reset()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Run each test in serial
 	for _, jsonAPITest := range tests {
-		runAPITest(t, jsonAPITest)
+		executeAPITest(t, jsonAPITest)
 	}
 }
 
-// runTest executes the given test against the blackbox
-func runAPITest(t *testing.T, test apiTest) {
-	// Make the request
-	req, err := buildRequest(test.method, test.path, test.requestBody)
+func runAPITestsWithSetup(t *testing.T, tests apiTests, runBefore, runAfter setupAction) {
+	repository, err := test.ResetRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err := testHTTPClient.Do(req)
+
+	if runBefore != nil {
+		if err := runBefore(repository); err != nil {
+			t.Fatal("runBefore:", err)
+		}
+	}
+
+	for _, jsonAPITest := range tests {
+		executeAPITest(t, jsonAPITest)
+	}
+
+	if runAfter != nil {
+		if err := runAfter(repository); err != nil {
+			t.Fatal("runAfter:", err)
+		}
+	}
+}
+
+func runAPITest(t *testing.T, subject apiTest) {
+	_, err := test.ResetRepository()
+	if err != nil {
+		t.Fatal(err)
+	}
+	executeAPITest(t, subject)
+}
+
+// executeAPITest executes the given test against the blackbox
+func executeAPITest(t *testing.T, test apiTest) {
+	var reqBody, expectedResp string
+	if r, ok := test.requestBody.(string); ok {
+		reqBody = r
+	} else {
+		mr, err := json.MarshalIndent(test.requestBody, "", "    ")
+		if err != nil {
+			t.Fatalf("marshalling requestBody: %s", err)
+		}
+		reqBody = string(mr)
+	}
+	if r, ok := test.expectedResponseBody.(string); ok {
+		expectedResp = r
+	} else {
+		mr, err := json.MarshalIndent(test.expectedResponseBody, "", "    ")
+		if err != nil {
+			t.Fatalf("marshalling expectedResponseBody: %s", err)
+		}
+		expectedResp = string(mr)
+	}
+
+	t.Logf("request body:\n%s", reqBody)
+	// Make the request
+	testRequest, err := buildRequest(test.method, test.path, reqBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := testHTTPClient.Do(testRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,17 +169,62 @@ func runAPITest(t *testing.T, test apiTest) {
 	}
 
 	// Unless explicitly saying any JSON is expected check for equality
-	if test.expectedResponseBody != anyResponseJSON {
+	if expectedResp != anyResponseJSON {
 		var expectedJSON interface{}
-		err = json.Unmarshal([]byte(test.expectedResponseBody), &expectedJSON)
+		err = json.Unmarshal([]byte(expectedResp), &expectedJSON)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if !reflect.DeepEqual(responseJSON, expectedJSON) {
-			fmt.Println("expected:", test.expectedResponseBody)
-			fmt.Println("actual:", string(respBody))
-			t.Fatal("Incorrect response")
+			t.Error("Error: incorrect response")
+			t.Logf("expected:\n%s", expectedResp)
+			t.Logf("actual:\n%s", string(respBody))
 		}
 	}
+}
+
+// buildRequest issues an http request directly to the blackbox handler
+func buildRequest(method string, path string, body string) (*http.Request, error) {
+	// Create a JSON request to the given endpoint
+	req, err := http.NewRequest(method, testURIRoot+path, bytes.NewBufferString(body))
+	if err != nil {
+		return nil, err
+	}
+
+	// Set headers/auth/cookie
+	req.Header.Add("Content-Type", "application/json")
+	req.SetBasicAuth("test", "test")
+	req.AddCookie(test.GetAuthCookie())
+
+	return req, nil
+}
+
+func errorResponseJSON(err error) string {
+	return `{"success": false, "reason": "` + err.Error() + `"}`
+}
+
+func httpGet(endpoint string) ([]byte, error) {
+	req, err := buildRequest("GET", endpoint, "")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := testHTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, err
+	}
+	return ioutil.ReadAll(resp.Body)
+}
+
+func jsonFor(t *testing.T, fixture proto.Message) string {
+	m := jsonpb.Marshaler{}
+
+	jsonStr, err := m.MarshalToString(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return jsonStr
 }

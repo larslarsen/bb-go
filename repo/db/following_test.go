@@ -1,29 +1,48 @@
-package db
+package db_test
 
 import (
-	"database/sql"
 	"strconv"
 	"sync"
 	"testing"
+
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/repo/db"
+	"github.com/larslarsen/bb-go/schema"
 )
 
-var fldb FollowingDB
-
-func init() {
-	conn, _ := sql.Open("sqlite3", ":memory:")
-	initDatabaseTables(conn, "")
-	fldb = FollowingDB{
-		db:   conn,
-		lock: new(sync.Mutex),
+func buildNewFollowingStore() (repo.FollowingStore, func(), error) {
+	appSchema := schema.MustNewCustomSchemaManager(schema.SchemaContext{
+		DataPath:        schema.GenerateTempPath(),
+		TestModeEnabled: true,
+	})
+	if err := appSchema.BuildSchemaDirectories(); err != nil {
+		return nil, nil, err
 	}
+	if err := appSchema.InitializeDatabase(); err != nil {
+		return nil, nil, err
+	}
+	database, err := appSchema.OpenDatabase()
+	if err != nil {
+		return nil, nil, err
+	}
+	return db.NewFollowingStore(database, new(sync.Mutex)), appSchema.DestroySchemaDirectories, nil
 }
 
 func TestPutFollowing(t *testing.T) {
-	err := fldb.Put("abc")
+	fldb, teardown, err := buildNewFollowingStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fldb.Put("abc")
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, err := fldb.db.Prepare("select peerID from following where peerID=?")
+	stmt, err := fldb.PrepareQuery("select peerID from following where peerID=?")
+	if err != nil {
+		t.Error(err)
+	}
 	defer stmt.Close()
 	var following string
 	err = stmt.QueryRow("abc").Scan(&following)
@@ -36,44 +55,98 @@ func TestPutFollowing(t *testing.T) {
 }
 
 func TestPutDuplicateFollowing(t *testing.T) {
-	fldb.Put("abc")
-	err := fldb.Put("abc")
+	fldb, teardown, err := buildNewFollowingStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fldb.Put("abc")
+	if err != nil {
+		t.Error(err)
+	}
+	err = fldb.Put("abc")
 	if err == nil {
 		t.Error("Expected unquire constriant error to be thrown")
 	}
 }
 
 func TestCountFollowing(t *testing.T) {
-	fldb.Put("abc")
-	fldb.Put("123")
-	fldb.Put("xyz")
+	fldb, teardown, err := buildNewFollowingStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fldb.Put("abc")
+	if err != nil {
+		t.Error(err)
+	}
+	err = fldb.Put("123")
+	if err != nil {
+		t.Error(err)
+	}
+	err = fldb.Put("xyz")
+	if err != nil {
+		t.Error(err)
+	}
 	x := fldb.Count()
 	if x != 3 {
 		t.Errorf("Expected 3 got %d", x)
 	}
-	fldb.Delete("abc")
-	fldb.Delete("123")
-	fldb.Delete("xyz")
-}
-
-func TestDeleteFollowing(t *testing.T) {
-	fldb.Put("abc")
-	err := fldb.Delete("abc")
+	err = fldb.Delete("abc")
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, _ := fldb.db.Prepare("select peerID from followers where peerID=?")
+	err = fldb.Delete("123")
+	if err != nil {
+		t.Error(err)
+	}
+	err = fldb.Delete("xyz")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteFollowing(t *testing.T) {
+	fldb, teardown, err := buildNewFollowingStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fldb.Put("abc")
+	if err != nil {
+		t.Error(err)
+	}
+	err = fldb.Delete("abc")
+	if err != nil {
+		t.Error(err)
+	}
+	stmt, _ := fldb.PrepareQuery("select peerID from followers where peerID=?")
 	defer stmt.Close()
 	var follower string
-	stmt.QueryRow("abc").Scan(&follower)
+	err = stmt.QueryRow("abc").Scan(&follower)
+	if err != nil {
+		t.Log(err)
+	}
 	if follower != "" {
 		t.Error("Failed to delete follower")
 	}
 }
 
 func TestGetFollowing(t *testing.T) {
+	fldb, teardown, err := buildNewFollowingStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
 	for i := 0; i < 100; i++ {
-		fldb.Put(strconv.Itoa(i))
+		err = fldb.Put(strconv.Itoa(i))
+		if err != nil {
+			t.Error(err)
+		}
 	}
 	followers, err := fldb.Get("", 100)
 	if err != nil {
@@ -116,7 +189,16 @@ func TestGetFollowing(t *testing.T) {
 }
 
 func TestIFollow(t *testing.T) {
-	fldb.Put("abc")
+	fldb, teardown, err := buildNewFollowingStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fldb.Put("abc")
+	if err != nil {
+		t.Error(err)
+	}
 	if !fldb.IsFollowing("abc") {
 		t.Error("I follow failed to return correctly")
 	}

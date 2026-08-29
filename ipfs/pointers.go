@@ -5,25 +5,20 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"strconv"
+
+	routing "gx/ipfs/QmSY3nkMNLzh9GdbFKK5tT7YMfLpf52iUZ8ZRkr29MJaa5/go-libp2p-kad-dht"
+	dhtpb "gx/ipfs/QmSY3nkMNLzh9GdbFKK5tT7YMfLpf52iUZ8ZRkr29MJaa5/go-libp2p-kad-dht/pb"
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	"gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	"gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	ps "gx/ipfs/QmaCTz9RkrU13bm9kMB54f7atgqM4qkjDZpRwRoJiWXEqs/go-libp2p-peerstore"
+	"gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
+
 	"sync"
-
-	ps "gx/ipfs/QmPgDWmTmuzvP7QE5zwo1TmjbJme9pmZHNujB2453jkCTr/go-libp2p-peerstore"
-	multihash "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
-
-	"github.com/ipfs/go-ipfs/core"
-
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
 	"time"
-
-	routing "gx/ipfs/QmUCS9EnqNq1kCnJds2eLDypBiS21aSiCf1MVzSUVB9TGA/go-libp2p-kad-dht"
-	dhtpb "gx/ipfs/QmUCS9EnqNq1kCnJds2eLDypBiS21aSiCf1MVzSUVB9TGA/go-libp2p-kad-dht/pb"
-	pb "gx/ipfs/QmUCS9EnqNq1kCnJds2eLDypBiS21aSiCf1MVzSUVB9TGA/go-libp2p-kad-dht/pb"
 )
 
-const MAGIC string = "000000000000000000000000"
+const MagicPointerID string = "000000000000000000000000"
 
 type Purpose int
 
@@ -64,11 +59,11 @@ func NewPointer(mhKey multihash.Multihash, prefixLen int, addr ma.Multiaddr, ent
 		ID:    magicID,
 		Addrs: []ma.Multiaddr{addr},
 	}
-	return Pointer{Cid: k, Value: pi}, nil
+	return Pointer{Cid: &k, Value: pi}, nil
 }
 
-func PublishPointer(node *core.IpfsNode, ctx context.Context, pointer Pointer) error {
-	return addPointer(node, ctx, pointer.Cid, pointer.Value)
+func PublishPointer(dht *routing.IpfsDHT, ctx context.Context, pointer Pointer) error {
+	return addPointer(dht, ctx, pointer.Cid, pointer.Value)
 }
 
 // Fetch pointers from the dht. They will be returned asynchronously.
@@ -88,14 +83,12 @@ func FindPointers(dht *routing.IpfsDHT, ctx context.Context, mhKey multihash.Mul
 	return providers, nil
 }
 
-func PutPointerToPeer(node *core.IpfsNode, ctx context.Context, peer peer.ID, pointer Pointer) error {
-	dht := node.Routing.(*routing.IpfsDHT)
-	return putPointer(ctx, dht, peer, pointer.Value, pointer.Cid.KeyString())
+func PutPointerToPeer(dht *routing.IpfsDHT, ctx context.Context, peer peer.ID, pointer Pointer) error {
+	return putPointer(ctx, dht, peer, pointer.Value, pointer.Cid.Bytes())
 }
 
-func GetPointersFromPeer(node *core.IpfsNode, ctx context.Context, p peer.ID, key *cid.Cid) ([]*ps.PeerInfo, error) {
-	dht := node.Routing.(*routing.IpfsDHT)
-	pmes := pb.NewMessage(pb.Message_GET_PROVIDERS, key.KeyString(), 0)
+func GetPointersFromPeer(dht *routing.IpfsDHT, ctx context.Context, p peer.ID, key *cid.Cid) ([]*ps.PeerInfo, error) {
+	pmes := dhtpb.NewMessage(dhtpb.Message_GET_PROVIDERS, key.Bytes(), 0)
 	resp, err := dht.SendRequest(ctx, p, pmes)
 	if err != nil {
 		return []*ps.PeerInfo{}, err
@@ -103,8 +96,7 @@ func GetPointersFromPeer(node *core.IpfsNode, ctx context.Context, p peer.ID, ke
 	return dhtpb.PBPeersToPeerInfos(resp.GetProviderPeers()), nil
 }
 
-func addPointer(node *core.IpfsNode, ctx context.Context, k *cid.Cid, pi ps.PeerInfo) error {
-	dht := node.Routing.(*routing.IpfsDHT)
+func addPointer(dht *routing.IpfsDHT, ctx context.Context, k *cid.Cid, pi ps.PeerInfo) error {
 	peers, err := dht.GetClosestPeers(ctx, k.KeyString())
 	if err != nil {
 		return err
@@ -114,16 +106,19 @@ func addPointer(node *core.IpfsNode, ctx context.Context, k *cid.Cid, pi ps.Peer
 		wg.Add(1)
 		go func(p peer.ID) {
 			defer wg.Done()
-			putPointer(ctx, dht, p, pi, k.KeyString())
+			err := putPointer(ctx, dht, p, pi, k.Bytes())
+			if err != nil {
+				log.Error(err)
+			}
 		}(p)
 	}
 	wg.Wait()
 	return nil
 }
 
-func putPointer(ctx context.Context, dht *routing.IpfsDHT, p peer.ID, pi ps.PeerInfo, skey string) error {
-	pmes := pb.NewMessage(pb.Message_ADD_PROVIDER, skey, 0)
-	pmes.ProviderPeers = pb.RawPeerInfosToPBPeers([]ps.PeerInfo{pi})
+func putPointer(ctx context.Context, dht *routing.IpfsDHT, p peer.ID, pi ps.PeerInfo, skey []byte) error {
+	pmes := dhtpb.NewMessage(dhtpb.Message_ADD_PROVIDER, skey, 0)
+	pmes.ProviderPeers = dhtpb.RawPeerInfosToPBPeers([]ps.PeerInfo{pi})
 
 	err := dht.SendMessage(ctx, p, pmes)
 	if err != nil {
@@ -135,41 +130,34 @@ func putPointer(ctx context.Context, dht *routing.IpfsDHT, p peer.ID, pi ps.Peer
 func CreatePointerKey(mh multihash.Multihash, prefixLen int) multihash.Multihash {
 	// Grab the first 8 bytes from the multihash digest
 	m, _ := multihash.Decode(mh)
-	prefix64 := binary.BigEndian.Uint64(m.Digest[:8])
+	prefix := m.Digest[:8]
 
-	// Convert to binary string
-	bin := strconv.FormatUint(prefix64, 2)
+	truncatedPrefix := make([]byte, 8)
 
-	// Pad with leading zeros
-	leadingZeros := 64 - len(bin)
-	for i := 0; i < leadingZeros; i++ {
-		bin = "0" + bin
-	}
+	// Prefix to uint64 to shift bits to the right
+	prefix64 := binary.BigEndian.Uint64(prefix)
 
-	// Grab the bits corresponding to the prefix length and convert to int
-	intPrefix, _ := strconv.ParseUint(bin[:prefixLen], 2, 64)
-
-	// Convert to 8 byte array
-	bs := make([]byte, 8)
-	binary.BigEndian.PutUint64(bs, intPrefix)
+	// Perform the bit shift
+	binary.BigEndian.PutUint64(truncatedPrefix, prefix64>>uint(64-prefixLen))
 
 	// Hash the array
-	hash := sha256.New()
-	hash.Write(bs)
-	md := hash.Sum(nil)
+	md := sha256.Sum256(truncatedPrefix)
 
 	// Encode as multihash
-	keyHash, _ := multihash.Encode(md, multihash.SHA2_256)
+	keyHash, _ := multihash.Encode(md[:], multihash.SHA2_256)
 	return keyHash
 }
 
 func getMagicID(entropy []byte) (peer.ID, error) {
-	magicBytes, err := hex.DecodeString(MAGIC)
+	magicBytes, err := hex.DecodeString(MagicPointerID)
 	if err != nil {
 		return "", err
 	}
 	hash := sha256.New()
-	hash.Write(entropy)
+	_, err = hash.Write(entropy)
+	if err != nil {
+		return "", err
+	}
 	hashedEntropy := hash.Sum(nil)
 	magicBytes = append(magicBytes, hashedEntropy[:20]...)
 	h, err := multihash.Encode(magicBytes, multihash.SHA2_256)

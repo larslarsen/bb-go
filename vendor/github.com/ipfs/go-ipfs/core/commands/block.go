@@ -1,19 +1,19 @@
 package commands
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"strings"
+	"os"
 
-	util "github.com/ipfs/go-ipfs/blocks/blockstore/util"
-	cmds "github.com/ipfs/go-ipfs/commands"
+	util "github.com/ipfs/go-ipfs/blocks/blockstoreutil"
+	cmdenv "github.com/ipfs/go-ipfs/core/commands/cmdenv"
 
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	u "gx/ipfs/QmSU6eubNdhXjFBJBSksTp8kv8YRub8mGAPv8tVJHmL2EU/go-ipfs-util"
-	blocks "gx/ipfs/QmSn9Td7xgxm9EV7iEjTckpUWmWApggzPxu7eFGWkkpwin/go-block-format"
-	mh "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
+	cmds "gx/ipfs/QmQkW9fnCsg9SLHdViiAh6qfBppodsPZVpU92dZLqYtEfs/go-ipfs-cmds"
+	coreiface "gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core"
+	options "gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core/options"
+	cmdkit "gx/ipfs/Qmde5VP1qUkyQXKCfmEUA7bP64V2HAptbJ7phuPp7jXWwg/go-ipfs-cmdkit"
+	mh "gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
 )
 
 type BlockStat struct {
@@ -26,7 +26,7 @@ func (bs BlockStat) String() string {
 }
 
 var BlockCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Interact with raw IPFS blocks.",
 		ShortDescription: `
 'ipfs block' is a plumbing command used to manipulate raw IPFS blocks.
@@ -44,7 +44,7 @@ multihash.
 }
 
 var blockStatCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Print information of a raw IPFS block.",
 		ShortDescription: `
 'ipfs block stat' is a plumbing command for retrieving information
@@ -56,32 +56,41 @@ on raw IPFS blocks. It outputs the following to stdout:
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("key", true, false, "The base58 multihash of an existing block to stat.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("key", true, false, "The base58 multihash of an existing block to stat.").EnableStdin(),
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		b, err := getBlockForKey(req, req.Arguments()[0])
+	Run: func(req *cmds.Request, res cmds.ResponseEmitter, env cmds.Environment) error {
+		api, err := cmdenv.GetApi(env, req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
 
-		res.SetOutput(&BlockStat{
-			Key:  b.Cid().String(),
-			Size: len(b.RawData()),
+		p, err := coreiface.ParsePath(req.Arguments[0])
+		if err != nil {
+			return err
+		}
+
+		b, err := api.Block().Stat(req.Context, p)
+		if err != nil {
+			return err
+		}
+
+		return cmds.EmitOnce(res, &BlockStat{
+			Key:  b.Path().Cid().String(),
+			Size: b.Size(),
 		})
 	},
 	Type: BlockStat{},
-	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			bs := res.Output().(*BlockStat)
-			return strings.NewReader(bs.String()), nil
-		},
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, bs *BlockStat) error {
+			_, err := fmt.Fprintf(w, "%s", bs)
+			return err
+		}),
 	},
 }
 
 var blockGetCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Get a raw IPFS block.",
 		ShortDescription: `
 'ipfs block get' is a plumbing command for retrieving raw IPFS blocks.
@@ -89,201 +98,178 @@ It outputs to stdout, and <key> is a base58 encoded multihash.
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("key", true, false, "The base58 multihash of an existing block to get.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("key", true, false, "The base58 multihash of an existing block to get.").EnableStdin(),
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		b, err := getBlockForKey(req, req.Arguments()[0])
+	Run: func(req *cmds.Request, res cmds.ResponseEmitter, env cmds.Environment) error {
+		api, err := cmdenv.GetApi(env, req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
 
-		res.SetOutput(bytes.NewReader(b.RawData()))
+		p, err := coreiface.ParsePath(req.Arguments[0])
+		if err != nil {
+			return err
+		}
+
+		r, err := api.Block().Get(req.Context, p)
+		if err != nil {
+			return err
+		}
+
+		return res.Emit(r)
 	},
 }
 
+const (
+	blockFormatOptionName = "format"
+	mhtypeOptionName      = "mhtype"
+	mhlenOptionName       = "mhlen"
+)
+
 var blockPutCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Store input as an IPFS block.",
 		ShortDescription: `
 'ipfs block put' is a plumbing command for storing raw IPFS blocks.
 It reads from stdin, and <key> is a base58 encoded multihash.
+
+By default CIDv0 is going to be generated. Setting 'mhtype' to anything other
+than 'sha2-256' or format to anything other than 'v0' will result in CIDv1.
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.FileArg("data", true, false, "The data to be stored as an IPFS block.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.FileArg("data", true, false, "The data to be stored as an IPFS block.").EnableStdin(),
 	},
-	Options: []cmds.Option{
-		cmds.StringOption("format", "f", "cid format for blocks to be created with.").Default("v0"),
-		cmds.StringOption("mhtype", "multihash hash function").Default("sha2-256"),
-		cmds.IntOption("mhlen", "multihash hash length").Default(-1),
+	Options: []cmdkit.Option{
+		cmdkit.StringOption(blockFormatOptionName, "f", "cid format for blocks to be created with."),
+		cmdkit.StringOption(mhtypeOptionName, "multihash hash function").WithDefault("sha2-256"),
+		cmdkit.IntOption(mhlenOptionName, "multihash hash length").WithDefault(-1),
+		cmdkit.BoolOption(pinOptionName, "pin added blocks recursively").WithDefault(false),
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		n, err := req.InvocContext().GetNode()
+	Run: func(req *cmds.Request, res cmds.ResponseEmitter, env cmds.Environment) error {
+		api, err := cmdenv.GetApi(env, req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
 
-		file, err := req.Files().NextFile()
+		file, err := cmdenv.GetFileArg(req.Files.Entries())
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
 
-		data, err := ioutil.ReadAll(file)
-		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
-		}
-
-		err = file.Close()
-		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
-		}
-
-		var pref cid.Prefix
-		pref.Version = 1
-
-		format, _, _ := req.Option("format").String()
-		formatval, ok := cid.Codecs[format]
-		if !ok {
-			res.SetError(fmt.Errorf("unrecognized format: %s", format), cmds.ErrNormal)
-			return
-		}
-		if format == "v0" {
-			pref.Version = 0
-		}
-		pref.Codec = formatval
-
-		mhtype, _, _ := req.Option("mhtype").String()
+		mhtype, _ := req.Options[mhtypeOptionName].(string)
 		mhtval, ok := mh.Names[mhtype]
 		if !ok {
-			res.SetError(fmt.Errorf("unrecognized multihash function: %s", mhtype), cmds.ErrNormal)
-			return
+			return fmt.Errorf("unrecognized multihash function: %s", mhtype)
 		}
-		pref.MhType = mhtval
 
-		mhlen, _, err := req.Option("mhlen").Int()
+		mhlen, ok := req.Options[mhlenOptionName].(int)
+		if !ok {
+			return errors.New("missing option \"mhlen\"")
+		}
+
+		format, formatSet := req.Options[blockFormatOptionName].(string)
+		if !formatSet {
+			if mhtval != mh.SHA2_256 || (mhlen != -1 && mhlen != 32) {
+				format = "protobuf"
+			} else {
+				format = "v0"
+			}
+		}
+
+		pin, _ := req.Options[pinOptionName].(bool)
+
+		p, err := api.Block().Put(req.Context, file,
+			options.Block.Hash(mhtval, mhlen),
+			options.Block.Format(format),
+			options.Block.Pin(pin))
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
-		}
-		pref.MhLength = mhlen
-
-		bcid, err := pref.Sum(data)
-		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
 
-		b, err := blocks.NewBlockWithCid(data, bcid)
-		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
-		}
-		log.Debugf("BlockPut key: '%q'", b.Cid())
-
-		k, err := n.Blocks.AddBlock(b)
-		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
-		}
-
-		res.SetOutput(&BlockStat{
-			Key:  k.String(),
-			Size: len(data),
+		return cmds.EmitOnce(res, &BlockStat{
+			Key:  p.Path().Cid().String(),
+			Size: p.Size(),
 		})
 	},
-	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			bs := res.Output().(*BlockStat)
-			return strings.NewReader(bs.Key + "\n"), nil
-		},
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, bs *BlockStat) error {
+			_, err := fmt.Fprintf(w, "%s\n", bs.Key)
+			return err
+		}),
 	},
 	Type: BlockStat{},
 }
 
-func getBlockForKey(req cmds.Request, skey string) (blocks.Block, error) {
-	if len(skey) == 0 {
-		return nil, fmt.Errorf("zero length cid invalid")
-	}
-
-	n, err := req.InvocContext().GetNode()
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := cid.Decode(skey)
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := n.Blocks.GetBlock(req.Context(), c)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugf("ipfs block: got block with key: %s", b.Cid())
-	return b, nil
-}
+const (
+	forceOptionName      = "force"
+	blockQuietOptionName = "quiet"
+)
 
 var blockRmCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Remove IPFS block(s).",
 		ShortDescription: `
 'ipfs block rm' is a plumbing command for removing raw ipfs blocks.
-It takes a list of base58 encoded multihashs to remove.
+It takes a list of base58 encoded multihashes to remove.
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("hash", true, true, "Bash58 encoded multihash of block(s) to remove."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("hash", true, true, "Bash58 encoded multihash of block(s) to remove."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("force", "f", "Ignore nonexistent blocks.").Default(false),
-		cmds.BoolOption("quiet", "q", "Write minimal output.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption(forceOptionName, "f", "Ignore nonexistent blocks."),
+		cmdkit.BoolOption(blockQuietOptionName, "q", "Write minimal output."),
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		n, err := req.InvocContext().GetNode()
+	Run: func(req *cmds.Request, res cmds.ResponseEmitter, env cmds.Environment) error {
+		api, err := cmdenv.GetApi(env, req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
-		hashes := req.Arguments()
-		force, _, _ := req.Option("force").Bool()
-		quiet, _, _ := req.Option("quiet").Bool()
-		cids := make([]*cid.Cid, 0, len(hashes))
-		for _, hash := range hashes {
-			c, err := cid.Decode(hash)
+
+		force, _ := req.Options[forceOptionName].(bool)
+		quiet, _ := req.Options[blockQuietOptionName].(bool)
+
+		// TODO: use batching coreapi when done
+		for _, b := range req.Arguments {
+			p, err := coreiface.ParsePath(b)
 			if err != nil {
-				res.SetError(fmt.Errorf("invalid content id: %s (%s)", hash, err), cmds.ErrNormal)
-				return
+				return err
 			}
 
-			cids = append(cids, c)
+			rp, err := api.ResolvePath(req.Context, p)
+			if err != nil {
+				return err
+			}
+
+			err = api.Block().Rm(req.Context, rp, options.Block.Force(force))
+			if err != nil {
+				if err := res.Emit(&util.RemovedBlock{
+					Hash:  rp.Cid().String(),
+					Error: err.Error(),
+				}); err != nil {
+					return err
+				}
+				continue
+			}
+
+			if !quiet {
+				err := res.Emit(&util.RemovedBlock{
+					Hash: rp.Cid().String(),
+				})
+				if err != nil {
+					return err
+				}
+			}
 		}
-		ch, err := util.RmBlocks(n.Blockstore, n.Pinning, cids, util.RmBlocksOpts{
-			Quiet: quiet,
-			Force: force,
-		})
-		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
-		}
-		res.SetOutput(ch)
+
+		return nil
 	},
-	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
-			}
-
-			err := util.ProcRmOutput(outChan, res.Stdout(), res.Stderr())
-			return nil, err
+	PostRun: cmds.PostRunMap{
+		cmds.CLI: func(res cmds.Response, re cmds.ResponseEmitter) error {
+			return util.ProcRmOutput(res.Next, os.Stdout, os.Stderr)
 		},
 	},
 	Type: util.RemovedBlock{},

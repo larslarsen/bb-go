@@ -2,43 +2,46 @@ package db
 
 import (
 	"database/sql"
-	"github.com/larslarsen/bb-go/ipfs"
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	ps "gx/ipfs/QmPgDWmTmuzvP7QE5zwo1TmjbJme9pmZHNujB2453jkCTr/go-libp2p-peerstore"
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
+
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	ps "gx/ipfs/QmaCTz9RkrU13bm9kMB54f7atgqM4qkjDZpRwRoJiWXEqs/go-libp2p-peerstore"
+
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/repo"
 )
 
 type PointersDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
+}
+
+func NewPointerStore(db *sql.DB, lock *sync.Mutex) repo.PointerStore {
+	return &PointersDB{modelStore{db, lock}}
 }
 
 func (p *PointersDB) Put(pointer ipfs.Pointer) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	tx, err := p.db.Begin()
+
+	stmt, err := p.PrepareQuery("insert into pointers(pointerID, key, address, cancelID, purpose, timestamp) values(?,?,?,?,?,?)")
 	if err != nil {
-		return err
-	}
-	stmt, err := tx.Prepare("insert into pointers(pointerID, key, address, cancelID, purpose, timestamp) values(?,?,?,?,?,?)")
-	if err != nil {
-		return err
+		return fmt.Errorf("prepare pointer sql: %s", err.Error())
 	}
 	defer stmt.Close()
+
 	var cancelID string
 	if pointer.CancelID != nil {
 		cancelID = pointer.CancelID.Pretty()
 	}
 	_, err = stmt.Exec(pointer.Value.ID.Pretty(), pointer.Cid.String(), pointer.Value.Addrs[0].String(), cancelID, pointer.Purpose, int(time.Now().Unix()))
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("commit pointer: %s", err.Error())
 	}
-	tx.Commit()
 	return nil
 }
 
@@ -103,7 +106,7 @@ func (p *PointersDB) GetAll() ([]ipfs.Pointer, error) {
 			canID = &c
 		}
 		pointer := ipfs.Pointer{
-			Cid: k,
+			Cid: &k,
 			Value: ps.PeerInfo{
 				ID:    pid,
 				Addrs: []ma.Multiaddr{maAddr},
@@ -158,7 +161,7 @@ func (p *PointersDB) GetByPurpose(purpose ipfs.Purpose) ([]ipfs.Pointer, error) 
 			canID = &c
 		}
 		pointer := ipfs.Pointer{
-			Cid: k,
+			Cid: &k,
 			Value: ps.PeerInfo{
 				ID:    pid,
 				Addrs: []ma.Multiaddr{maAddr},
@@ -209,7 +212,7 @@ func (p *PointersDB) Get(id peer.ID) (ipfs.Pointer, error) {
 		canID = &c
 	}
 	pointer = ipfs.Pointer{
-		Cid: k,
+		Cid: &k,
 		Value: ps.PeerInfo{
 			ID:    pid,
 			Addrs: []ma.Multiaddr{maAddr},

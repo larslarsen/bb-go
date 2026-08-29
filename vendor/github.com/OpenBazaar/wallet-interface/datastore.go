@@ -2,11 +2,89 @@ package wallet
 
 import (
 	"bytes"
+	"encoding/json"
+	"math/big"
+	"time"
+
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
-	"time"
 )
+
+type Coin interface {
+	String() string
+	CurrencyCode() string
+}
+
+type CoinType uint32
+
+const (
+	Bitcoin     CoinType = 0
+	Litecoin             = 1
+	Zcash                = 133
+	BitcoinCash          = 145
+	Ethereum             = 60
+
+	TestnetBitcoin     = 1000000
+	TestnetLitecoin    = 1000001
+	TestnetZcash       = 1000133
+	TestnetBitcoinCash = 1000145
+	TestnetEthereum    = 1000060
+)
+
+func (c *CoinType) String() string {
+	switch *c {
+	case Bitcoin:
+		return "Bitcoin"
+	case BitcoinCash:
+		return "Bitcoin Cash"
+	case Zcash:
+		return "Zcash"
+	case Litecoin:
+		return "Litecoin"
+	case Ethereum:
+		return "Ethereum"
+	case TestnetBitcoin:
+		return "Testnet Bitcoin"
+	case TestnetBitcoinCash:
+		return "Testnet Bitcoin Cash"
+	case TestnetZcash:
+		return "Testnet Zcash"
+	case TestnetLitecoin:
+		return "Testnet Litecoin"
+	case TestnetEthereum:
+		return "Testnet Ethereum"
+	default:
+		return ""
+	}
+}
+
+func (c *CoinType) CurrencyCode() string {
+	switch *c {
+	case Bitcoin:
+		return "BTC"
+	case BitcoinCash:
+		return "BCH"
+	case Zcash:
+		return "ZEC"
+	case Litecoin:
+		return "LTC"
+	case Ethereum:
+		return "ETH"
+	case TestnetBitcoin:
+		return "TBTC"
+	case TestnetBitcoinCash:
+		return "TBCH"
+	case TestnetZcash:
+		return "TZEC"
+	case TestnetLitecoin:
+		return "TLTC"
+	case TestnetEthereum:
+		return "TETH"
+	default:
+		return ""
+	}
+}
 
 type Datastore interface {
 	Utxos() Utxos
@@ -43,16 +121,16 @@ type Stxos interface {
 
 type Txns interface {
 	// Put a new transaction to the database
-	Put(txn *wire.MsgTx, value, height int, timestamp time.Time, watchOnly bool) error
+	Put(raw []byte, txid, value string, height int, timestamp time.Time, watchOnly bool) error
 
-	// Fetch a raw tx and it's metadata given a hash
-	Get(txid chainhash.Hash) (*wire.MsgTx, Txn, error)
+	// Fetch a tx and it's metadata given a hash
+	Get(txid chainhash.Hash) (Txn, error)
 
 	// Fetch all transactions from the db
 	GetAll(includeWatchOnly bool) ([]Txn, error)
 
 	// Update the height of a transaction
-	UpdateHeight(txid chainhash.Hash, height int) error
+	UpdateHeight(txid chainhash.Hash, height int, timestamp time.Time) error
 
 	// Delete a transactions from the db
 	Delete(txid *chainhash.Hash) error
@@ -95,6 +173,10 @@ type Keys interface {
 }
 
 type WatchedScripts interface {
+
+	// Add scripts to watch
+	PutAll(scriptPubkeys [][]byte) error
+
 	// Add a script to watch
 	Put(scriptPubKey []byte) error
 
@@ -113,7 +195,7 @@ type Utxo struct {
 	AtHeight int32
 
 	// The higher the better
-	Value int64
+	Value string
 
 	// Output script
 	ScriptPubkey []byte
@@ -145,7 +227,7 @@ func (utxo *Utxo) IsEqual(alt *Utxo) bool {
 		return false
 	}
 
-	if bytes.Compare(utxo.ScriptPubkey, alt.ScriptPubkey) != 0 {
+	if !bytes.Equal(utxo.ScriptPubkey, alt.ScriptPubkey) {
 		return false
 	}
 
@@ -188,7 +270,7 @@ type Txn struct {
 	Txid string
 
 	// The value relevant to the wallet
-	Value int64
+	Value string
 
 	// The height at which it was mined
 	Height int32
@@ -199,11 +281,49 @@ type Txn struct {
 	// This transaction only involves a watch only address
 	WatchOnly bool
 
+	// The number of confirmations on a transaction. This does not need to be saved in
+	// the database but should be calculated when the Transactions() method is called.
+	Confirmations int64
+
+	// The state of the transaction (confirmed, unconfirmed, dead, etc). Implementations
+	// have some flexibility in describing their transactions. Like confirmations, this
+	// is best calculated when the Transactions() method is called.
+	Status StatusCode
+
+	// If the Status is Error the ErrorMessage should describe the problem
+	ErrorMessage string
+
 	// Raw transaction bytes
 	Bytes []byte
+
+	FromAddress string
+	ToAddress   string
+
+	Outputs []TransactionOutput
 }
+
+type StatusCode string
+
+const (
+	StatusUnconfirmed StatusCode = "UNCONFIRMED"
+	StatusPending                = "PENDING"
+	StatusConfirmed              = "CONFIRMED"
+	StatusStuck                  = "STUCK"
+	StatusDead                   = "DEAD"
+	StatusError                  = "ERROR"
+)
 
 type KeyPath struct {
 	Purpose KeyPurpose
 	Index   int
+}
+
+type CurrencyDefinition struct {
+	Code         string
+	Divisibility int64
+}
+type CurrencyValue struct {
+	Currency           CurrencyDefinition
+	Value              big.Int
+	ValueSerialization json.Number
 }

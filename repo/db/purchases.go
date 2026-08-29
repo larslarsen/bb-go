@@ -3,18 +3,25 @@ package db
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"math/big"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/OpenBazaar/jsonpb"
 	"github.com/larslarsen/bb-go/pb"
 	"github.com/larslarsen/bb-go/repo"
 	"github.com/OpenBazaar/wallet-interface"
 	btc "github.com/btcsuite/btcutil"
-	"sync"
-	"time"
 )
 
 type PurchasesDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
+}
+
+func NewPurchaseStore(db *sql.DB, lock *sync.Mutex) repo.PurchaseStore {
+	return &PurchasesDB{modelStore{db, lock}}
 }
 
 func (p *PurchasesDB) Put(orderID string, contract pb.RicardianContract, state pb.OrderState, read bool) error {
@@ -32,37 +39,47 @@ func (p *PurchasesDB) Put(orderID string, contract pb.RicardianContract, state p
 		OrigName:     false,
 	}
 	out, err := m.MarshalToString(&contract)
+	if err != nil {
+		return err
+	}
 
-	tx, err := p.db.Begin()
+	stm := `insert or replace into purchases(orderID, contract, state, read, timestamp, total, thumbnail, vendorID, vendorHandle, title, shippingName, shippingAddress, paymentAddr, paymentCoin, coinType, funded, transactions, disputedAt) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,(select funded from purchases where orderID="` + orderID + `"),(select transactions from purchases where orderID="` + orderID + `"),?)`
+	stmt, err := p.db.Prepare(stm)
 	if err != nil {
 		return err
 	}
-	stm := `insert or replace into purchases(orderID, contract, state, read, timestamp, total, thumbnail, vendorID, vendorHandle, title, shippingName, shippingAddress, paymentAddr, funded, transactions) values(?,?,?,?,?,?,?,?,?,?,?,?,?,(select funded from purchases where orderID="` + orderID + `"),(select transactions from purchases where orderID="` + orderID + `"))`
-	stmt, err := tx.Prepare(stm)
-	if err != nil {
-		return err
-	}
-	handle := contract.VendorListings[0].VendorID.Handle
-	shippingName := ""
-	shippingAddress := ""
+	defer stmt.Close()
+	var (
+		paymentAddr, shippingName, shippingAddress string
+		disputedAt                                 int
+
+		dispute = contract.Dispute
+		handle  = contract.VendorListings[0].VendorID.Handle
+	)
 	if contract.BuyerOrder.Shipping != nil {
 		shippingName = contract.BuyerOrder.Shipping.ShipTo
 		shippingAddress = contract.BuyerOrder.Shipping.Address
 	}
-	var paymentAddr string
 	if contract.BuyerOrder.Payment.Method == pb.Order_Payment_DIRECT || contract.BuyerOrder.Payment.Method == pb.Order_Payment_MODERATED {
 		paymentAddr = contract.BuyerOrder.Payment.Address
 	} else if contract.BuyerOrder.Payment.Method == pb.Order_Payment_ADDRESS_REQUEST {
 		paymentAddr = contract.VendorOrderConfirmation.PaymentAddress
 	}
-	defer stmt.Close()
+
+	if dispute != nil {
+		disputedAt = int(dispute.Timestamp.Seconds)
+	}
+	paymentCoin, err := PaymentCoinForContract(&contract)
+	if err != nil {
+		return err
+	}
 	_, err = stmt.Exec(
 		orderID,
 		out,
 		int(state),
 		readInt,
 		int(contract.BuyerOrder.Timestamp.Seconds),
-		int(contract.BuyerOrder.Payment.Amount),
+		contract.BuyerOrder.Payment.BigAmount,
 		contract.VendorListings[0].Item.Images[0].Tiny,
 		contract.VendorListings[0].VendorID.PeerID,
 		handle,
@@ -70,12 +87,13 @@ func (p *PurchasesDB) Put(orderID string, contract pb.RicardianContract, state p
 		shippingName,
 		shippingAddress,
 		paymentAddr,
+		paymentCoin,
+		CoinTypeForContract(&contract),
+		disputedAt,
 	)
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("commit purchase: %s", err.Error())
 	}
-	tx.Commit()
 	return nil
 }
 
@@ -134,7 +152,7 @@ func (p *PurchasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sor
 
 	q := query{
 		table:           "purchases",
-		columns:         []string{"orderID", "contract", "timestamp", "total", "title", "thumbnail", "vendorID", "vendorHandle", "shippingName", "shippingAddress", "state", "read"},
+		columns:         []string{"orderID", "contract", "timestamp", "total", "title", "thumbnail", "vendorID", "vendorHandle", "shippingName", "shippingAddress", "state", "read", "coinType", "paymentCoin"},
 		stateFilter:     stateFilter,
 		searchTerm:      searchTerm,
 		searchColumns:   []string{"orderID", "timestamp", "total", "title", "thumbnail", "vendorID", "vendorHandle", "shippingName", "shippingAddress", "paymentAddr"},
@@ -152,10 +170,11 @@ func (p *PurchasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sor
 	defer rows.Close()
 	var ret []repo.Purchase
 	for rows.Next() {
-		var orderID, title, thumbnail, vendorID, vendorHandle, shippingName, shippingAddr string
+		var orderID, title, thumbnail, vendorID, vendorHandle, shippingName, shippingAddr, coinType, paymentCoin string
 		var contract []byte
-		var timestamp, total, stateInt, readInt int
-		if err := rows.Scan(&orderID, &contract, &timestamp, &total, &title, &thumbnail, &vendorID, &vendorHandle, &shippingName, &shippingAddr, &stateInt, &readInt); err != nil {
+		var timestamp, stateInt, readInt int
+		totalStr := ""
+		if err := rows.Scan(&orderID, &contract, &timestamp, &totalStr, &title, &thumbnail, &vendorID, &vendorHandle, &shippingName, &shippingAddr, &stateInt, &readInt, &coinType, &paymentCoin); err != nil {
 			return ret, 0, err
 		}
 		read := false
@@ -172,8 +191,40 @@ func (p *PurchasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sor
 		if len(rc.VendorListings) > 0 {
 			slug = rc.VendorListings[0].Slug
 		}
+
+		// Convert buyerOrder to v5
+		v5order, err := repo.ToV5Order(rc.BuyerOrder, nil)
+		if err != nil {
+			return nil, 0, err
+		}
+		rc.BuyerOrder = v5order
+
 		if rc.BuyerOrder != nil && rc.BuyerOrder.Payment != nil && rc.BuyerOrder.Payment.Method == pb.Order_Payment_MODERATED {
 			moderated = true
+		}
+
+		if len(rc.VendorListings) > 0 && rc.VendorListings[0].Metadata != nil && rc.VendorListings[0].Metadata.ContractType != pb.Listing_Metadata_CRYPTOCURRENCY {
+			coinType = ""
+		}
+
+		if totalStr == "" {
+			log.Warningf("the database total is empty when it should contain a value")
+			totalStr = rc.BuyerOrder.Payment.BigAmount
+		}
+
+		if strings.Contains(totalStr, "e") {
+			flt, _, err := big.ParseFloat(totalStr, 10, 0, big.ToNearestEven)
+			if err != nil {
+				return nil, 0, err
+			}
+			var i = new(big.Int)
+			i, _ = flt.Int(i)
+			totalStr = i.String()
+		}
+
+		cv, err := repo.NewCurrencyValueWithLookup(totalStr, paymentCoin)
+		if err != nil {
+			return nil, 0, err
 		}
 
 		ret = append(ret, repo.Purchase{
@@ -182,11 +233,13 @@ func (p *PurchasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sor
 			Timestamp:       time.Unix(int64(timestamp), 0),
 			Title:           title,
 			Thumbnail:       thumbnail,
-			Total:           uint64(total),
+			Total:           *cv,
 			VendorId:        vendorID,
 			VendorHandle:    vendorHandle,
 			ShippingName:    shippingName,
 			ShippingAddress: shippingAddr,
+			CoinType:        coinType,
+			PaymentCoin:     paymentCoin,
 			State:           pb.OrderState(stateInt).String(),
 			Moderated:       moderated,
 			Read:            read,
@@ -205,15 +258,65 @@ func (p *PurchasesDB) GetAll(stateFilter []pb.OrderState, searchTerm string, sor
 	return ret, count, nil
 }
 
-func (p *PurchasesDB) GetByPaymentAddress(addr btc.Address) (*pb.RicardianContract, pb.OrderState, bool, []*wallet.TransactionRecord, error) {
+func (p *PurchasesDB) GetUnfunded() ([]repo.UnfundedOrder, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
+	var ret []repo.UnfundedOrder
+	rows, err := p.db.Query(`select orderID, contract, timestamp, paymentAddr from purchases where state=?`, 1)
+	if err != nil {
+		return ret, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var orderID, paymentAddr string
+		var timestamp int
+		var contractBytes []byte
+		err := rows.Scan(&orderID, &contractBytes, &timestamp, &paymentAddr)
+		if err != nil {
+			return ret, err
+		}
+		if timestamp > 0 {
+			rc := new(pb.RicardianContract)
+			err = jsonpb.UnmarshalString(string(contractBytes), rc)
+			if err != nil {
+				return ret, err
+			}
+			v5Order, err := repo.ToV5Order(rc.BuyerOrder, repo.AllCurrencies().Lookup)
+			if err != nil {
+				log.Errorf("failed converting contract buyer order to v5 schema: %s", err.Error())
+				return nil, err
+			}
+			ret = append(ret, repo.UnfundedOrder{
+				OrderId:        orderID,
+				Timestamp:      time.Unix(int64(timestamp), 0),
+				PaymentCoin:    v5Order.Payment.AmountCurrency.Code,
+				PaymentAddress: paymentAddr,
+			})
+		}
+	}
+	return ret, nil
+}
+
+func (p *PurchasesDB) GetByPaymentAddress(addr btc.Address) (*pb.RicardianContract, pb.OrderState, bool, []*wallet.TransactionRecord, error) {
+	if addr == nil {
+		return nil, pb.OrderState(0), false, nil, fmt.Errorf("unable to find purchase with nil payment address")
+	}
+
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	stmt, err := p.db.Prepare("select contract, state, funded, transactions from purchases where paymentAddr=?")
+	if err != nil {
+		return nil, pb.OrderState(0), false, nil, err
+	}
 	defer stmt.Close()
-	var contract []byte
-	var stateInt int
-	var fundedInt *int
-	var serializedTransactions []byte
+
+	var (
+		contract               []byte
+		stateInt               int
+		fundedInt              *int
+		serializedTransactions []byte
+	)
 	err = stmt.QueryRow(addr.EncodeAddress()).Scan(&contract, &stateInt, &fundedInt, &serializedTransactions)
 	if err != nil {
 		return nil, pb.OrderState(0), false, nil, err
@@ -228,28 +331,39 @@ func (p *PurchasesDB) GetByPaymentAddress(addr btc.Address) (*pb.RicardianContra
 		funded = true
 	}
 	var records []*wallet.TransactionRecord
-	json.Unmarshal(serializedTransactions, &records)
+	if len(serializedTransactions) > 0 {
+		err = json.Unmarshal(serializedTransactions, &records)
+		if err != nil {
+			return nil, pb.OrderState(0), false, nil, err
+		}
+	}
 	return rc, pb.OrderState(stateInt), funded, records, nil
 }
 
-func (p *PurchasesDB) GetByOrderId(orderId string) (*pb.RicardianContract, pb.OrderState, bool, []*wallet.TransactionRecord, bool, error) {
+func (p *PurchasesDB) GetByOrderId(orderId string) (*pb.RicardianContract, pb.OrderState, bool, []*wallet.TransactionRecord, bool, *repo.CurrencyCode, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	stmt, err := p.db.Prepare("select contract, state, funded, transactions, read from purchases where orderID=?")
-	defer stmt.Close()
-	var contract []byte
-	var stateInt int
-	var fundedInt *int
-	var readInt *int
-	var serializedTransactions []byte
-	err = stmt.QueryRow(orderId).Scan(&contract, &stateInt, &fundedInt, &serializedTransactions, &readInt)
+	stmt, err := p.db.Prepare("select contract, state, funded, transactions, read, paymentCoin from purchases where orderID=?")
 	if err != nil {
-		return nil, pb.OrderState(0), false, nil, false, err
+		return nil, pb.OrderState(0), false, nil, false, nil, err
+	}
+	defer stmt.Close()
+	var (
+		contract               []byte
+		stateInt               int
+		fundedInt              *int
+		readInt                *int
+		serializedTransactions []byte
+		paymentCoin            string
+	)
+	err = stmt.QueryRow(orderId).Scan(&contract, &stateInt, &fundedInt, &serializedTransactions, &readInt, &paymentCoin)
+	if err != nil {
+		return nil, pb.OrderState(0), false, nil, false, nil, err
 	}
 	rc := new(pb.RicardianContract)
 	err = jsonpb.UnmarshalString(string(contract), rc)
 	if err != nil {
-		return nil, pb.OrderState(0), false, nil, false, err
+		return nil, pb.OrderState(0), false, nil, false, nil, err
 	}
 	funded := false
 	if fundedInt != nil && *fundedInt == 1 {
@@ -259,9 +373,19 @@ func (p *PurchasesDB) GetByOrderId(orderId string) (*pb.RicardianContract, pb.Or
 	if readInt != nil && *readInt == 1 {
 		read = true
 	}
+	def, err := repo.AllCurrencies().Lookup(paymentCoin)
+	if err != nil {
+		return nil, pb.OrderState(0), false, nil, false, nil, fmt.Errorf("validating payment coin: %s", err.Error())
+	}
 	var records []*wallet.TransactionRecord
-	json.Unmarshal(serializedTransactions, &records)
-	return rc, pb.OrderState(stateInt), funded, records, read, nil
+	if len(serializedTransactions) > 0 {
+		err = json.Unmarshal(serializedTransactions, &records)
+		if err != nil {
+			return nil, pb.OrderState(0), false, nil, false, nil, fmt.Errorf("unmarshal purchase transactions: %s", err.Error())
+		}
+	}
+	cc := def.CurrencyCode()
+	return rc, pb.OrderState(stateInt), funded, records, read, &cc, nil
 }
 
 func (p *PurchasesDB) Count() int {
@@ -269,6 +393,168 @@ func (p *PurchasesDB) Count() int {
 	defer p.lock.Unlock()
 	row := p.db.QueryRow("select Count(*) from purchases")
 	var count int
-	row.Scan(&count)
+	err := row.Scan(&count)
+	if err != nil {
+		log.Errorf("failed scanning purchase count: %s", err.Error())
+		return 0
+	}
 	return count
+}
+
+func (p *PurchasesDB) GetPurchasesForDisputeExpiryNotification() ([]*repo.PurchaseRecord, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	s := fmt.Sprintf("select orderID, contract, state, timestamp, lastDisputeExpiryNotifiedAt, disputedAt from purchases where (lastDisputeExpiryNotifiedAt - disputedAt) < %d and state = %d",
+		int(repo.BuyerDisputeExpiry_lastInterval.Seconds()),
+		pb.OrderState_DISPUTED,
+	)
+	rows, err := p.db.Query(s)
+	if err != nil {
+		return nil, fmt.Errorf("selecting purchases: %s", err.Error())
+	}
+
+	result := make([]*repo.PurchaseRecord, 0)
+	for rows.Next() {
+		var (
+			disputedAt                  int64
+			lastDisputeExpiryNotifiedAt int64
+			contract                    []byte
+			stateInt                    int
+
+			r = &repo.PurchaseRecord{
+				Contract: &pb.RicardianContract{},
+			}
+			timestamp = sql.NullInt64{}
+		)
+		if err := rows.Scan(&r.OrderID, &contract, &stateInt, &timestamp, &lastDisputeExpiryNotifiedAt, &disputedAt); err != nil {
+			return nil, fmt.Errorf("scanning purchases: %s\n", err.Error())
+		}
+		if err := jsonpb.UnmarshalString(string(contract), r.Contract); err != nil {
+			return nil, fmt.Errorf("unmarshaling contract: %s\n", err.Error())
+		}
+		r.OrderState = pb.OrderState(stateInt)
+		if timestamp.Valid {
+			r.Timestamp = time.Unix(timestamp.Int64, 0)
+		} else {
+			r.Timestamp = time.Now()
+		}
+		r.LastDisputeExpiryNotifiedAt = time.Unix(lastDisputeExpiryNotifiedAt, 0)
+		r.DisputedAt = time.Unix(disputedAt, 0)
+
+		result = append(result, r)
+	}
+	return result, nil
+}
+
+// GetPurchasesForDisputeTimeoutNotification returns []*PurchaseRecord including
+// each record which needs Notifications to be generated.
+func (p *PurchasesDB) GetPurchasesForDisputeTimeoutNotification() ([]*repo.PurchaseRecord, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	s := fmt.Sprintf("select orderID, contract, state, timestamp, lastDisputeTimeoutNotifiedAt from purchases where (lastDisputeTimeoutNotifiedAt - timestamp) < %d and state in (%d, %d, %d)",
+		int(repo.BuyerDisputeTimeout_totalDuration.Seconds()),
+		pb.OrderState_PENDING,
+		pb.OrderState_AWAITING_FULFILLMENT,
+		pb.OrderState_FULFILLED,
+	)
+	rows, err := p.db.Query(s)
+	if err != nil {
+		return nil, fmt.Errorf("selecting purchases: %s", err.Error())
+	}
+
+	result := make([]*repo.PurchaseRecord, 0)
+	for rows.Next() {
+		var (
+			lastDisputeTimeoutNotifiedAt int64
+			contract                     []byte
+			stateInt                     int
+
+			r = &repo.PurchaseRecord{
+				Contract: &pb.RicardianContract{},
+			}
+			timestamp = sql.NullInt64{}
+		)
+		if err := rows.Scan(&r.OrderID, &contract, &stateInt, &timestamp, &lastDisputeTimeoutNotifiedAt); err != nil {
+			return nil, fmt.Errorf("scanning purchases: %s\n", err.Error())
+		}
+		if err := jsonpb.UnmarshalString(string(contract), r.Contract); err != nil {
+			return nil, fmt.Errorf("unmarshaling contract: %s\n", err.Error())
+		}
+		r.OrderState = pb.OrderState(stateInt)
+		if timestamp.Valid {
+			r.Timestamp = time.Unix(timestamp.Int64, 0)
+		} else {
+			r.Timestamp = time.Now()
+		}
+		r.LastDisputeTimeoutNotifiedAt = time.Unix(lastDisputeTimeoutNotifiedAt, 0)
+
+		if r.IsDisputeable() {
+			result = append(result, r)
+		}
+	}
+	return result, nil
+}
+
+// UpdatePurchasesLastDisputeTimeoutNotifiedAt accepts []*repo.PurchaseRecord and updates
+// each PurchaseRecord by their OrderID to the set LastDisputeTimeoutNotifiedAt value. The
+// update will be attempted atomically with a rollback attempted in the event of
+// an error.
+func (p *PurchasesDB) UpdatePurchasesLastDisputeTimeoutNotifiedAt(purchases []*repo.PurchaseRecord) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	tx, err := p.BeginTransaction()
+	if err != nil {
+		return fmt.Errorf("begin update purchase transaction: %s", err.Error())
+	}
+	for _, p := range purchases {
+		_, err = tx.Exec("update purchases set lastDisputeTimeoutNotifiedAt = ? where orderID = ?", int(p.LastDisputeTimeoutNotifiedAt.Unix()), p.OrderID)
+		if err != nil {
+			if rErr := tx.Rollback(); rErr != nil {
+				return fmt.Errorf("update purchase: (%s) w rollback error: (%s)", err.Error(), rErr.Error())
+			}
+			return fmt.Errorf("update purchase: %s", err.Error())
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		if rErr := tx.Rollback(); rErr != nil {
+			return fmt.Errorf("commit purchase: (%s) w rollback error: (%s)", err.Error(), rErr.Error())
+		}
+		return fmt.Errorf("commit update purchase transaction: %s", err.Error())
+	}
+
+	return nil
+}
+
+// UpdatePurchasesLastDisputeExpiryNotifiedAt accepts []*repo.PurchaseRecord and updates
+// each PurchaseRecord by their OrderID to the set LastDisputeExpiryNotifiedAt value. The
+// update will be attempted atomically with a rollback attempted in the event of
+// an error.
+func (p *PurchasesDB) UpdatePurchasesLastDisputeExpiryNotifiedAt(purchases []*repo.PurchaseRecord) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	tx, err := p.BeginTransaction()
+	if err != nil {
+		return fmt.Errorf("begin update purchase transaction: %s", err.Error())
+	}
+	for _, p := range purchases {
+		_, err = tx.Exec("update purchases set lastDisputeExpiryNotifiedAt = ? where orderID = ?", int(p.LastDisputeExpiryNotifiedAt.Unix()), p.OrderID)
+		if err != nil {
+			if rErr := tx.Rollback(); rErr != nil {
+				return fmt.Errorf("update purchase error: (%s) w rollback error: (%s)", err.Error(), rErr.Error())
+			}
+			return fmt.Errorf("update purchase: %s", err.Error())
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		if rErr := tx.Rollback(); rErr != nil {
+			return fmt.Errorf("commit purchase error: (%s) w rollback error: (%s)", err.Error(), rErr.Error())
+		}
+		return fmt.Errorf("commit update purchase transaction: %s", err.Error())
+	}
+
+	return nil
 }

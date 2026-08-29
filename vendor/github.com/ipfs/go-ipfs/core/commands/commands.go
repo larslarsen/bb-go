@@ -6,18 +6,48 @@
 package commands
 
 import (
-	"bytes"
+	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
+
+	cmds "gx/ipfs/QmQkW9fnCsg9SLHdViiAh6qfBppodsPZVpU92dZLqYtEfs/go-ipfs-cmds"
+	"gx/ipfs/Qmde5VP1qUkyQXKCfmEUA7bP64V2HAptbJ7phuPp7jXWwg/go-ipfs-cmdkit"
 )
+
+type commandEncoder struct {
+	w io.Writer
+}
+
+func (e *commandEncoder) Encode(v interface{}) error {
+	var (
+		cmd *Command
+		ok  bool
+	)
+
+	if cmd, ok = v.(*Command); !ok {
+		return fmt.Errorf(`core/commands: uenxpected type %T, expected *"core/commands".Command`, v)
+	}
+
+	for _, s := range cmdPathStrings(cmd, cmd.showOpts) {
+		_, err := e.w.Write([]byte(s + "\n"))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 type Command struct {
 	Name        string
 	Subcommands []Command
 	Options     []Option
+
+	showOpts bool
 }
 
 type Option struct {
@@ -32,26 +62,21 @@ const (
 // and returns a command that lists the subcommands in that root
 func CommandsCmd(root *cmds.Command) *cmds.Command {
 	return &cmds.Command{
-		Helptext: cmds.HelpText{
+		Helptext: cmdkit.HelpText{
 			Tagline:          "List all available commands.",
 			ShortDescription: `Lists all available commands (and subcommands) and exits.`,
 		},
-		Options: []cmds.Option{
-			cmds.BoolOption(flagsOptionName, "f", "Show command flags").Default(false),
+		Options: []cmdkit.Option{
+			cmdkit.BoolOption(flagsOptionName, "f", "Show command flags"),
 		},
-		Run: func(req cmds.Request, res cmds.Response) {
+		Run: func(req *cmds.Request, res cmds.ResponseEmitter, env cmds.Environment) error {
 			rootCmd := cmd2outputCmd("ipfs", root)
-			res.SetOutput(&rootCmd)
+			rootCmd.showOpts, _ = req.Options[flagsOptionName].(bool)
+			return cmds.EmitOnce(res, &rootCmd)
 		},
-		Marshalers: cmds.MarshalerMap{
-			cmds.Text: func(res cmds.Response) (io.Reader, error) {
-				v := res.Output().(*Command)
-				showOptions, _, _ := res.Request().Option(flagsOptionName).Bool()
-				buf := new(bytes.Buffer)
-				for _, s := range cmdPathStrings(v, showOptions) {
-					buf.Write([]byte(s + "\n"))
-				}
-				return buf, nil
+		Encoders: cmds.EncoderMap{
+			cmds.Text: func(req *cmds.Request) func(io.Writer) cmds.Encoder {
+				return func(w io.Writer) cmds.Encoder { return &commandEncoder{w} }
 			},
 		},
 		Type: Command{},
@@ -66,14 +91,12 @@ func cmd2outputCmd(name string, cmd *cmds.Command) Command {
 
 	output := Command{
 		Name:        name,
-		Subcommands: make([]Command, len(cmd.Subcommands)),
+		Subcommands: make([]Command, 0, len(cmd.Subcommands)),
 		Options:     opts,
 	}
 
-	i := 0
 	for name, sub := range cmd.Subcommands {
-		output.Subcommands[i] = cmd2outputCmd(name, sub)
-		i++
+		output.Subcommands = append(output.Subcommands, cmd2outputCmd(name, sub))
 	}
 
 	return output
@@ -108,4 +131,61 @@ func cmdPathStrings(cmd *Command, showOptions bool) []string {
 	recurse("", cmd)
 	sort.Sort(sort.StringSlice(cmds))
 	return cmds
+}
+
+// changes here will also need to be applied at
+// - ./dag/dag.go
+// - ./object/object.go
+// - ./files/files.go
+// - ./unixfs/unixfs.go
+func unwrapOutput(i interface{}) (interface{}, error) {
+	var (
+		ch <-chan interface{}
+		ok bool
+	)
+
+	if ch, ok = i.(<-chan interface{}); !ok {
+		return nil, e.TypeErr(ch, i)
+	}
+
+	return <-ch, nil
+}
+
+type nonFatalError string
+
+// streamResult is a helper function to stream results that possibly
+// contain non-fatal errors.  The helper function is allowed to panic
+// on internal errors.
+func streamResult(procVal func(interface{}, io.Writer) nonFatalError) func(cmds.Response, cmds.ResponseEmitter) error {
+	return func(res cmds.Response, re cmds.ResponseEmitter) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("internal error: %v", r)
+			}
+			re.Close()
+		}()
+
+		var errors bool
+		for {
+			v, err := res.Next()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+
+			errorMsg := procVal(v, os.Stdout)
+
+			if errorMsg != "" {
+				errors = true
+				fmt.Fprintf(os.Stderr, "%s\n", errorMsg)
+			}
+		}
+
+		if errors {
+			return fmt.Errorf("errors while displaying some entries")
+		}
+		return nil
+	}
 }

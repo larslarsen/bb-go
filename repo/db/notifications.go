@@ -4,38 +4,44 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	notif "github.com/larslarsen/bb-go/api/notifications"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/larslarsen/bb-go/repo"
 )
 
 type NotficationsDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
 }
 
-func (n *NotficationsDB) Put(notifID string, notification notif.Data, notifType string, timestamp time.Time) error {
-	ser, err := json.Marshal(notification)
+func NewNotificationStore(db *sql.DB, lock *sync.Mutex) repo.NotificationStore {
+	return &NotficationsDB{modelStore{db, lock}}
+}
+
+func (n *NotficationsDB) PutRecord(record *repo.Notification) error {
+	ser, err := json.Marshal(record)
 	if err != nil {
 		return err
 	}
 
+	var read int
+	if record.IsRead {
+		read = 1
+	}
+
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	_, err = n.db.Exec("insert into notifications(notifID, serializedNotification, type, timestamp, read) values(?,?,?,?,?)", notifID, string(ser), strings.ToLower(notifType), int(timestamp.Unix()), 0)
+	_, err = n.ExecuteQuery("insert into notifications(notifID, serializedNotification, type, timestamp, read) values(?,?,?,?,?)", record.GetID(), string(ser), strings.ToLower(record.GetTypeString()), record.GetUnixCreatedAt(), read)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (n *NotficationsDB) GetAll(offsetId string, limit int, typeFilter []string) ([]notif.Notification, int, error) {
-	var ret []notif.Notification
-
-	n.lock.Lock()
-	defer n.lock.Unlock()
+func (n *NotficationsDB) GetAll(offsetId string, limit int, typeFilter []string) ([]*repo.Notification, int, error) {
+	var ret []*repo.Notification
 
 	var stm string
 	var cstm string
@@ -54,6 +60,7 @@ func (n *NotficationsDB) GetAll(offsetId string, limit int, typeFilter []string)
 		typeFilterClause = "type in (" + strings.Join(typeFilterClauseParts, ",") + ")"
 	}
 
+	// Prepare statements
 	var args []interface{}
 	if offsetId != "" {
 		args = append(args, offsetId)
@@ -63,8 +70,8 @@ func (n *NotficationsDB) GetAll(offsetId string, limit int, typeFilter []string)
 				args = append(args, a)
 			}
 		}
-		stm = "select serializedNotification, timestamp, read from notifications where timestamp<(select timestamp from notifications where notifID=?)" + filter + " order by timestamp desc limit " + strconv.Itoa(limit) + ";"
-		cstm = "select Count(*) from notifications where timestamp<(select timestamp from notifications where notifID=?)" + filter + " order by timestamp desc;"
+		stm = "select serializedNotification, timestamp, read from notifications where rowid<(select rowid from notifications where notifID=?)" + filter + " order by rowid desc limit " + strconv.Itoa(limit) + ";"
+		cstm = "select Count(*) from notifications where timestamp<(select timestamp from notifications where notifID=?)" + filter + " order by rowid desc;"
 	} else {
 		if len(types) > 0 {
 			filter = " where " + typeFilterClause
@@ -72,38 +79,48 @@ func (n *NotficationsDB) GetAll(offsetId string, limit int, typeFilter []string)
 				args = append(args, a)
 			}
 		}
-		stm = "select serializedNotification, timestamp, read from notifications" + filter + " order by timestamp desc limit " + strconv.Itoa(limit) + ";"
-		cstm = "select Count(*) from notifications" + filter + " order by timestamp desc;"
+		stm = "select serializedNotification, timestamp, read from notifications" + filter + " order by rowid desc limit " + strconv.Itoa(limit) + ";"
+		cstm = "select Count(*) from notifications" + filter + " order by rowid desc;"
 	}
+
+	// Gather records
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
 	rows, err := n.db.Query(stm, args...)
 	if err != nil {
 		return ret, 0, err
 	}
 	for rows.Next() {
-		var data []byte
-		var timestampInt int
-		var readInt int
+		var (
+			data         []byte
+			readInt      int
+			timestampInt int
+		)
 		if err := rows.Scan(&data, &timestampInt, &readInt); err != nil {
-			fmt.Println(err)
+			log.Errorf("notifications: GetAll: scanning: %s\n", err.Error())
 			continue
 		}
+		var notification = &repo.Notification{}
+		err := json.Unmarshal(data, notification)
+		if err != nil {
+			log.Errorf("notifications: GetAll: unmarshalling: %s\n", err.Error())
+			continue
+		}
+
+		// TODO: These should get removed when (*Notification).MarshalJSON begins to include
+		// these values. Overriding them here allows for the marshaled representation of
+		// the ID field to become out of sync with the DB version of ID, which is overridden
+		// here. (Making Notification.NotifierData.GetID() != Notification.GetID())
 		var read bool
 		if readInt == 1 {
 			read = true
 		}
-		timestamp := time.Unix(int64(timestampInt), 0)
-		var ni interface{}
-		err := json.Unmarshal(data, &ni)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		n := notif.Notification{
-			Data:      ni,
-			Timestamp: timestamp,
-			Read:      read,
-		}
-		ret = append(ret, n)
+		notification.IsRead = read
+		notification.CreatedAt = repo.NewAPITime(time.Unix(int64(timestampInt), 0).UTC())
+		// END
+
+		ret = append(ret, notification)
 	}
 	row := n.db.QueryRow(cstm, args...)
 	var count int
@@ -117,33 +134,33 @@ func (n *NotficationsDB) GetAll(offsetId string, limit int, typeFilter []string)
 func (n *NotficationsDB) MarkAsRead(notifID string) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	tx, err := n.db.Begin()
+	stmt, err := n.PrepareQuery("update notifications set read=1 where notifID=?")
 	if err != nil {
-		return err
+		return fmt.Errorf("prepare notification sql: %s", err.Error())
 	}
-	stmt, _ := tx.Prepare("update notifications set read=1 where notifID=?")
-
 	defer stmt.Close()
+
 	_, err = stmt.Exec(notifID)
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("commit notification as read: %s", err.Error())
 	}
-	tx.Commit()
 	return nil
 }
 
 func (n *NotficationsDB) MarkAllAsRead() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	_, err := n.db.Exec("update notifications set read=1")
+	_, err := n.ExecuteQuery("update notifications set read=1")
 	return err
 }
 
 func (n *NotficationsDB) Delete(notifID string) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	n.db.Exec("delete from notifications where notifID=?", notifID)
+	_, err := n.ExecuteQuery("delete from notifications where notifID=?", notifID)
+	if err != nil {
+		return fmt.Errorf("notifications: delete: %s", err.Error())
+	}
 	return nil
 }
 

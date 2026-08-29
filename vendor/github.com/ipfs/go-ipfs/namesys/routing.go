@@ -2,239 +2,160 @@ package namesys
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
-	pb "github.com/ipfs/go-ipfs/namesys/pb"
-	path "github.com/ipfs/go-ipfs/path"
-
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	routing "gx/ipfs/QmPR2JzfKd9poHx9XBhzoFeBBC31ZM3W5iUPKJZWyaoZZm/go-libp2p-routing"
-	u "gx/ipfs/QmSU6eubNdhXjFBJBSksTp8kv8YRub8mGAPv8tVJHmL2EU/go-ipfs-util"
-	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	mh "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
-	lru "gx/ipfs/QmVYxfoJQiZijTgPNHCHgHELvQpbsJNTg6Crmc3dQkj3yy/golang-lru"
-	proto "gx/ipfs/QmZ4Qi3GaRbjcx28Sme5eMH7RQjGkt8wHxt2a65oLaeFEV/gogo-protobuf/proto"
-
-	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
-
-	ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
+	path "gx/ipfs/QmQAgv6Gaoe2tQpcabqwKXKChp2MZ7i3UXv9DqTTaxCaTR/go-path"
+	dht "gx/ipfs/QmSY3nkMNLzh9GdbFKK5tT7YMfLpf52iUZ8ZRkr29MJaa5/go-libp2p-kad-dht" // OpenBazaar: this is updated to OpenBazaar fork because of go-ipfs issue #5957
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	ipns "gx/ipfs/QmUwMnKKjH3JwGKNVZ3TcP37W93xzqNA4ECFFiMo6sXkkc/go-ipns"
+	pb "gx/ipfs/QmUwMnKKjH3JwGKNVZ3TcP37W93xzqNA4ECFFiMo6sXkkc/go-ipns/pb"
+	opts "gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core/options/namesys"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	routing "gx/ipfs/QmYxUdYY9S6yg5tSPVin5GFTvtfsLauVcr7reHDD3dM8xf/go-libp2p-routing"
+	logging "gx/ipfs/QmbkT7eMTyXfpeyB3ZMxxcxg7XH8t6uXp49jqzz4HB7BGF/go-log"
+	proto "gx/ipfs/QmddjPSGZb3ieihSseFeCfVRpZzcqczPNsD2DvarSwnjJB/gogo-protobuf/proto"
+	mh "gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
 )
 
 var log = logging.Logger("namesys")
-var cachePrefix = "IPNSPERSISENTCACHE_"
-var UsePersistentCache bool
 
-// routingResolver implements NSResolver for the main IPFS SFS-like naming
-type routingResolver struct {
-	routing            routing.ValueStore
-	datastore          ds.Datastore
-	cache              *lru.Cache
+// IpnsResolver implements NSResolver for the main IPFS SFS-like naming
+type IpnsResolver struct {
+	routing routing.ValueStore
 }
 
-func (r *routingResolver) cacheGet(name string) (path.Path, bool) {
-	if r.cache == nil {
-		return "", false
-	}
-
-	ientry, ok := r.cache.Get(name)
-	if !ok {
-		return "", false
-	}
-
-	entry, ok := ientry.(cacheEntry)
-	if !ok {
-		// should never happen, purely for sanity
-		log.Panicf("unexpected type %T in cache for %q.", ientry, name)
-	}
-
-	if time.Now().Before(entry.eol) {
-		return entry.val, true
-	}
-
-	r.cache.Remove(name)
-
-	return "", false
-}
-
-func (r *routingResolver) cacheSet(name string, val path.Path, rec *pb.IpnsEntry) {
-	if r.cache == nil {
-		return
-	}
-
-	// if completely unspecified, just use one minute
-	ttl := DefaultResolverCacheTTL
-	if rec.Ttl != nil {
-		recttl := time.Duration(rec.GetTtl())
-		if recttl >= 0 {
-			ttl = recttl
-		}
-	}
-
-	cacheTil := time.Now().Add(ttl)
-	eol, ok := checkEOL(rec)
-	if ok && eol.Before(cacheTil) {
-		cacheTil = eol
-	}
-
-	r.cache.Add(name, cacheEntry{
-		val: val,
-		eol: cacheTil,
-	})
-}
-
-type cacheEntry struct {
-	val path.Path
-	eol time.Time
-}
-
-// NewRoutingResolver constructs a name resolver using the IPFS Routing system
+// NewIpnsResolver constructs a name resolver using the IPFS Routing system
 // to implement SFS-like naming on top.
-// cachesize is the limit of the number of entries in the lru cache. Setting it
-// to '0' will disable caching.
-func NewRoutingResolver(route routing.ValueStore, cachesize int, ds ds.Datastore) *routingResolver {
+func NewIpnsResolver(route routing.ValueStore) *IpnsResolver {
 	if route == nil {
 		panic("attempt to create resolver with nil routing system")
 	}
-
-	var cache *lru.Cache
-	if cachesize > 0 {
-		cache, _ = lru.New(cachesize)
-	}
-
-	return &routingResolver{
-		routing:            route,
-		cache:              cache,
-		datastore:          ds,
+	return &IpnsResolver{
+		routing: route,
 	}
 }
 
 // Resolve implements Resolver.
-func (r *routingResolver) Resolve(ctx context.Context, name string) (path.Path, error) {
-	return r.ResolveN(ctx, name, DefaultDepthLimit)
+func (r *IpnsResolver) Resolve(ctx context.Context, name string, options ...opts.ResolveOpt) (path.Path, error) {
+	return resolve(ctx, r, name, opts.ProcessOpts(options))
 }
 
-// ResolveN implements Resolver.
-func (r *routingResolver) ResolveN(ctx context.Context, name string, depth int) (path.Path, error) {
-	return resolve(ctx, r, name, depth, "/ipns/")
+// ResolveAsync implements Resolver.
+func (r *IpnsResolver) ResolveAsync(ctx context.Context, name string, options ...opts.ResolveOpt) <-chan Result {
+	return resolveAsync(ctx, r, name, opts.ProcessOpts(options))
 }
 
 // resolveOnce implements resolver. Uses the IPFS routing system to
 // resolve SFS-like names.
-func (r *routingResolver) resolveOnce(ctx context.Context, name string) (path.Path, error) {
-	log.Debugf("RoutingResolve: '%s'", name)
-	cached, ok := r.cacheGet(name)
-	if ok {
-		return cached, nil
+func (r *IpnsResolver) resolveOnceAsync(ctx context.Context, name string, options opts.ResolveOpts) <-chan onceResult {
+	out := make(chan onceResult, 1)
+	log.Debugf("RoutingResolver resolving %s", name)
+	cancel := func() {}
+
+	if options.DhtTimeout != 0 {
+		// Resolution must complete within the timeout
+		ctx, cancel = context.WithTimeout(ctx, options.DhtTimeout)
 	}
 
 	name = strings.TrimPrefix(name, "/ipns/")
-	hash, err := mh.FromB58String(name)
+	pid, err := peer.IDB58Decode(name)
 	if err != nil {
-		// name should be a multihash. if it isn't, error out here.
-		log.Warningf("RoutingResolve: bad input hash: [%s]\n", name)
-		return "", err
+		log.Debugf("RoutingResolver: could not convert public key hash %s to peer ID: %s\n", name, err)
+		out <- onceResult{err: err}
+		close(out)
+		cancel()
+		return out
 	}
 
-	// use the routing system to get the name.
-	// /ipns/<name>
-	h := []byte("/ipns/" + string(hash))
+	// Name should be the hash of a public key retrievable from ipfs.
+	// We retrieve the public key here to make certain that it's in the peer
+	// store before calling GetValue() on the DHT - the DHT will call the
+	// ipns validator, which in turn will get the public key from the peer
+	// store to verify the record signature
+	_, err = routing.GetPublicKey(r.routing, ctx, pid)
+	if err != nil {
+		log.Debugf("RoutingResolver: could not retrieve public key %s: %s\n", name, err)
+		out <- onceResult{err: err}
+		close(out)
+		cancel()
+		return out
+	}
 
-	var entry *pb.IpnsEntry
-	var pubkey ci.PubKey
-	var val []byte
+	// Use the routing system to get the name.
+	// Note that the DHT will call the ipns validator when retrieving
+	// the value, which in turn verifies the ipns record signature
+	ipnsKey := ipns.RecordKey(pid)
 
-	resp := make(chan error, 2)
+	vals, err := r.routing.SearchValue(ctx, ipnsKey, dht.Quorum(int(options.DhtRecordCount)))
+	if err != nil {
+		log.Debugf("RoutingResolver: dht get for name %s failed: %s", name, err)
+		out <- onceResult{err: err}
+		close(out)
+		cancel()
+		return out
+	}
+
 	go func() {
-		ipnsKey := string(h)
-		val, err = r.routing.GetValue(ctx, ipnsKey)
-		if err != nil {
-			log.Warning("RoutingResolve get failed.")
-			resp <- err
-			return
-		}
+		defer cancel()
+		defer close(out)
+		for {
+			select {
+			case val, ok := <-vals:
+				if !ok {
+					return
+				}
 
-		entry = new(pb.IpnsEntry)
-		err = proto.Unmarshal(val, entry)
-		if err != nil {
-			resp <- err
-			return
-		}
+				entry := new(pb.IpnsEntry)
+				err = proto.Unmarshal(val, entry)
+				if err != nil {
+					log.Debugf("RoutingResolver: could not unmarshal value for name %s: %s", name, err)
+					emitOnceResult(ctx, out, onceResult{err: err})
+					return
+				}
 
-		resp <- nil
+				var p path.Path
+				// check for old style record:
+				if valh, err := mh.Cast(entry.GetValue()); err == nil {
+					// Its an old style multihash record
+					log.Debugf("encountered CIDv0 ipns entry: %s", valh)
+					p = path.FromCid(cid.NewCidV0(valh))
+				} else {
+					// Not a multihash, probably a new style record
+					p, err = path.ParsePath(string(entry.GetValue()))
+					if err != nil {
+						emitOnceResult(ctx, out, onceResult{err: err})
+						return
+					}
+				}
+
+				ttl := DefaultResolverCacheTTL
+				if entry.Ttl != nil {
+					ttl = time.Duration(*entry.Ttl)
+				}
+				switch eol, err := ipns.GetEOL(entry); err {
+				case ipns.ErrUnrecognizedValidity:
+					// No EOL.
+				case nil:
+					ttEol := eol.Sub(time.Now())
+					if ttEol < 0 {
+						// It *was* valid when we first resolved it.
+						ttl = 0
+					} else if ttEol < ttl {
+						ttl = ttEol
+					}
+				default:
+					log.Errorf("encountered error when parsing EOL: %s", err)
+					emitOnceResult(ctx, out, onceResult{err: err})
+					return
+				}
+
+				emitOnceResult(ctx, out, onceResult{value: p, ttl: ttl})
+			case <-ctx.Done():
+				return
+			}
+		}
 	}()
 
-	go func() {
-		// name should be a public key retrievable from ipfs
-		pubk, err := routing.GetPublicKey(r.routing, ctx, hash)
-		if err != nil {
-			resp <- err
-			return
-		}
-
-		pubkey = pubk
-		resp <- nil
-	}()
-
-	for i := 0; i < 2; i++ {
-		err = <-resp
-		if err != nil && UsePersistentCache {
-			val, err := r.datastore.Get(ds.NewKey(cachePrefix + name))
-			if err != nil {
-				return "", err
-			}
-			entry := new(pb.IpnsEntry)
-			err = proto.Unmarshal(val.([]byte), entry)
-			if err != nil {
-				return "", err
-			}
-			p, err := path.ParsePath(string(entry.GetValue()))
-			if err != nil {
-				return "", err
-			}
-			return p, nil
-		} else if err != nil {
-			return "", err
-		}
-	}
-
-	// check sig with pk
-	if ok, err := pubkey.Verify(ipnsEntryDataForSig(entry), entry.GetSignature()); err != nil || !ok {
-		return "", fmt.Errorf("Invalid value. Not signed by PrivateKey corresponding to %v", pubkey)
-	}
-
-	// ok sig checks out. this is a valid name.
-
-	// check for old style record:
-	valh, err := mh.Cast(entry.GetValue())
-	if err != nil {
-		// Not a multihash, probably a new record
-		p, err := path.ParsePath(string(entry.GetValue()))
-		if err != nil {
-			return "", err
-		}
-
-		r.cacheSet(name, p, entry)
-		go r.datastore.Put(ds.NewKey(cachePrefix+name), val)
-		return p, nil
-	} else {
-		// Its an old style multihash record
-		log.Warning("Detected old style multihash record")
-		p := path.FromCid(cid.NewCidV0(valh))
-		r.cacheSet(name, p, entry)
-		go r.datastore.Put(ds.NewKey(cachePrefix+name), val)
-		return p, nil
-	}
-}
-
-func checkEOL(e *pb.IpnsEntry) (time.Time, bool) {
-	if e.GetValidityType() == pb.IpnsEntry_EOL {
-		eol, err := u.ParseRFC3339(string(e.GetValidity()))
-		if err != nil {
-			return time.Time{}, false
-		}
-		return eol, true
-	}
-	return time.Time{}, false
+	return out
 }

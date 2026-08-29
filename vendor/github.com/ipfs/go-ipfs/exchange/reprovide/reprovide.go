@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
 	backoff "gx/ipfs/QmPJUtEJsm5YLUWhF6imvyCH8KZXRJa9Wup7FDMwTy5Ufz/backoff"
-	routing "gx/ipfs/QmPR2JzfKd9poHx9XBhzoFeBBC31ZM3W5iUPKJZWyaoZZm/go-libp2p-routing"
-	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	routing "gx/ipfs/QmYxUdYY9S6yg5tSPVin5GFTvtfsLauVcr7reHDD3dM8xf/go-libp2p-routing"
+	logging "gx/ipfs/QmbkT7eMTyXfpeyB3ZMxxcxg7XH8t6uXp49jqzz4HB7BGF/go-log"
+	"gx/ipfs/QmcVd2ApQdbfaYPKhCjj4WoQuxk4CMxPqmNpijKmFLh6qa/go-verifcid"
 )
 
 var log = logging.Logger("reprovider")
 
 //KeyChanFunc is function streaming CIDs to pass to content routing
-type KeyChanFunc func(context.Context) (<-chan *cid.Cid, error)
+type KeyChanFunc func(context.Context) (<-chan cid.Cid, error)
 type doneFunc func(error)
 
 type Reprovider struct {
@@ -80,9 +81,14 @@ func (rp *Reprovider) Run(tick time.Duration) {
 func (rp *Reprovider) Reprovide() error {
 	keychan, err := rp.keyProvider(rp.ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to get key chan: %s", err)
+		return fmt.Errorf("failed to get key chan: %s", err)
 	}
 	for c := range keychan {
+		// hash security
+		if err := verifcid.ValidateCid(c); err != nil {
+			log.Errorf("insecure hash in reprovider, %s (%s)", c, err)
+			continue
+		}
 		op := func() error {
 			err := rp.rsys.Provide(rp.ctx, c, true)
 			if err != nil {

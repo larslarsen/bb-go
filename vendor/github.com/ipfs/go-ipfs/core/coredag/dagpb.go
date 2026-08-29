@@ -5,14 +5,14 @@ import (
 	"io/ioutil"
 	"math"
 
-	"github.com/ipfs/go-ipfs/merkledag"
+	"gx/ipfs/QmPJNbVw8o3ohC43ppSXyNXwYKsWShG4zygnirHptfbHri/go-merkledag"
 
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	node "gx/ipfs/QmPN7cwmpcc4DWXb4KTB9dNAJgjuPY69h3npsMfhRrQL9c/go-ipld-format"
-	mh "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	ipld "gx/ipfs/QmZ6nzCLwGLVfRzYLpD7pW6UNuBDKEcA2imJtVpbEx2rxy/go-ipld-format"
+	mh "gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
 )
 
-func dagpbJSONParser(r io.Reader, mhType uint64, mhLen int) ([]node.Node, error) {
+func dagpbJSONParser(r io.Reader, mhType uint64, mhLen int) ([]ipld.Node, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -25,12 +25,12 @@ func dagpbJSONParser(r io.Reader, mhType uint64, mhLen int) ([]node.Node, error)
 		return nil, err
 	}
 
-	nd.SetPrefix(cidPrefix(mhType, mhLen))
+	nd.SetCidBuilder(cidPrefix(mhType, mhLen))
 
-	return []node.Node{nd}, nil
+	return []ipld.Node{nd}, nil
 }
 
-func dagpbRawParser(r io.Reader, mhType uint64, mhLen int) ([]node.Node, error) {
+func dagpbRawParser(r io.Reader, mhType uint64, mhLen int) ([]ipld.Node, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -41,9 +41,9 @@ func dagpbRawParser(r io.Reader, mhType uint64, mhLen int) ([]node.Node, error) 
 		return nil, err
 	}
 
-	nd.SetPrefix(cidPrefix(mhType, mhLen))
+	nd.SetCidBuilder(cidPrefix(mhType, mhLen))
 
-	return []node.Node{nd}, nil
+	return []ipld.Node{nd}, nil
 }
 
 func cidPrefix(mhType uint64, mhLen int) *cid.Prefix {

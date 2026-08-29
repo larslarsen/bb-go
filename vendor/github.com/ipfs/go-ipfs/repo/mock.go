@@ -5,9 +5,9 @@ import (
 
 	filestore "github.com/ipfs/go-ipfs/filestore"
 	keystore "github.com/ipfs/go-ipfs/keystore"
-	"github.com/ipfs/go-ipfs/repo/config"
 
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	config "gx/ipfs/QmUAuYuiafnJRZxDDX7MuruMNsicYNuyub5vUeAcupUBNs/go-ipfs-config"
 )
 
 var errTODO = errors.New("TODO: mock repo")
@@ -17,6 +17,7 @@ type Mock struct {
 	C config.Config
 	D Datastore
 	K keystore.Keystore
+	F *filestore.FileManager
 }
 
 func (m *Mock) Config() (*config.Config, error) {
@@ -26,6 +27,10 @@ func (m *Mock) Config() (*config.Config, error) {
 func (m *Mock) SetConfig(updated *config.Config) error {
 	m.C = *updated // FIXME threadsafety
 	return nil
+}
+
+func (m *Mock) BackupConfig(prefix string) (string, error) {
+	return "", errTODO
 }
 
 func (m *Mock) SetConfigKey(key string, value interface{}) error {
@@ -44,10 +49,10 @@ func (m *Mock) Close() error { return errTODO }
 
 func (m *Mock) SetAPIAddr(addr ma.Multiaddr) error { return errTODO }
 
-func (m *Mock) Keystore() keystore.Keystore { return nil }
+func (m *Mock) Keystore() keystore.Keystore { return m.K }
 
 func (m *Mock) SwarmKey() ([]byte, error) {
 	return nil, nil
 }
 
-func (m *Mock) FileManager() *filestore.FileManager { return nil }
+func (m *Mock) FileManager() *filestore.FileManager { return m.F }

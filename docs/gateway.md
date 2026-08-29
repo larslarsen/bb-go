@@ -1,3 +1,17 @@
+Configuring the Gateway when Running a Client
+=============================================
+Since the server and client are on different machines, you will need to replace the loopback address with the IP address of the device interface which has access to the internet.  On Linux, `ip addr show` will give you your IP address.
+
+First, locate the `config` inside the OpenBazaar2.0 data folder.
+
+Assuming you are on a home network 192.168.1.0/24, set the gateway address to:
+
+```
+"Addresses": {
+    "Gateway": "/ip4/192.168.1.X/tcp/4002",
+}
+```
+
 Running a Public Gateway
 =========================
 A public gateway is a server that allows others to view OpenBazaar user data (profiles, listings, etc) in a web browser.
@@ -27,9 +41,9 @@ Next turn off OpenBazaar API as you don't want to give public access to this:
 }
 ````
 
-Finally when you run the server use the `--disablewallet` option as you wont be needing it.
+Finally when you run the server use the `--disablewallet` option as you won't be needing it.
 
-###Writable Gateway
+### Writable Gateway
 
 In addition to allowing others to view OpenBazaar data on your gateway, you may allow them to post data to the network through your node.
 When enabled, your node will seed any content that is posted to it. This is useful for allowing users to cross-post content to gateway nodes to ensure data persistence when they go offline.

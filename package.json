@@ -1,13 +1,11 @@
 {
   "name": "bb-go",
-  "author": "lars",
-  "version": "0.11.0",
-  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "author": "Lars Larsen",
+  "version": "0.14.3",
   "language": "english",
   "license": "",
   "bugs": {
-    "url": "https://github.com/larslarsen/bb-go"
+    "url": "https://github.com/larslarsen/bb-go/issues/new"
   },
   "gxVersion": "0.11.0"
 }
-

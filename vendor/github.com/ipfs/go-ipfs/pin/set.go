@@ -9,12 +9,13 @@ import (
 	"hash/fnv"
 	"sort"
 
-	"github.com/ipfs/go-ipfs/merkledag"
+	"gx/ipfs/QmPJNbVw8o3ohC43ppSXyNXwYKsWShG4zygnirHptfbHri/go-merkledag"
+
 	"github.com/ipfs/go-ipfs/pin/internal/pb"
 
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	node "gx/ipfs/QmPN7cwmpcc4DWXb4KTB9dNAJgjuPY69h3npsMfhRrQL9c/go-ipld-format"
-	"gx/ipfs/QmZ4Qi3GaRbjcx28Sme5eMH7RQjGkt8wHxt2a65oLaeFEV/gogo-protobuf/proto"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	ipld "gx/ipfs/QmZ6nzCLwGLVfRzYLpD7pW6UNuBDKEcA2imJtVpbEx2rxy/go-ipld-format"
+	"gx/ipfs/QmddjPSGZb3ieihSseFeCfVRpZzcqczPNsD2DvarSwnjJB/gogo-protobuf/proto"
 )
 
 const (
@@ -25,7 +26,7 @@ const (
 	maxItems = 8192
 )
 
-func hash(seed uint32, c *cid.Cid) uint32 {
+func hash(seed uint32, c cid.Cid) uint32 {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], seed)
 	h := fnv.New32a()
@@ -34,12 +35,12 @@ func hash(seed uint32, c *cid.Cid) uint32 {
 	return h.Sum32()
 }
 
-type itemIterator func() (c *cid.Cid, ok bool)
+type itemIterator func() (c cid.Cid, ok bool)
 
-type keyObserver func(*cid.Cid)
+type keyObserver func(cid.Cid)
 
 type sortByHash struct {
-	links []*node.Link
+	links []*ipld.Link
 }
 
 func (s sortByHash) Len() int {
@@ -54,10 +55,10 @@ func (s sortByHash) Swap(a, b int) {
 	s.links[a], s.links[b] = s.links[b], s.links[a]
 }
 
-func storeItems(ctx context.Context, dag merkledag.DAGService, estimatedLen uint64, depth uint32, iter itemIterator, internalKeys keyObserver) (*merkledag.ProtoNode, error) {
-	links := make([]*node.Link, 0, defaultFanout+maxItems)
+func storeItems(ctx context.Context, dag ipld.DAGService, estimatedLen uint64, depth uint32, iter itemIterator, internalKeys keyObserver) (*merkledag.ProtoNode, error) {
+	links := make([]*ipld.Link, 0, defaultFanout+maxItems)
 	for i := 0; i < defaultFanout; i++ {
-		links = append(links, &node.Link{Cid: emptyKey})
+		links = append(links, &ipld.Link{Cid: emptyKey})
 	}
 
 	// add emptyKey to our set of internal pinset objects
@@ -67,9 +68,9 @@ func storeItems(ctx context.Context, dag merkledag.DAGService, estimatedLen uint
 	internalKeys(emptyKey)
 
 	hdr := &pb.Set{
-		Version: proto.Uint32(1),
-		Fanout:  proto.Uint32(defaultFanout),
-		Seed:    proto.Uint32(depth),
+		Version: 1,
+		Fanout:  defaultFanout,
+		Seed:    depth,
 	}
 	if err := writeHdr(n, hdr); err != nil {
 		return nil, err
@@ -85,7 +86,7 @@ func storeItems(ctx context.Context, dag merkledag.DAGService, estimatedLen uint
 				break
 			}
 
-			links = append(links, &node.Link{Cid: k})
+			links = append(links, &ipld.Link{Cid: k})
 		}
 
 		n.SetLinks(links)
@@ -97,7 +98,7 @@ func storeItems(ctx context.Context, dag merkledag.DAGService, estimatedLen uint
 		sort.Stable(s)
 	}
 
-	hashed := make([][]*cid.Cid, defaultFanout)
+	hashed := make([][]cid.Cid, defaultFanout)
 	for {
 		// This loop essentially enumerates every single item in the set
 		// and maps them all into a set of buckets. Each bucket will be recursively
@@ -139,15 +140,16 @@ func storeItems(ctx context.Context, dag merkledag.DAGService, estimatedLen uint
 			return nil, err
 		}
 
-		childKey, err := dag.Add(child)
+		err = dag.Add(ctx, child)
 		if err != nil {
 			return nil, err
 		}
+		childKey := child.Cid()
 
 		internalKeys(childKey)
 
 		// overwrite the 'empty key' in the existing links array
-		n.Links()[h] = &node.Link{
+		n.Links()[h] = &ipld.Link{
 			Cid:  childKey,
 			Size: size,
 		}
@@ -187,7 +189,7 @@ func writeHdr(n *merkledag.ProtoNode, hdr *pb.Set) error {
 		return err
 	}
 
-	// make enough space for the length prefix and the marshalled header data
+	// make enough space for the length prefix and the marshaled header data
 	data := make([]byte, binary.MaxVarintLen64, binary.MaxVarintLen64+len(hdrData))
 
 	// write the uvarint length of the header data
@@ -200,9 +202,9 @@ func writeHdr(n *merkledag.ProtoNode, hdr *pb.Set) error {
 	return nil
 }
 
-type walkerFunc func(idx int, link *node.Link) error
+type walkerFunc func(idx int, link *ipld.Link) error
 
-func walkItems(ctx context.Context, dag merkledag.DAGService, n *merkledag.ProtoNode, fn walkerFunc, children keyObserver) error {
+func walkItems(ctx context.Context, dag ipld.DAGService, n *merkledag.ProtoNode, fn walkerFunc, children keyObserver) error {
 	hdr, err := readHdr(n)
 	if err != nil {
 		return err
@@ -237,7 +239,7 @@ func walkItems(ctx context.Context, dag merkledag.DAGService, n *merkledag.Proto
 	return nil
 }
 
-func loadSet(ctx context.Context, dag merkledag.DAGService, root *merkledag.ProtoNode, name string, internalKeys keyObserver) ([]*cid.Cid, error) {
+func loadSet(ctx context.Context, dag ipld.DAGService, root *merkledag.ProtoNode, name string, internalKeys keyObserver) ([]cid.Cid, error) {
 	l, err := root.GetNodeLink(name)
 	if err != nil {
 		return nil, err
@@ -256,8 +258,8 @@ func loadSet(ctx context.Context, dag merkledag.DAGService, root *merkledag.Prot
 		return nil, merkledag.ErrNotProtobuf
 	}
 
-	var res []*cid.Cid
-	walk := func(idx int, link *node.Link) error {
+	var res []cid.Cid
+	walk := func(idx int, link *ipld.Link) error {
 		res = append(res, link.Cid)
 		return nil
 	}
@@ -268,10 +270,10 @@ func loadSet(ctx context.Context, dag merkledag.DAGService, root *merkledag.Prot
 	return res, nil
 }
 
-func getCidListIterator(cids []*cid.Cid) itemIterator {
-	return func() (c *cid.Cid, ok bool) {
+func getCidListIterator(cids []cid.Cid) itemIterator {
+	return func() (c cid.Cid, ok bool) {
 		if len(cids) == 0 {
-			return nil, false
+			return cid.Cid{}, false
 		}
 
 		first := cids[0]
@@ -280,17 +282,17 @@ func getCidListIterator(cids []*cid.Cid) itemIterator {
 	}
 }
 
-func storeSet(ctx context.Context, dag merkledag.DAGService, cids []*cid.Cid, internalKeys keyObserver) (*merkledag.ProtoNode, error) {
+func storeSet(ctx context.Context, dag ipld.DAGService, cids []cid.Cid, internalKeys keyObserver) (*merkledag.ProtoNode, error) {
 	iter := getCidListIterator(cids)
 
 	n, err := storeItems(ctx, dag, uint64(len(cids)), 0, iter, internalKeys)
 	if err != nil {
 		return nil, err
 	}
-	c, err := dag.Add(n)
+	err = dag.Add(ctx, n)
 	if err != nil {
 		return nil, err
 	}
-	internalKeys(c)
+	internalKeys(n.Cid())
 	return n, nil
 }

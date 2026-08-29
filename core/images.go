@@ -1,33 +1,32 @@
 package core
 
 import (
+	"bytes"
 	"encoding/base64"
+	"fmt"
 	"image"
 	_ "image/gif"
-	"image/jpeg"
+	jpeg "image/jpeg"
 	_ "image/png"
-	"net"
-	"os"
-	"path"
-	"strings"
-
-	"github.com/larslarsen/bb-go/ipfs"
-	"github.com/larslarsen/bb-go/pb"
-	"github.com/ipfs/go-ipfs/core/coreunix"
-	ipnspb "github.com/ipfs/go-ipfs/namesys/pb"
-	ipnspath "github.com/ipfs/go-ipfs/path"
-	"github.com/ipfs/go-ipfs/unixfs/io"
-	"github.com/nfnt/resize"
-	"golang.org/x/net/context"
-	u "gx/ipfs/QmSU6eubNdhXjFBJBSksTp8kv8YRub8mGAPv8tVJHmL2EU/go-ipfs-util"
-	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
-	proto "gx/ipfs/QmZ4Qi3GaRbjcx28Sme5eMH7RQjGkt8wHxt2a65oLaeFEV/gogo-protobuf/proto"
+	"io"
 	"io/ioutil"
 	"net/http"
 	netUrl "net/url"
+	"os"
+	"path"
+	"strings"
 	"time"
+
+	ipath "gx/ipfs/QmQAgv6Gaoe2tQpcabqwKXKChp2MZ7i3UXv9DqTTaxCaTR/go-path"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/disintegration/imaging"
 )
 
+// SetAvatarImages - set avatar image from the base64 encoded image string
 func (n *OpenBazaarNode) SetAvatarImages(base64ImageData string) (*pb.Profile_Image, error) {
 	imageHashes, err := n.resizeImage(base64ImageData, "avatar", 60, 60)
 	if err != nil {
@@ -47,6 +46,7 @@ func (n *OpenBazaarNode) SetAvatarImages(base64ImageData string) (*pb.Profile_Im
 	return imageHashes, nil
 }
 
+// SetHeaderImages - set header image from the base64 encoded string
 func (n *OpenBazaarNode) SetHeaderImages(base64ImageData string) (*pb.Profile_Image, error) {
 	imageHashes, err := n.resizeImage(base64ImageData, "header", 315, 90)
 	if err != nil {
@@ -66,31 +66,33 @@ func (n *OpenBazaarNode) SetHeaderImages(base64ImageData string) (*pb.Profile_Im
 	return imageHashes, nil
 }
 
+// SetProductImages - use the original image ina base64 string format and generate tiny,
+// small, medium and large images for the product
 func (n *OpenBazaarNode) SetProductImages(base64ImageData, filename string) (*pb.Profile_Image, error) {
 	return n.resizeImage(base64ImageData, filename, 120, 120)
 }
 
-func (n *OpenBazaarNode) resizeImage(base64ImageData, filename string, baseWidth, baseHeight uint) (*pb.Profile_Image, error) {
-	img, imgCfg, err := decodeImageData(base64ImageData)
+func (n *OpenBazaarNode) resizeImage(base64ImageData, filename string, baseWidth, baseHeight int) (*pb.Profile_Image, error) {
+	img, err := decodeImageData(base64ImageData)
 	if err != nil {
 		return nil, err
 	}
 
 	imgPath := path.Join(n.RepoPath, "root", "images")
 
-	t, err := n.addResizedImage(img, imgCfg, 1*baseWidth, 1*baseHeight, path.Join(imgPath, "tiny", filename))
+	t, err := n.addResizedImage(img, 1*baseWidth, 1*baseHeight, path.Join(imgPath, "tiny", filename))
 	if err != nil {
 		return nil, err
 	}
-	s, err := n.addResizedImage(img, imgCfg, 2*baseWidth, 2*baseHeight, path.Join(imgPath, "small", filename))
+	s, err := n.addResizedImage(img, 2*baseWidth, 2*baseHeight, path.Join(imgPath, "small", filename))
 	if err != nil {
 		return nil, err
 	}
-	m, err := n.addResizedImage(img, imgCfg, 4*baseWidth, 4*baseHeight, path.Join(imgPath, "medium", filename))
+	m, err := n.addResizedImage(img, 4*baseWidth, 4*baseHeight, path.Join(imgPath, "medium", filename))
 	if err != nil {
 		return nil, err
 	}
-	l, err := n.addResizedImage(img, imgCfg, 8*baseWidth, 8*baseHeight, path.Join(imgPath, "large", filename))
+	l, err := n.addResizedImage(img, 8*baseWidth, 8*baseHeight, path.Join(imgPath, "large", filename))
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +101,7 @@ func (n *OpenBazaarNode) resizeImage(base64ImageData, filename string, baseWidth
 		return nil, err
 	}
 
-	return &pb.Profile_Image{t, s, m, l, o}, nil
+	return &pb.Profile_Image{Tiny: t, Small: s, Medium: m, Large: l, Original: o}, nil
 }
 
 func (n *OpenBazaarNode) addImage(img image.Image, imgPath string) (string, error) {
@@ -107,32 +109,30 @@ func (n *OpenBazaarNode) addImage(img image.Image, imgPath string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	jpeg.Encode(out, img, nil)
+	err = jpeg.Encode(out, img, nil)
+	if err != nil {
+		return "", err
+	}
 	out.Close()
-	return ipfs.AddFile(n.Context, imgPath)
+	return ipfs.AddFile(n.IpfsNode, imgPath)
 }
 
-func (n *OpenBazaarNode) addResizedImage(img image.Image, imgCfg *image.Config, w, h uint, imgPath string) (string, error) {
-	width, height := getImageAttributes(w, h, uint(imgCfg.Width), uint(imgCfg.Height))
-	newImg := resize.Resize(width, height, img, resize.Lanczos3)
+func (n *OpenBazaarNode) addResizedImage(img image.Image, w, h int, imgPath string) (string, error) {
+	width, height := getImageAttributes(w, h, img.Bounds().Max.X, img.Bounds().Max.Y)
+	newImg := imaging.Resize(img, width, height, imaging.Lanczos)
 	return n.addImage(newImg, imgPath)
 }
 
-func decodeImageData(base64ImageData string) (image.Image, *image.Config, error) {
+func decodeImageData(base64ImageData string) (image.Image, error) {
 	reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(base64ImageData))
-	img, _, err := image.Decode(reader)
+	img, err := imaging.Decode(reader, imaging.AutoOrientation(true))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	reader = base64.NewDecoder(base64.StdEncoding, strings.NewReader(base64ImageData))
-	imgCfg, _, err := image.DecodeConfig(reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	return img, &imgCfg, err
+	return img, err
 }
 
-func getImageAttributes(targetWidth, targetHeight, imgWidth, imgHeight uint) (width, height uint) {
+func getImageAttributes(targetWidth, targetHeight, imgWidth, imgHeight int) (width, height int) {
 	targetRatio := float32(targetWidth) / float32(targetHeight)
 	imageRatio := float32(imgWidth) / float32(imgHeight)
 	var h, w float32
@@ -143,112 +143,39 @@ func getImageAttributes(targetWidth, targetHeight, imgWidth, imgHeight uint) (wi
 		w = float32(targetWidth)
 		h = float32(targetWidth) * (float32(imgHeight) / float32(imgWidth))
 	}
-	return uint(w), uint(h)
+	return int(w), int(h)
 }
 
-func (n *OpenBazaarNode) FetchAvatar(peerId string, size string, useCache bool) (io.DagReader, error) {
-	return n.FetchImage(peerId, "avatar", size, useCache)
+// FetchAvatar - fetch image avatar from ipfs
+func (n *OpenBazaarNode) FetchAvatar(peerID string, size string, useCache bool) (io.ReadSeeker, error) {
+	return n.FetchImage(peerID, "avatar", size, useCache)
 }
 
-func (n *OpenBazaarNode) FetchHeader(peerId string, size string, useCache bool) (io.DagReader, error) {
-	return n.FetchImage(peerId, "header", size, useCache)
+// FetchHeader - fetch image header from ipfs
+func (n *OpenBazaarNode) FetchHeader(peerID string, size string, useCache bool) (io.ReadSeeker, error) {
+	return n.FetchImage(peerID, "header", size, useCache)
 }
 
-func (n *OpenBazaarNode) FetchImage(peerId string, imageType string, size string, useCache bool) (io.DagReader, error) {
-	fetch := func(rootHash string) (io.DagReader, error) {
-		var dr io.DagReader
-		var err error
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute*2)
-		defer cancel()
-		if rootHash == "" {
-			query := "/ipns/" + peerId + "/images/" + size + "/" + imageType
-			dr, err = coreunix.Cat(ctx, n.IpfsNode, query)
-			if err != nil {
-				return dr, err
-			}
-		} else {
-			query := "/ipfs/" + rootHash + "/images/" + size + "/" + imageType
-			dr, err = coreunix.Cat(ctx, n.IpfsNode, query)
-			if err != nil {
-				return dr, err
-			}
-		}
-		return dr, nil
+// FetchImage - fetch ipfs image
+func (n *OpenBazaarNode) FetchImage(peerID string, imageType string, size string, useCache bool) (io.ReadSeeker, error) {
+	query := "/" + peerID + "/images/" + size + "/" + imageType
+	b, err := ipfs.ResolveThenCat(n.IpfsNode, ipath.FromString(query), time.Minute, n.IPNSQuorumSize, useCache)
+	if err != nil {
+		return nil, err
 	}
-
-	var dr io.DagReader
-	var err error
-	var recordAvailable bool
-	var val interface{}
-	if useCache {
-		val, err = n.IpfsNode.Repo.Datastore().Get(ds.NewKey(cachePrefix + peerId))
-		if err != nil { // No record in datastore
-			dr, err = fetch("")
-			if err != nil {
-				return dr, err
-			}
-		} else { // Record available, let's see how old it is
-			entry := new(ipnspb.IpnsEntry)
-			err = proto.Unmarshal(val.([]byte), entry)
-			if err != nil {
-				return dr, err
-			}
-			p, err := ipnspath.ParsePath(string(entry.GetValue()))
-			if err != nil {
-				return dr, err
-			}
-			eol, ok := checkEOL(entry)
-			if ok && eol.Before(time.Now()) { // Too old, fetch new profile
-				dr, err = fetch("")
-			} else { // Relatively new, we can do a standard IPFS query (which should be cached)
-				dr, err = fetch(strings.TrimPrefix(p.String(), "/ipfs/"))
-				// Let's now try to get the latest record in a new goroutine so it's available next time
-				go fetch("")
-			}
-			if err != nil {
-				return dr, err
-			}
-			recordAvailable = true
-		}
-	} else {
-		dr, err = fetch("")
-		if err != nil {
-			return dr, err
-		}
-		recordAvailable = false
-	}
-
-	// Update the record with a new EOL
-	go func() {
-		if !recordAvailable {
-			val, err = n.IpfsNode.Repo.Datastore().Get(ds.NewKey(cachePrefix + peerId))
-			if err != nil {
-				return
-			}
-		}
-		entry := new(ipnspb.IpnsEntry)
-		err = proto.Unmarshal(val.([]byte), entry)
-		if err != nil {
-			return
-		}
-		entry.Validity = []byte(u.FormatRFC3339(time.Now().Add(CachedProfileTime)))
-		v, err := proto.Marshal(entry)
-		if err != nil {
-			return
-		}
-		n.IpfsNode.Repo.Datastore().Put(ds.NewKey(cachePrefix+peerId), v)
-	}()
-	return dr, nil
+	return bytes.NewReader(b), nil
 }
 
+// GetBase64Image - fetch the image and return it as base64 encoded string
 func (n *OpenBazaarNode) GetBase64Image(url string) (base64ImageData, filename string, err error) {
-	dial := net.Dial
+	var client *http.Client
 	if n.TorDialer != nil {
-		dial = n.TorDialer.Dial
+		tbTransport := &http.Transport{Dial: n.TorDialer.Dial}
+		client = &http.Client{Transport: tbTransport, Timeout: time.Second * 30}
+	} else {
+		client = &http.Client{Timeout: time.Second * 30}
 	}
-	tbTransport := &http.Transport{Dial: dial}
-	client := &http.Client{Transport: tbTransport, Timeout: time.Second * 30}
+
 	resp, err := client.Get(url)
 	if err != nil {
 		return "", "", err
@@ -264,4 +191,45 @@ func (n *OpenBazaarNode) GetBase64Image(url string) (base64ImageData, filename s
 	}
 	_, filename = path.Split(u.Path)
 	return img, filename, nil
+}
+
+// maybeMigrateImageHashes will iterate over the listing's images and migrate them
+// to a v0 cid if they are not already v0.
+func (n *OpenBazaarNode) maybeMigrateImageHashes(listing *repo.Listing) error {
+	for _, i := range listing.GetImages() {
+		var updateHash = func(size, currentHash string, update func(string) error) error {
+			var cidVer = uint64(1) // if version is unknown, always attempt to update hash
+			if id, err := cid.Decode(currentHash); err == nil {
+				cidVer = id.Version()
+			}
+			if cidVer > 0 {
+				var imgPath = path.Join(n.RepoPath, "root", "images", size, i.GetFilename())
+				iHash, err := ipfs.AddFile(n.IpfsNode, imgPath)
+				if err != nil {
+					return fmt.Errorf("ipfs add (%s): %s", imgPath, err.Error())
+				}
+				if err := update(iHash); err != nil {
+					return fmt.Errorf("set %s img hash: %s", size, err.Error())
+				}
+			}
+			return nil
+		}
+
+		if err := updateHash("tiny", i.GetTiny(), i.SetTiny); err != nil {
+			return err
+		}
+		if err := updateHash("small", i.GetSmall(), i.SetSmall); err != nil {
+			return err
+		}
+		if err := updateHash("medium", i.GetMedium(), i.SetMedium); err != nil {
+			return err
+		}
+		if err := updateHash("large", i.GetLarge(), i.SetLarge); err != nil {
+			return err
+		}
+		if err := updateHash("original", i.GetOriginal(), i.SetOriginal); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -1,24 +1,23 @@
 package commands
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 
-	b58 "gx/ipfs/QmT8rehPR3F6bmwL6zjUN8XpiDBFFpMP2myPdC6ApsWfJf/go-base58"
-
-	cmds "github.com/ipfs/go-ipfs/commands"
 	core "github.com/ipfs/go-ipfs/core"
-	kb "gx/ipfs/QmSAFA8v42u4gpJNy1tb7vW3JiiXiaYDC2b845c2RnNSJL/go-libp2p-kbucket"
+	cmdenv "github.com/ipfs/go-ipfs/core/commands/cmdenv"
 
-	pstore "gx/ipfs/QmPgDWmTmuzvP7QE5zwo1TmjbJme9pmZHNujB2453jkCTr/go-libp2p-peerstore"
-	identify "gx/ipfs/QmRQ76P5dgvxTujhfPsCRAG83rC15jgb1G9bKLuomuC6dQ/go-libp2p/p2p/protocol/identify"
-	u "gx/ipfs/QmSU6eubNdhXjFBJBSksTp8kv8YRub8mGAPv8tVJHmL2EU/go-ipfs-util"
-	"gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
-	ic "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
+	cmds "gx/ipfs/QmQkW9fnCsg9SLHdViiAh6qfBppodsPZVpU92dZLqYtEfs/go-ipfs-cmds"
+	identify "gx/ipfs/QmRxk6AUaGaKCfzS1xSNRojiAPd7h2ih8GuCdjJBF3Y6GK/go-libp2p/p2p/protocol/identify"
+	kb "gx/ipfs/QmSNE1XryoCMnZCbRaj1D23k6YKCaTQ386eJciu1pAfu8M/go-libp2p-kbucket"
+	ic "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	"gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	pstore "gx/ipfs/QmaCTz9RkrU13bm9kMB54f7atgqM4qkjDZpRwRoJiWXEqs/go-libp2p-peerstore"
+	"gx/ipfs/Qmde5VP1qUkyQXKCfmEUA7bP64V2HAptbJ7phuPp7jXWwg/go-ipfs-cmdkit"
 )
 
 const offlineIdErrorMessage = `'ipfs id' currently cannot query information on remote
@@ -38,8 +37,12 @@ type IdOutput struct {
 	ProtocolVersion string
 }
 
+const (
+	formatOptionName = "format"
+)
+
 var IDCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Show ipfs node id info.",
 		ShortDescription: `
 Prints out information about the specified peer.
@@ -57,101 +60,86 @@ EXAMPLE:
     ipfs id Qmece2RkXhsKe5CRooNisBTh4SK119KrXXGmoK6V3kb8aH -f="<addrs>\n"
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("peerid", false, false, "Peer.ID of node to look up."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("peerid", false, false, "Peer.ID of node to look up."),
 	},
-	Options: []cmds.Option{
-		cmds.StringOption("format", "f", "Optional output format."),
+	Options: []cmdkit.Option{
+		cmdkit.StringOption(formatOptionName, "f", "Optional output format."),
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		node, err := req.InvocContext().GetNode()
+	Run: func(req *cmds.Request, res cmds.ResponseEmitter, env cmds.Environment) error {
+		n, err := cmdenv.GetNode(env)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
 
 		var id peer.ID
-		if len(req.Arguments()) > 0 {
-			id = peer.ID(b58.Decode(req.Arguments()[0]))
-			if len(id) == 0 {
-				res.SetError(cmds.ClientError("Invalid peer id"), cmds.ErrClient)
-				return
+		if len(req.Arguments) > 0 {
+			var err error
+			id, err = peer.IDB58Decode(req.Arguments[0])
+			if err != nil {
+				return fmt.Errorf("invalid peer id")
 			}
 		} else {
-			id = node.Identity
+			id = n.Identity
 		}
 
-		if id == node.Identity {
-			output, err := printSelf(node)
+		if id == n.Identity {
+			output, err := printSelf(n)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
-				return
+				return err
 			}
-			res.SetOutput(output)
-			return
+			return cmds.EmitOnce(res, output)
 		}
 
 		// TODO handle offline mode with polymorphism instead of conditionals
-		if !node.OnlineMode() {
-			res.SetError(errors.New(offlineIdErrorMessage), cmds.ErrClient)
-			return
+		if !n.OnlineMode() {
+			return errors.New(offlineIdErrorMessage)
 		}
 
-		p, err := node.Routing.FindPeer(req.Context(), id)
+		p, err := n.Routing.FindPeer(req.Context, id)
 		if err == kb.ErrLookupFailure {
-			res.SetError(errors.New(offlineIdErrorMessage), cmds.ErrClient)
-			return
+			return errors.New(offlineIdErrorMessage)
 		}
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
 
-		output, err := printPeer(node.Peerstore, p.ID)
+		output, err := printPeer(n.Peerstore, p.ID)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
-			return
+			return err
 		}
-		res.SetOutput(output)
+		return cmds.EmitOnce(res, output)
 	},
-	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			val, ok := res.Output().(*IdOutput)
-			if !ok {
-				return nil, u.ErrCast()
-			}
-
-			format, found, err := res.Request().Option("format").String()
-			if err != nil {
-				return nil, err
-			}
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, out *IdOutput) error {
+			format, found := req.Options[formatOptionName].(string)
 			if found {
 				output := format
-				output = strings.Replace(output, "<id>", val.ID, -1)
-				output = strings.Replace(output, "<aver>", val.AgentVersion, -1)
-				output = strings.Replace(output, "<pver>", val.ProtocolVersion, -1)
-				output = strings.Replace(output, "<pubkey>", val.PublicKey, -1)
-				output = strings.Replace(output, "<addrs>", strings.Join(val.Addresses, "\n"), -1)
+				output = strings.Replace(output, "<id>", out.ID, -1)
+				output = strings.Replace(output, "<aver>", out.AgentVersion, -1)
+				output = strings.Replace(output, "<pver>", out.ProtocolVersion, -1)
+				output = strings.Replace(output, "<pubkey>", out.PublicKey, -1)
+				output = strings.Replace(output, "<addrs>", strings.Join(out.Addresses, "\n"), -1)
 				output = strings.Replace(output, "\\n", "\n", -1)
 				output = strings.Replace(output, "\\t", "\t", -1)
-				return strings.NewReader(output), nil
+				fmt.Fprint(w, output)
 			} else {
-
-				marshaled, err := json.MarshalIndent(val, "", "\t")
+				marshaled, err := json.MarshalIndent(out, "", "\t")
 				if err != nil {
-					return nil, err
+					return err
 				}
 				marshaled = append(marshaled, byte('\n'))
-				return bytes.NewReader(marshaled), nil
+				fmt.Fprintln(w, string(marshaled))
 			}
-		},
+			return nil
+		}),
 	},
 	Type: IdOutput{},
 }
 
 func printPeer(ps pstore.Peerstore, p peer.ID) (interface{}, error) {
 	if p == "" {
-		return nil, errors.New("Attempted to print nil peer!")
+		return nil, errors.New("attempted to print nil peer")
 	}
 
 	info := new(IdOutput)
@@ -187,12 +175,6 @@ func printPeer(ps pstore.Peerstore, p peer.ID) (interface{}, error) {
 func printSelf(node *core.IpfsNode) (interface{}, error) {
 	info := new(IdOutput)
 	info.ID = node.Identity.Pretty()
-
-	if node.PrivateKey == nil {
-		if err := node.LoadPrivateKey(); err != nil {
-			return nil, err
-		}
-	}
 
 	pk := node.PrivateKey.GetPublic()
 	pkb, err := ic.MarshalPublicKey(pk)

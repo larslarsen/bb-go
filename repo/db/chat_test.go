@@ -1,33 +1,50 @@
-package db
+package db_test
 
 import (
-	"database/sql"
+	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/repo/db"
+	"github.com/larslarsen/bb-go/schema"
 )
 
-var chdb ChatDB
-
-func init() {
-	setupDB()
-}
-
-func setupDB() {
-	conn, _ := sql.Open("sqlite3", ":memory:")
-	initDatabaseTables(conn, "")
-	chdb = ChatDB{
-		db:   conn,
-		lock: new(sync.Mutex),
+func buildNewChatStore() (repo.ChatStore, func(), error) {
+	appSchema := schema.MustNewCustomSchemaManager(schema.SchemaContext{
+		DataPath:        schema.GenerateTempPath(),
+		TestModeEnabled: true,
+	})
+	if err := appSchema.BuildSchemaDirectories(); err != nil {
+		return nil, nil, err
 	}
+	if err := appSchema.InitializeDatabase(); err != nil {
+		return nil, nil, err
+	}
+	database, err := appSchema.OpenDatabase()
+	if err != nil {
+		return nil, nil, err
+	}
+	return db.NewChatStore(database, new(sync.Mutex)), appSchema.DestroySchemaDirectories, nil
 }
 
 func TestChatDB_Put(t *testing.T) {
-	err := chdb.Put("12345", "abc", "", "mess", time.Now(), true, true)
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = chdb.Put("12345", "abc", "", "mess", time.Now(), true, true)
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, err := chdb.db.Prepare("select messageID, peerID, subject, message, read, timestamp, outgoing from chat where peerID=?")
+	stmt, err := chdb.PrepareQuery("select messageID, peerID, subject, message, read, timestamp, outgoing from chat where peerID=?")
+	if err != nil {
+		t.Error(err)
+	}
 	defer stmt.Close()
 	var msgId string
 	var peerId string
@@ -64,7 +81,13 @@ func TestChatDB_Put(t *testing.T) {
 }
 
 func TestChatDB_GetConversations(t *testing.T) {
-	err := chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -97,8 +120,13 @@ func TestChatDB_GetConversations(t *testing.T) {
 }
 
 func TestChatDB_GetMessages(t *testing.T) {
-	setupDB()
-	err := chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -128,10 +156,10 @@ func TestChatDB_GetMessages(t *testing.T) {
 		if messages[0].Subject != "" {
 			t.Error("Returned incorrect subject")
 		}
-		if messages[0].Read != false {
+		if messages[0].Read {
 			t.Error("Returned incorrect read bool")
 		}
-		if messages[0].Outgoing != true {
+		if !messages[0].Outgoing {
 			t.Error("Returned incorrect read bool")
 		}
 		if messages[0].Timestamp.Second() <= 0 {
@@ -145,10 +173,10 @@ func TestChatDB_GetMessages(t *testing.T) {
 		if messages[1].Subject != "" {
 			t.Error("Returned incorrect subject")
 		}
-		if messages[1].Read != true {
+		if !messages[1].Read {
 			t.Error("Returned incorrect read bool")
 		}
-		if messages[1].Outgoing != true {
+		if !messages[1].Outgoing {
 			t.Error("Returned incorrect read bool")
 		}
 		if messages[1].Timestamp.Second() <= 0 {
@@ -174,9 +202,43 @@ func TestChatDB_GetMessages(t *testing.T) {
 	}
 }
 
+func TestChatDB_MarkAsRead_ReturnsHighestReadID(t *testing.T) {
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = chdb.Put("33333", "xyz", "", "mess", time.Now(), false, true)
+	if err != nil {
+		t.Error(err)
+	}
+	err = chdb.Put("44444", "xyz", "", "mess", time.Now().Add(time.Second), false, true)
+	if err != nil {
+		t.Error(err)
+	}
+	err = chdb.Put("55555", "xyz", "", "mess", time.Now().Add(time.Second*2), false, true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	last, _, err := chdb.MarkAsRead("xyz", "", true, "")
+	if err != nil {
+		t.Error(err)
+	}
+	if last != "55555" {
+		t.Fatal("Expected last ID to be 55555, but was not")
+	}
+}
+
 func TestChatDB_MarkAsRead(t *testing.T) {
-	setupDB()
-	err := chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -197,8 +259,8 @@ func TestChatDB_MarkAsRead(t *testing.T) {
 		t.Error(err)
 	}
 	messages := chdb.GetMessages("abc", "", "", -1)
-	if len(messages) == 0 {
-		t.Error("Returned incorrect number of messages")
+	if len(messages) != 2 {
+		t.Errorf("expected 2 messages, but found %d instead", len(messages))
 		return
 	}
 	last, updated, err := chdb.MarkAsRead("abc", "", true, "")
@@ -208,7 +270,10 @@ func TestChatDB_MarkAsRead(t *testing.T) {
 	if !updated {
 		t.Error("Updated bool returned incorrectly")
 	}
-	stmt, err := chdb.db.Prepare("select read from chat where messageID=?")
+	stmt, err := chdb.PrepareQuery("select read from chat where messageID=?")
+	if err != nil {
+		t.Error(err)
+	}
 	defer stmt.Close()
 	var read int
 	err = stmt.QueryRow("11111").Scan(&read)
@@ -221,7 +286,10 @@ func TestChatDB_MarkAsRead(t *testing.T) {
 	if last != "11111" {
 		t.Error("Returned incorrect last message Id")
 	}
-	stmt2, err := chdb.db.Prepare("select read from chat where messageID=?")
+	stmt2, err := chdb.PrepareQuery("select read from chat where messageID=?")
+	if err != nil {
+		t.Error(err)
+	}
 	defer stmt2.Close()
 	err = stmt2.QueryRow("22222").Scan(&read)
 	if err != nil {
@@ -237,7 +305,10 @@ func TestChatDB_MarkAsRead(t *testing.T) {
 	if !updated {
 		t.Error("Updated bool returned incorrectly")
 	}
-	stmt3, err := chdb.db.Prepare("select read from chat where messageID=?")
+	stmt3, err := chdb.PrepareQuery("select read from chat where messageID=?")
+	if err != nil {
+		t.Error(err)
+	}
 	defer stmt3.Close()
 	err = stmt3.QueryRow("22222").Scan(&read)
 	if err != nil {
@@ -257,12 +328,19 @@ func TestChatDB_MarkAsRead(t *testing.T) {
 		t.Error("Updated bool returned incorrectly")
 	}
 	stm := `select read, messageID from chat where peerID="xyz"`
-	rows, _ := chdb.db.Query(stm)
+	rows, err := chdb.PrepareAndExecuteQuery(stm)
+	if err != nil {
+		t.Error(err.Error())
+	}
+
 	defer rows.Close()
 	for rows.Next() {
 		var msgID string
 		var read int
-		rows.Scan(&read, &msgID)
+		err = rows.Scan(&read, &msgID)
+		if err != nil {
+			t.Log(err)
+		}
 		if msgID == "33333" && read == 0 {
 			t.Error("Failed to set message as read")
 		}
@@ -275,9 +353,28 @@ func TestChatDB_MarkAsRead(t *testing.T) {
 	}
 }
 
+// https://github.com/larslarsen/bb-go/issues/1041
+func TestChatDB_MarkAsRead_Issue1041(t *testing.T) {
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	_, _, err = chdb.MarkAsRead("nonexistantpeerid", "", false, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestChatDB_GetUnreadCount(t *testing.T) {
-	setupDB()
-	err := chdb.Put("11111", "abc", "sub", "mess", time.Now(), false, false)
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = chdb.Put("11111", "abc", "sub", "mess", time.Now(), false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -295,8 +392,13 @@ func TestChatDB_GetUnreadCount(t *testing.T) {
 }
 
 func TestChatDB_DeleteMessage(t *testing.T) {
-	setupDB()
-	err := chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -309,7 +411,10 @@ func TestChatDB_DeleteMessage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, err := chdb.db.Prepare("select messageID from chat where messageID=?")
+	stmt, err := chdb.PrepareQuery("select messageID from chat where messageID=?")
+	if err != nil {
+		t.Error(err)
+	}
 	defer stmt.Close()
 	var msgId int
 	err = stmt.QueryRow(messages[0].MessageId).Scan(&msgId)
@@ -319,8 +424,13 @@ func TestChatDB_DeleteMessage(t *testing.T) {
 }
 
 func TestChatDB_DeleteConversation(t *testing.T) {
-	setupDB()
-	err := chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
+	var chdb, teardown, err = buildNewChatStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = chdb.Put("11111", "abc", "", "mess", time.Now(), false, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -337,7 +447,10 @@ func TestChatDB_DeleteConversation(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, err := chdb.db.Prepare("select messageID from chat where messageID=?")
+	stmt, err := chdb.PrepareQuery("select messageID from chat where messageID=?")
+	if err != nil {
+		t.Error(err)
+	}
 	var msgId int
 	err = stmt.QueryRow(messages[0].MessageId).Scan(&msgId)
 	if err == nil {
@@ -348,4 +461,46 @@ func TestChatDB_DeleteConversation(t *testing.T) {
 		t.Error("Delete failed")
 	}
 	stmt.Close()
+}
+
+// https://github.com/larslarsen/bb-go/issues/1545
+func TestChatDB_DeterministicNanosecondOrdering_Issue1545(t *testing.T) {
+	var (
+		numMessages         = 10
+		startTime           = time.Now()
+		chdb, teardown, err = buildNewChatStore()
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	// send numMessages in a random order where
+	// msg index 0 has the earliest timetstamp and index numMessages has the latest
+	for _, msgID := range rand.Perm(numMessages) {
+		var (
+			n = fmt.Sprintf("%d", msgID)
+			u = startTime.Add(time.Millisecond * time.Duration(msgID))
+		)
+		err = chdb.Put(n, "peerid", "subject", n, u, false, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	messages := chdb.GetMessages("peerid", "subject", "", -1)
+	if len(messages) != numMessages {
+		t.Fatalf("expected %d messages, but got %d", numMessages, len(messages))
+		return
+	}
+	// msgs should be in chronological order from most recent to oldest, thus never
+	// having an older time than the previous message
+	var latestTime = time.Now()
+	for _, m := range messages {
+		if m.Timestamp.After(latestTime) {
+			t.Fatalf("expected the messages to return in decending timestamp order, but were not")
+			t.Logf("\tmessages recieved: %+v", messages)
+		}
+		latestTime = m.Timestamp.Time
+	}
 }

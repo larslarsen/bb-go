@@ -1,56 +1,94 @@
-package db
+package db_test
 
 import (
 	"crypto/rand"
-	"database/sql"
-	"github.com/larslarsen/bb-go/ipfs"
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	ps "gx/ipfs/QmPgDWmTmuzvP7QE5zwo1TmjbJme9pmZHNujB2453jkCTr/go-libp2p-peerstore"
-	multihash "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
+
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	ps "gx/ipfs/QmaCTz9RkrU13bm9kMB54f7atgqM4qkjDZpRwRoJiWXEqs/go-libp2p-peerstore"
+	multihash "gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
+
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/repo/db"
+	"github.com/larslarsen/bb-go/schema"
 )
 
-var pdb PointersDB
-var pointer ipfs.Pointer
-
-func init() {
-	conn, _ := sql.Open("sqlite3", ":memory:")
-	initDatabaseTables(conn, "")
-	pdb = PointersDB{
-		db:   conn,
-		lock: new(sync.Mutex),
-	}
+func mustNewPointer() ipfs.Pointer {
 	randBytes := make([]byte, 32)
-	rand.Read(randBytes)
-	h, _ := multihash.Encode(randBytes, multihash.SHA2_256)
-	id, _ := peer.IDFromBytes(h)
-	maAddr, _ := ma.NewMultiaddr("/ipfs/QmamudHQGtztShX7Nc9HcczehdpGGWpFBWu2JvKWcpELxr/")
-	k, _ := cid.Decode("QmamudHQGtztShX7Nc9HcczehdpGGWpFBWu2JvKWcpELxr")
-	cancelID, _ := peer.IDB58Decode("QmbwSMS35CaYKdrYBvvR9aHU9FzeWhjJ7E3jLKeR2DWrs3")
-	pointer = ipfs.Pointer{
-		k,
-		ps.PeerInfo{
+	_, err := rand.Read(randBytes)
+	if err != nil {
+		panic(err)
+	}
+	h, err := multihash.Encode(randBytes, multihash.SHA2_256)
+	if err != nil {
+		panic(err)
+	}
+	id, err := peer.IDFromBytes(h)
+	if err != nil {
+		panic(err)
+	}
+	maAddr, err := ma.NewMultiaddr("/ipfs/QmamudHQGtztShX7Nc9HcczehdpGGWpFBWu2JvKWcpELxr/")
+	if err != nil {
+		panic(err)
+	}
+	k, err := cid.Decode("QmamudHQGtztShX7Nc9HcczehdpGGWpFBWu2JvKWcpELxr")
+	if err != nil {
+		panic(err)
+	}
+	cancelID, err := peer.IDB58Decode("QmbwSMS35CaYKdrYBvvR9aHU9FzeWhjJ7E3jLKeR2DWrs3")
+	if err != nil {
+		panic(err)
+	}
+	return ipfs.Pointer{
+		Cid: &k,
+		Value: ps.PeerInfo{
 			ID:    id,
 			Addrs: []ma.Multiaddr{maAddr},
 		},
-		ipfs.MESSAGE,
-		time.Now(),
-		&cancelID,
+		Purpose:   ipfs.MESSAGE,
+		Timestamp: time.Now(),
+		CancelID:  &cancelID,
 	}
 }
 
-func TestPointersPut(t *testing.T) {
+func buildNewPointerStore() (repo.PointerStore, func(), error) {
+	appSchema := schema.MustNewCustomSchemaManager(schema.SchemaContext{
+		DataPath:        schema.GenerateTempPath(),
+		TestModeEnabled: true,
+	})
+	if err := appSchema.BuildSchemaDirectories(); err != nil {
+		return nil, nil, err
+	}
+	if err := appSchema.InitializeDatabase(); err != nil {
+		return nil, nil, err
+	}
+	database, err := appSchema.OpenDatabase()
+	if err != nil {
+		return nil, nil, err
+	}
+	return db.NewPointerStore(database, new(sync.Mutex)), appSchema.DestroySchemaDirectories, nil
+}
 
-	err := pdb.Put(pointer)
+func TestPointersPut(t *testing.T) {
+	pdb, teardown, err := buildNewPointerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	pointer := mustNewPointer()
+	err = pdb.Put(pointer)
 	if err != nil {
 		t.Error(err)
 	}
 
-	stmt, _ := pdb.db.Prepare("select pointerID, key, address, cancelID, purpose, timestamp from pointers where pointerID=?")
+	stmt, _ := pdb.PrepareQuery("select pointerID, key, address, cancelID, purpose, timestamp from pointers where pointerID=?")
 	defer stmt.Close()
 
 	var pointerID string
@@ -73,12 +111,22 @@ func TestPointersPut(t *testing.T) {
 }
 
 func TestDeletePointer(t *testing.T) {
-	pdb.Put(pointer)
-	err := pdb.Delete(pointer.Value.ID)
+	pdb, teardown, err := buildNewPointerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	pointer := mustNewPointer()
+	err = pdb.Put(pointer)
+	if err != nil {
+		t.Log(err)
+	}
+	err = pdb.Delete(pointer.Value.ID)
 	if err != nil {
 		t.Error("Pointer delete failed")
 	}
-	stmt, _ := pdb.db.Prepare("select pointerID from pointers where pointerID=?")
+	stmt, _ := pdb.PrepareQuery("select pointerID from pointers where pointerID=?")
 	defer stmt.Close()
 
 	var pointerID string
@@ -89,14 +137,23 @@ func TestDeletePointer(t *testing.T) {
 }
 
 func TestDeleteAllPointers(t *testing.T) {
-	p := pointer
+	pdb, teardown, err := buildNewPointerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	p := mustNewPointer()
 	p.Purpose = ipfs.MODERATOR
-	pdb.Put(p)
-	err := pdb.DeleteAll(ipfs.MODERATOR)
+	err = pdb.Put(p)
+	if err != nil {
+		t.Log(err)
+	}
+	err = pdb.DeleteAll(ipfs.MODERATOR)
 	if err != nil {
 		t.Error("Pointer delete failed")
 	}
-	stmt, _ := pdb.db.Prepare("select pointerID from pointers where purpose=?")
+	stmt, _ := pdb.PrepareQuery("select pointerID from pointers where purpose=?")
 	defer stmt.Close()
 
 	var pointerID string
@@ -107,7 +164,17 @@ func TestDeleteAllPointers(t *testing.T) {
 }
 
 func TestGetAllPointers(t *testing.T) {
-	pdb.Put(pointer)
+	pdb, teardown, err := buildNewPointerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	pointer := mustNewPointer()
+	err = pdb.Put(pointer)
+	if err != nil {
+		t.Log(err)
+	}
 	pointers, err := pdb.GetAll()
 	if err != nil {
 		t.Error("Get all pointers returned error")
@@ -119,7 +186,7 @@ func TestGetAllPointers(t *testing.T) {
 		if p.Value.ID != pointer.Value.ID {
 			t.Error("Get all pointers returned incorrect data")
 		}
-		if !p.Cid.Equals(pointer.Cid) {
+		if !p.Cid.Equals(*pointer.Cid) {
 			t.Error("Get all pointers returned incorrect data")
 		}
 		if p.CancelID.Pretty() != pointer.CancelID.Pretty() {
@@ -129,24 +196,39 @@ func TestGetAllPointers(t *testing.T) {
 }
 
 func TestPointersDB_GetByPurpose(t *testing.T) {
-	pdb.Put(pointer)
+	pdb, teardown, err := buildNewPointerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = pdb.Put(mustNewPointer())
+	if err != nil {
+		t.Log(err)
+	}
 	randBytes := make([]byte, 32)
-	rand.Read(randBytes)
+	_, err = rand.Read(randBytes)
+	if err != nil {
+		t.Log(err)
+	}
 	h, _ := multihash.Encode(randBytes, multihash.SHA2_256)
 	id, _ := peer.IDFromBytes(h)
 	maAddr, _ := ma.NewMultiaddr("/ipfs/QmamudHQGtztShX7Nc9HcczehdpGGWpFBWu2JvKWcpELxr/")
 	k, _ := cid.Decode("QmamudHQGtztShX7Nc9HcczehdpGGWpFBWu2JvKWcpELxr")
 	m := ipfs.Pointer{
-		k,
-		ps.PeerInfo{
+		Cid: &k,
+		Value: ps.PeerInfo{
 			ID:    id,
 			Addrs: []ma.Multiaddr{maAddr},
 		},
-		ipfs.MODERATOR,
-		time.Now(),
-		nil,
+		Purpose:   ipfs.MODERATOR,
+		Timestamp: time.Now(),
+		CancelID:  nil,
 	}
-	err := pdb.Put(m)
+	err = pdb.Put(m)
+	if err != nil {
+		t.Error("Put pointer returned error")
+	}
 	pointers, err := pdb.GetByPurpose(ipfs.MODERATOR)
 	if err != nil {
 		t.Error("Get pointers returned error")
@@ -161,7 +243,7 @@ func TestPointersDB_GetByPurpose(t *testing.T) {
 		if p.Value.ID != m.Value.ID {
 			t.Error("Get pointers returned incorrect data")
 		}
-		if !p.Cid.Equals(m.Cid) {
+		if !p.Cid.Equals(*m.Cid) {
 			t.Error("Get pointers returned incorrect data")
 		}
 		if p.CancelID != nil {
@@ -171,24 +253,39 @@ func TestPointersDB_GetByPurpose(t *testing.T) {
 }
 
 func TestPointersDB_Get(t *testing.T) {
-	pdb.Put(pointer)
+	pdb, teardown, err := buildNewPointerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = pdb.Put(mustNewPointer())
+	if err != nil {
+		t.Log(err)
+	}
 	randBytes := make([]byte, 32)
-	rand.Read(randBytes)
+	_, err = rand.Read(randBytes)
+	if err != nil {
+		t.Log(err)
+	}
 	h, _ := multihash.Encode(randBytes, multihash.SHA2_256)
 	id, _ := peer.IDFromBytes(h)
 	maAddr, _ := ma.NewMultiaddr("/ipfs/QmamudHQGtztShX7Nc9HcczehdpGGWpFBWu2JvKWcpELxr/")
 	k, _ := cid.Decode("QmamudHQGtztShX7Nc9HcczehdpGGWpFBWu2JvKWcpELxr")
 	m := ipfs.Pointer{
-		k,
-		ps.PeerInfo{
+		Cid: &k,
+		Value: ps.PeerInfo{
 			ID:    id,
 			Addrs: []ma.Multiaddr{maAddr},
 		},
-		ipfs.MODERATOR,
-		time.Now(),
-		nil,
+		Purpose:   ipfs.MODERATOR,
+		Timestamp: time.Now(),
+		CancelID:  nil,
 	}
-	err := pdb.Put(m)
+	err = pdb.Put(m)
+	if err != nil {
+		t.Error("Put pointer returned error")
+	}
 	p, err := pdb.Get(id)
 	if err != nil {
 		t.Error("Get pointers returned error")
@@ -200,7 +297,7 @@ func TestPointersDB_Get(t *testing.T) {
 	if p.Value.ID != m.Value.ID {
 		t.Error("Get pointers returned incorrect data")
 	}
-	if !p.Cid.Equals(m.Cid) {
+	if !p.Cid.Equals(*m.Cid) {
 		t.Error("Get pointers returned incorrect data")
 	}
 	if p.CancelID != nil {

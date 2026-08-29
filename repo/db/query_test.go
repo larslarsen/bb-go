@@ -1,8 +1,9 @@
 package db
 
 import (
-	"github.com/larslarsen/bb-go/pb"
 	"testing"
+
+	"github.com/larslarsen/bb-go/pb"
 )
 
 func Test_filterQuery(t *testing.T) {

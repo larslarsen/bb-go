@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	obnet "github.com/larslarsen/bb-go/net"
 	"github.com/larslarsen/bb-go/repo"
 	"github.com/larslarsen/bb-go/repo/db"
+	"github.com/OpenBazaar/wallet-interface"
 	"github.com/ipfs/go-ipfs/repo/fsrepo"
-	"os"
 )
 
 type Status struct {
@@ -16,7 +18,7 @@ type Status struct {
 
 func (x *Status) Execute(args []string) error {
 	// Set repo path
-	repoPath, err := repo.GetRepoPath(x.Testnet)
+	repoPath, err := repo.GetRepoPath(x.Testnet, x.DataDir)
 	if err != nil {
 		return err
 	}
@@ -29,9 +31,8 @@ func (x *Status) Execute(args []string) error {
 		torAvailable = true
 	}
 	if fsrepo.IsInitialized(repoPath) {
-		sqliteDB, err := db.Create(repoPath, "", x.Testnet)
+		sqliteDB, err := db.Create(repoPath, "", x.Testnet, wallet.Bitcoin)
 		if err != nil {
-			return err
 			os.Exit(1)
 		}
 		defer sqliteDB.Close()

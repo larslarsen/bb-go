@@ -9,16 +9,16 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
 
     def __init__(self):
         super().__init__()
-        self.num_nodes = 3
+        self.num_nodes = 4
 
     def run_test(self):
-        alice = self.nodes[0]
-        bob = self.nodes[1]
-        charlie = self.nodes[2]
+        alice = self.nodes[1]
+        bob = self.nodes[2]
+        charlie = self.nodes[3]
 
         # generate some coins and send them to bob
         time.sleep(4)
-        api_url = bob["gateway_url"] + "wallet/address"
+        api_url = bob["gateway_url"] + "wallet/address/" + self.cointype
         r = requests.get(api_url)
         if r.status_code == 200:
             resp = json.loads(r.text)
@@ -42,7 +42,7 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
         time.sleep(4)
 
         # make charlie a moderator
-        with open('testdata/moderation.json') as listing_file:
+        with open('testdata/'+ self.moderator_version +'/moderation.json') as listing_file:
             moderation_json = json.load(listing_file, object_pairs_hook=OrderedDict)
         api_url = charlie["gateway_url"] + "ob/moderator"
         r = requests.put(api_url, data=json.dumps(moderation_json, indent=4))
@@ -55,16 +55,19 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
         time.sleep(4)
 
         # post profile for alice
-        with open('testdata/profile.json') as profile_file:
+        with open('testdata/'+ self.vendor_version +'/profile.json') as profile_file:
             profile_json = json.load(profile_file, object_pairs_hook=OrderedDict)
         api_url = alice["gateway_url"] + "ob/profile"
         requests.post(api_url, data=json.dumps(profile_json, indent=4))
 
         # post listing to alice
-        with open('testdata/listing.json') as listing_file:
+        with open('testdata/'+ self.vendor_version +'/listing.json') as listing_file:
             listing_json = json.load(listing_file, object_pairs_hook=OrderedDict)
-        if self.bitcoincash:
-            listing_json["metadata"]["pricingCurrency"] = "tbch"
+        if self.vendor_version == "v4":
+            listing_json["metadata"]["priceCurrency"] = "t" + self.cointype
+        else:
+            listing_json["item"]["priceCurrency"]["code"] = "t" + self.cointype
+        listing_json["metadata"]["acceptedCurrencies"] = ["t" + self.cointype]
         slug = listing_json["slug"]
         listing_json["moderators"] = [moderatorId]
         listing_json["metadata"]["escrowTimeoutHours"] = 1
@@ -80,7 +83,7 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
         time.sleep(4)
 
         # get listing hash
-        api_url = alice["gateway_url"] + "ipns/" + alice["peerId"] + "/listings.json"
+        api_url = alice["gateway_url"] + "ob/listings/" + alice["peerId"]
         r = requests.get(api_url)
         if r.status_code != 200:
             raise TestFailure("EscrowTimeoutRelease - FAIL: Couldn't get listing index")
@@ -88,10 +91,11 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
         listingId = resp[0]["hash"]
 
         # bob send order
-        with open('testdata/order_direct.json') as order_file:
+        with open('testdata/'+ self.buyer_version +'/order_direct.json') as order_file:
             order_json = json.load(order_file, object_pairs_hook=OrderedDict)
         order_json["items"][0]["listingHash"] = listingId
         order_json["moderator"] = moderatorId
+        order_json["paymentCoin"] = "t" + self.cointype
         api_url = bob["gateway_url"] + "ob/purchase"
         r = requests.post(api_url, data=json.dumps(order_json, indent=4))
         if r.status_code == 404:
@@ -129,10 +133,16 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
 
         # fund order
         spend = {
+            "currencyCode": "T" + self.cointype,
             "address": payment_address,
-            "amount": payment_amount,
-            "feeLevel": "NORMAL"
+            "amount": payment_amount["amount"],
+            "feeLevel": "NORMAL",
+            "requireAssociateOrder": False
         }
+        if self.buyer_version == "v4":
+            spend["amount"] = payment_amount
+            spend["wallet"] = "T" + self.cointype
+
         api_url = bob["gateway_url"] + "wallet/spend"
         r = requests.post(api_url, data=json.dumps(spend, indent=4))
         if r.status_code == 404:
@@ -165,7 +175,7 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
             raise TestFailure("EscrowTimeoutRelease - FAIL: Alice incorrectly saved as unfunded")
 
         # alice send order fulfillment
-        with open('testdata/fulfillment.json') as fulfillment_file:
+        with open('testdata/'+ self.vendor_version +'/fulfillment.json') as fulfillment_file:
             fulfillment_json = json.load(fulfillment_file, object_pairs_hook=OrderedDict)
         fulfillment_json["slug"] = slug
         fulfillment_json["orderId"] = orderId
@@ -206,7 +216,6 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
             resp = json.loads(r.text)
             raise TestFailure("EscrowTimeoutRelease - FAIL: Release escrow internal server error %s", resp["reason"])
         elif r.status_code != 401:
-            resp = json.loads(r.text)
             raise TestFailure("EscrowTimeoutRelease - FAIL: Failed to raise error when releasing escrow before timeout")
 
         for i in range(6):
@@ -229,7 +238,7 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
         time.sleep(2)
 
         # Check the funds moved into alice's wallet
-        api_url = alice["gateway_url"] + "wallet/balance"
+        api_url = alice["gateway_url"] + "wallet/balance/T" + self.cointype
         r = requests.get(api_url)
         if r.status_code == 200:
             resp = json.loads(r.text)
@@ -240,7 +249,26 @@ class EscrowTimeoutRelease(OpenBazaarTestFramework):
         else:
             raise TestFailure("RefundDirectTest - FAIL: Failed to query Alice's balance")
 
+        # check alice's order was set to payment finalized
+        api_url = alice["gateway_url"] + "ob/order/" + orderId
+        r = requests.get(api_url)
+        if r.status_code != 200:
+            raise TestFailure("EscrowTimeoutRelease - FAIL: Couldn't load order from Bob")
+        resp = json.loads(r.text)
+        if resp["state"] != "PAYMENT_FINALIZED":
+            raise TestFailure("EscrowTimeoutRelease - FAIL: Alice failed to set order to payment finalized")
+
+        # check bob's order was set to payment finalized
+        api_url = bob["gateway_url"] + "ob/order/" + orderId
+        r = requests.get(api_url)
+        if r.status_code != 200:
+            raise TestFailure("EscrowTimeoutRelease - FAIL: Couldn't load order from Bob")
+        resp = json.loads(r.text)
+        if resp["state"] != "PAYMENT_FINALIZED":
+            raise TestFailure("EscrowTimeoutRelease - FAIL: Bob failed to set order to payment finalized")
+
         print("EscrowTimeoutRelease - PASS")
+
 
 if __name__ == '__main__':
     print("Running EscrowTimeoutRelease")

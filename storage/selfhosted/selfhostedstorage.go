@@ -3,27 +3,30 @@ package selfhosted
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
+	"log"
+
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	"gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+
 	"os"
 	"path"
 
 	"github.com/larslarsen/bb-go/ipfs"
-	"github.com/ipfs/go-ipfs/commands"
-	"gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
+	"github.com/ipfs/go-ipfs/core"
 )
 
 type SelfHostedStorage struct {
 	repoPath  string
-	context   commands.Context
+	ipfsNode  *core.IpfsNode
 	pushNodes []peer.ID
 	store     func(peerId string, ids []cid.Cid) error
 }
 
-func NewSelfHostedStorage(repoPath string, context commands.Context, pushNodes []peer.ID, store func(peerId string, ids []cid.Cid) error) *SelfHostedStorage {
+func NewSelfHostedStorage(repoPath string, n *core.IpfsNode, pushNodes []peer.ID, store func(peerId string, ids []cid.Cid) error) *SelfHostedStorage {
 	return &SelfHostedStorage{
 		repoPath:  repoPath,
-		context:   context,
+		ipfsNode:  n,
 		pushNodes: pushNodes,
 		store:     store,
 	}
@@ -42,7 +45,7 @@ func (s *SelfHostedStorage) Store(peerID peer.ID, ciphertext []byte) (ma.Multiad
 	if ferr != nil {
 		return nil, ferr
 	}
-	addr, err := ipfs.AddFile(s.context, filePath)
+	addr, err := ipfs.AddFile(s.ipfsNode, filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +53,14 @@ func (s *SelfHostedStorage) Store(peerID peer.ID, ciphertext []byte) (ma.Multiad
 	if err != nil {
 		return nil, err
 	}
+
 	for _, peer := range s.pushNodes {
-		go s.store(peer.Pretty(), []cid.Cid{*id})
+		go func(peerID string, cid []cid.Cid) {
+			err := s.store(peerID, cid)
+			if err != nil {
+				log.Println(err)
+			}
+		}(peer.Pretty(), []cid.Cid{id})
 	}
 	maAddr, err := ma.NewMultiaddr("/ipfs/" + addr + "/")
 	if err != nil {

@@ -2,29 +2,34 @@ package db
 
 import (
 	"database/sql"
-	"github.com/larslarsen/bb-go/repo"
+	"fmt"
 	"strconv"
 	"sync"
+
+	"github.com/larslarsen/bb-go/repo"
 )
 
 type FollowerDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
+}
+
+func NewFollowerStore(db *sql.DB, lock *sync.Mutex) repo.FollowerStore {
+	return &FollowerDB{modelStore{db, lock}}
 }
 
 func (f *FollowerDB) Put(follower string, proof []byte) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	tx, _ := f.db.Begin()
-	stmt, _ := tx.Prepare("insert into followers(peerID, proof) values(?,?)")
+	stmt, err := f.PrepareQuery("insert into followers(peerID, proof) values(?,?)")
+	if err != nil {
+		return fmt.Errorf("prepare followers sql: %s", err.Error())
+	}
 
 	defer stmt.Close()
-	_, err := stmt.Exec(follower, proof)
+	_, err = stmt.Exec(follower, proof)
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("update followers: %s", err.Error())
 	}
-	tx.Commit()
 	return nil
 }
 
@@ -47,8 +52,11 @@ func (f *FollowerDB) Get(offsetId string, limit int) ([]repo.Follower, error) {
 	for rows.Next() {
 		var peerID string
 		var proof []byte
-		rows.Scan(&peerID, &proof)
-		ret = append(ret, repo.Follower{peerID, proof})
+		err = rows.Scan(&peerID, &proof)
+		if err != nil {
+			log.Error(err)
+		}
+		ret = append(ret, repo.Follower{PeerId: peerID, Proof: proof})
 	}
 	return ret, nil
 }
@@ -56,7 +64,10 @@ func (f *FollowerDB) Get(offsetId string, limit int) ([]repo.Follower, error) {
 func (f *FollowerDB) Delete(follower string) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	f.db.Exec("delete from followers where peerID=?", follower)
+	_, err := f.db.Exec("delete from followers where peerID=?", follower)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -65,7 +76,10 @@ func (f *FollowerDB) Count() int {
 	defer f.lock.Unlock()
 	row := f.db.QueryRow("select Count(*) from followers")
 	var count int
-	row.Scan(&count)
+	err := row.Scan(&count)
+	if err != nil {
+		log.Error(err)
+	}
 	return count
 }
 
@@ -73,11 +87,11 @@ func (f *FollowerDB) FollowsMe(peerId string) bool {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	stmt, err := f.db.Prepare("select peerID from followers where peerID=?")
-	defer stmt.Close()
-	var follower string
-	err = stmt.QueryRow(peerId).Scan(&follower)
 	if err != nil {
 		return false
 	}
-	return true
+	defer stmt.Close()
+	var follower string
+	err = stmt.QueryRow(peerId).Scan(&follower)
+	return err == nil
 }

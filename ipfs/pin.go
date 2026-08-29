@@ -1,19 +1,41 @@
 package ipfs
 
-import "github.com/ipfs/go-ipfs/commands"
+import (
+	"context"
+	"fmt"
+	"strings"
 
-/* Recursively un-pin a directory given its hash.
-   This will allow it to be garbage collected. */
-func UnPinDir(ctx commands.Context, rootHash string) error {
-	args := []string{"pin", "rm", "/ipfs/" + rootHash}
-	req, cmd, err := NewRequest(ctx, args)
+	coreiface "gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core"
+	options "gx/ipfs/QmXLwxifxwfc2bAwq6rdjbYqAsGzWsDE9RM5TWMGtykyj6/interface-go-ipfs-core/options"
+
+	"github.com/ipfs/go-ipfs/core"
+	"github.com/ipfs/go-ipfs/core/coreapi"
+)
+
+// UnPinDir removes all content from the published root directory to be
+// garbage collected later by IPFS.
+func UnPinDir(n *core.IpfsNode, rootHash string) error {
+	// attempt to properly handle variations on rootHash
+	if !strings.HasPrefix(rootHash, "/ipfs/") {
+		rootHash = fmt.Sprintf("/ipfs/%s", rootHash)
+	}
+	if !strings.HasPrefix(rootHash, "/ipfs") && strings.HasPrefix(rootHash, "/") {
+		rootHash = fmt.Sprintf("/ipfs%s", rootHash)
+	}
+
+	api, err := coreapi.NewCoreAPI(n)
 	if err != nil {
-		return err
+		return fmt.Errorf("ipfs api: %s", err)
 	}
-	res := commands.NewResponse(req)
-	cmd.Run(req, res)
-	if res.Error() != nil {
-		return res.Error()
+	p, err := coreiface.ParsePath(rootHash)
+	if err != nil {
+		return fmt.Errorf("parsing ipfs path (%s): %s", rootHash, err)
 	}
-	return nil
+
+	rp, err := api.ResolvePath(context.Background(), p)
+	if err != nil {
+		return fmt.Errorf("resolve path (%s): %s", p, err)
+	}
+
+	return api.Pin().Rm(context.Background(), rp, options.Pin.RmRecursive(true))
 }

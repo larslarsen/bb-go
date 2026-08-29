@@ -1,30 +1,49 @@
-package db
+package db_test
 
 import (
 	"bytes"
-	"database/sql"
 	"strconv"
 	"sync"
 	"testing"
+
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/repo/db"
+	"github.com/larslarsen/bb-go/schema"
 )
 
-var fdb FollowerDB
-
-func init() {
-	conn, _ := sql.Open("sqlite3", ":memory:")
-	initDatabaseTables(conn, "")
-	fdb = FollowerDB{
-		db:   conn,
-		lock: new(sync.Mutex),
+func buildNewFollowerStore() (repo.FollowerStore, func(), error) {
+	appSchema := schema.MustNewCustomSchemaManager(schema.SchemaContext{
+		DataPath:        schema.GenerateTempPath(),
+		TestModeEnabled: true,
+	})
+	if err := appSchema.BuildSchemaDirectories(); err != nil {
+		return nil, nil, err
 	}
+	if err := appSchema.InitializeDatabase(); err != nil {
+		return nil, nil, err
+	}
+	database, err := appSchema.OpenDatabase()
+	if err != nil {
+		return nil, nil, err
+	}
+	return db.NewFollowerStore(database, new(sync.Mutex)), appSchema.DestroySchemaDirectories, nil
 }
 
 func TestPutFollower(t *testing.T) {
-	err := fdb.Put("abc", []byte("proof"))
+	fdb, teardown, err := buildNewFollowerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fdb.Put("abc", []byte("proof"))
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, err := fdb.db.Prepare("select peerID, proof from followers where peerID=?")
+	stmt, err := fdb.PrepareQuery("select peerID, proof from followers where peerID=?")
+	if err != nil {
+		t.Error(err)
+	}
 	defer stmt.Close()
 	var follower string
 	var proof []byte
@@ -41,44 +60,101 @@ func TestPutFollower(t *testing.T) {
 }
 
 func TestPutDuplicateFollower(t *testing.T) {
-	fdb.Put("abc", []byte("proof"))
-	err := fdb.Put("abc", []byte("asdf"))
+	fdb, teardown, err := buildNewFollowerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fdb.Put("abc", []byte("proof"))
+	if err != nil {
+		t.Error(err)
+	}
+	err = fdb.Put("abc", []byte("asdf"))
 	if err == nil {
 		t.Error("Expected unquire constriant error to be thrown")
 	}
 }
 
 func TestCountFollowers(t *testing.T) {
-	fdb.Put("abc", []byte("proof"))
-	fdb.Put("123", []byte("proof"))
-	fdb.Put("xyz", []byte("proof"))
+	fdb, teardown, err := buildNewFollowerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fdb.Put("abc", []byte("proof"))
+	if err != nil {
+		t.Error(err)
+	}
+	err = fdb.Put("123", []byte("proof"))
+	if err != nil {
+		t.Error(err)
+	}
+	err = fdb.Put("xyz", []byte("proof"))
+	if err != nil {
+		t.Error(err)
+	}
 	x := fdb.Count()
 	if x != 3 {
 		t.Errorf("Expected 3 got %d", x)
 	}
-	fdb.Delete("abc")
-	fdb.Delete("123")
-	fdb.Delete("xyz")
-}
-
-func TestDeleteFollower(t *testing.T) {
-	fdb.Put("abc", []byte("proof"))
-	err := fdb.Delete("abc")
+	err = fdb.Delete("abc")
 	if err != nil {
 		t.Error(err)
 	}
-	stmt, _ := fdb.db.Prepare("select peerID from followers where peerID=?")
+	err = fdb.Delete("123")
+	if err != nil {
+		t.Error(err)
+	}
+	err = fdb.Delete("xyz")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteFollower(t *testing.T) {
+	fdb, teardown, err := buildNewFollowerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fdb.Put("abc", []byte("proof"))
+	if err != nil {
+		t.Error(err)
+	}
+	err = fdb.Delete("abc")
+	if err != nil {
+		t.Error(err)
+	}
+	stmt, err := fdb.PrepareQuery("select peerID from followers where peerID=?")
+	if err != nil {
+		t.Log(err)
+	}
 	defer stmt.Close()
 	var follower string
-	stmt.QueryRow("abc").Scan(&follower)
+	err = stmt.QueryRow("abc").Scan(&follower)
+	if err != nil {
+		t.Log(err)
+	}
 	if follower != "" {
 		t.Error("Failed to delete follower")
 	}
 }
 
 func TestGetFollowers(t *testing.T) {
+	fdb, teardown, err := buildNewFollowerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
 	for i := 0; i < 100; i++ {
-		fdb.Put(strconv.Itoa(i), []byte("proof"))
+		err = fdb.Put(strconv.Itoa(i), []byte("proof"))
+		if err != nil {
+			t.Log(err)
+		}
 	}
 	followers, err := fdb.Get("", 100)
 	if err != nil {
@@ -121,7 +197,16 @@ func TestGetFollowers(t *testing.T) {
 }
 
 func TestFollowsMe(t *testing.T) {
-	fdb.Put("abc", []byte("proof"))
+	fdb, teardown, err := buildNewFollowerStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = fdb.Put("abc", []byte("proof"))
+	if err != nil {
+		t.Log(err)
+	}
 	if !fdb.FollowsMe("abc") {
 		t.Error("Follows Me failed to return correctly")
 	}

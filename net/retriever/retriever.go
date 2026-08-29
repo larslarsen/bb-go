@@ -2,49 +2,62 @@ package net
 
 import (
 	"context"
+	"errors"
+
+	routing "gx/ipfs/QmSY3nkMNLzh9GdbFKK5tT7YMfLpf52iUZ8ZRkr29MJaa5/go-libp2p-kad-dht"
+	libp2p "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	"gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	"gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	ps "gx/ipfs/QmaCTz9RkrU13bm9kMB54f7atgqM4qkjDZpRwRoJiWXEqs/go-libp2p-peerstore"
+	"gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
+
+	"io/ioutil"
+	"net/http"
+	"sync"
+	"time"
+
 	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/larslarsen/bb-go/net"
 	"github.com/larslarsen/bb-go/pb"
 	"github.com/larslarsen/bb-go/repo"
 	"github.com/golang/protobuf/proto"
-	"github.com/ipfs/go-ipfs/commands"
-	"golang.org/x/net/proxy"
-
 	"github.com/ipfs/go-ipfs/core"
-
-	routing "gx/ipfs/QmUCS9EnqNq1kCnJds2eLDypBiS21aSiCf1MVzSUVB9TGA/go-libp2p-kad-dht"
-
-	"errors"
 	"github.com/op/go-logging"
-	"gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	ps "gx/ipfs/QmPgDWmTmuzvP7QE5zwo1TmjbJme9pmZHNujB2453jkCTr/go-libp2p-peerstore"
-	multihash "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
-	libp2p "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
-	"io/ioutil"
-	gonet "net"
-	"net/http"
-	"sync"
-	"time"
+	"golang.org/x/net/proxy"
 )
 
 const DefaultPointerPrefixLength = 14
 
 var log = logging.MustGetLogger("retriever")
 
+type MRConfig struct {
+	Db        repo.Datastore
+	IPFSNode  *core.IpfsNode
+	DHT       *routing.IpfsDHT
+	BanManger *net.BanManager
+	Service   net.NetworkService
+	PrefixLen int
+	PushNodes []peer.ID
+	Dialer    proxy.Dialer
+	SendAck   func(peerId string, pointerID peer.ID) error
+	SendError func(peerId string, k *libp2p.PubKey, errorMessage pb.Message) error
+}
+
 type MessageRetriever struct {
 	db         repo.Datastore
 	node       *core.IpfsNode
+	routing    *routing.IpfsDHT
 	bm         *net.BanManager
-	ctx        commands.Context
 	service    net.NetworkService
 	prefixLen  int
 	sendAck    func(peerId string, pointerID peer.ID) error
+	sendError  func(peerId string, k *libp2p.PubKey, errorMessage pb.Message) error
 	httpClient *http.Client
 	dataPeers  []peer.ID
 	queueLock  *sync.Mutex
 	DoneChan   chan struct{}
+	inFlight   chan struct{}
 	*sync.WaitGroup
 }
 
@@ -53,66 +66,95 @@ type offlineMessage struct {
 	env  pb.Envelope
 }
 
-func NewMessageRetriever(db repo.Datastore, ctx commands.Context, node *core.IpfsNode, bm *net.BanManager, service net.NetworkService, prefixLen int, pushNodes []peer.ID, dialer proxy.Dialer, sendAck func(peerId string, pointerID peer.ID) error) *MessageRetriever {
-	dial := gonet.Dial
-	if dialer != nil {
-		dial = dialer.Dial
+func NewMessageRetriever(cfg MRConfig) *MessageRetriever {
+	var client *http.Client
+	if cfg.Dialer != nil {
+		tbTransport := &http.Transport{Dial: cfg.Dialer.Dial}
+		client = &http.Client{Transport: tbTransport, Timeout: time.Second * 30}
+	} else {
+		client = &http.Client{Timeout: time.Second * 30}
 	}
-	tbTransport := &http.Transport{Dial: dial}
-	client := &http.Client{Transport: tbTransport, Timeout: time.Second * 30}
-	mr := MessageRetriever{db, node, bm, ctx, service, prefixLen, sendAck, client, pushNodes, new(sync.Mutex), make(chan struct{}), new(sync.WaitGroup)}
-	mr.Add(1)
+	mr := MessageRetriever{
+		db:         cfg.Db,
+		node:       cfg.IPFSNode,
+		routing:    cfg.DHT,
+		bm:         cfg.BanManger,
+		service:    cfg.Service,
+		prefixLen:  cfg.PrefixLen,
+		sendAck:    cfg.SendAck,
+		sendError:  cfg.SendError,
+		httpClient: client,
+		dataPeers:  cfg.PushNodes,
+		queueLock:  new(sync.Mutex),
+		DoneChan:   make(chan struct{}),
+		inFlight:   make(chan struct{}, 5),
+		WaitGroup:  new(sync.WaitGroup),
+	}
+
+	mr.Add(2)
 	return &mr
 }
 
 func (m *MessageRetriever) Run() {
 	dht := time.NewTicker(time.Hour)
-	peers := time.NewTicker(time.Minute * 10)
+	peers := time.NewTicker(time.Minute)
 	defer dht.Stop()
 	defer peers.Stop()
-	go m.fetchPointers(true)
+	go m.fetchPointersFromDHT()
+	go m.fetchPointersFromPushNodes()
 	for {
 		select {
 		case <-dht.C:
 			m.Add(1)
-			go m.fetchPointers(true)
+			go m.fetchPointersFromDHT()
 		case <-peers.C:
 			m.Add(1)
-			go m.fetchPointers(false)
+			go m.fetchPointersFromPushNodes()
 		}
 	}
 }
 
-func (m *MessageRetriever) fetchPointers(useDHT bool) {
+// RunOnce - used to fetch messages only once
+func (m *MessageRetriever) RunOnce() {
+	m.Add(1)
+	go m.fetchPointersFromDHT()
+	m.Add(1)
+	go m.fetchPointersFromPushNodes()
+}
+
+func (m *MessageRetriever) fetchPointersFromDHT() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	wg := new(sync.WaitGroup)
-	downloaded := 0
 	mh, _ := multihash.FromB58String(m.node.Identity.Pretty())
 	peerOut := make(chan ps.PeerInfo)
 	go func(c chan ps.PeerInfo) {
-		pwg := new(sync.WaitGroup)
-		pwg.Add(1)
-		go func(c chan ps.PeerInfo) {
-			out := m.getPointersDataPeers()
-			for p := range out {
-				c <- p
-			}
-			pwg.Done()
-		}(c)
-		if useDHT {
-			pwg.Add(1)
-			go func(c chan ps.PeerInfo) {
-				iout := ipfs.FindPointersAsync(m.node.Routing.(*routing.IpfsDHT), ctx, mh, m.prefixLen)
-				for p := range iout {
-					c <- p
-				}
-				pwg.Done()
-			}(c)
+		iout := ipfs.FindPointersAsync(m.routing, ctx, mh, m.prefixLen)
+		for p := range iout {
+			c <- p
 		}
-		pwg.Wait()
 		close(c)
+
 	}(peerOut)
+
+	m.downloadMessages(peerOut)
+}
+
+func (m *MessageRetriever) fetchPointersFromPushNodes() {
+	peerOut := make(chan ps.PeerInfo)
+	go func(c chan ps.PeerInfo) {
+		out := m.getPointersDataPeers()
+		for p := range out {
+			c <- p
+		}
+		close(c)
+
+	}(peerOut)
+	m.downloadMessages(peerOut)
+}
+
+func (m *MessageRetriever) downloadMessages(peerOut chan ps.PeerInfo) {
+	wg := new(sync.WaitGroup)
+	downloaded := 0
 
 	inFlight := make(map[string]bool)
 	// Iterate over the pointers, adding 1 to the waitgroup for each pointer found
@@ -124,7 +166,7 @@ func (m *MessageRetriever) fetchPointers(useDHT bool) {
 			if len(p.Addrs[0].Protocols()) == 1 && p.Addrs[0].Protocols()[0].Code == ma.P_IPFS {
 				wg.Add(1)
 				downloaded++
-				go m.fetchIPFS(p.ID, m.ctx, p.Addrs[0], wg)
+				go m.fetchIPFS(p.ID, m.node, p.Addrs[0], wg)
 			}
 
 			// HTTPS
@@ -175,7 +217,7 @@ func (m *MessageRetriever) getPointersFromDataPeersRoutine(peerOut chan ps.PeerI
 			defer wg.Done()
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			provs, err := ipfs.GetPointersFromPeer(m.node, ctx, pid, k)
+			provs, err := ipfs.GetPointersFromPeer(m.routing, ctx, pid, &k)
 			if err != nil {
 				return
 			}
@@ -189,26 +231,34 @@ func (m *MessageRetriever) getPointersFromDataPeersRoutine(peerOut chan ps.PeerI
 
 // fetchIPFS will attempt to download an encrypted message using IPFS. If the message downloads successfully, we save the
 // address to the database to prevent us from wasting bandwidth downloading it again.
-func (m *MessageRetriever) fetchIPFS(pid peer.ID, ctx commands.Context, addr ma.Multiaddr, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (m *MessageRetriever) fetchIPFS(pid peer.ID, n *core.IpfsNode, addr ma.Multiaddr, wg *sync.WaitGroup) {
+	m.inFlight <- struct{}{}
+	defer func() {
+		wg.Done()
+		<-m.inFlight
+	}()
 
 	c := make(chan struct{})
 	var ciphertext []byte
 	var err error
 
 	go func() {
-		ciphertext, err = ipfs.Cat(ctx, addr.String(), time.Minute*5)
+		ciphertext, err = ipfs.Cat(n, addr.String(), time.Second*10)
 		c <- struct{}{}
 	}()
 
 	select {
 	case <-c:
 		if err != nil {
-			log.Errorf("Error retrieving offline message from %s, %s", addr.String(), err.Error())
+			log.Errorf("Error retrieving offline message from: %s, Error: %s", addr.String(), err.Error())
 			return
 		}
-		log.Debugf("Successfully downloaded offline message from %s", addr.String())
-		m.db.OfflineMessages().Put(addr.String())
+		log.Debugf("Successfully downloaded offline message %s from: %s", addr.String(), pid.Pretty())
+
+		err = m.db.OfflineMessages().Put(addr.String())
+		if err != nil {
+			log.Error(err)
+		}
 		m.attemptDecrypt(ciphertext, pid, addr)
 	case <-m.DoneChan:
 		return
@@ -218,7 +268,11 @@ func (m *MessageRetriever) fetchIPFS(pid peer.ID, ctx commands.Context, addr ma.
 // fetchHTTPS will attempt to download an encrypted message from an HTTPS endpoint. If the message downloads successfully, we save the
 // address to the database to prevent us from wasting bandwidth downloading it again.
 func (m *MessageRetriever) fetchHTTPS(pid peer.ID, url string, addr ma.Multiaddr, wg *sync.WaitGroup) {
-	defer wg.Done()
+	m.inFlight <- struct{}{}
+	defer func() {
+		wg.Done()
+		<-m.inFlight
+	}()
 
 	c := make(chan struct{})
 	var ciphertext []byte
@@ -242,7 +296,10 @@ func (m *MessageRetriever) fetchHTTPS(pid peer.ID, url string, addr ma.Multiaddr
 			return
 		}
 		log.Debugf("Successfully downloaded offline message from %s", addr.String())
-		m.db.OfflineMessages().Put(addr.String())
+		err = m.db.OfflineMessages().Put(addr.String())
+		if err != nil {
+			log.Error(err)
+		}
 		m.attemptDecrypt(ciphertext, pid, addr)
 	case <-m.DoneChan:
 		return
@@ -256,7 +313,7 @@ func (m *MessageRetriever) attemptDecrypt(ciphertext []byte, pid peer.ID, addr m
 	// Decrypt and unmarshal plaintext
 	plaintext, err := net.Decrypt(m.node.PrivateKey, ciphertext)
 	if err != nil {
-		log.Warning("Unable to decrypt offline message from %s: %s", addr.String(), err.Error())
+		log.Warningf("Unable to decrypt cipher text to plain text, CID: %s: Error:%s\n", addr.String(), err.Error())
 		return
 	}
 
@@ -264,51 +321,65 @@ func (m *MessageRetriever) attemptDecrypt(ciphertext []byte, pid peer.ID, addr m
 	env := pb.Envelope{}
 	err = proto.Unmarshal(plaintext, &env)
 	if err != nil {
-		log.Warning("Unable to decrypt offline message from %s: %s", addr.String(), err.Error())
+		log.Warningf("Unable to unmarshal plaintext to encrypted Envelope, CID: %s: Error:%s\n", addr.String(), err.Error())
 		return
 	}
 
 	// Validate the signature
 	ser, err := proto.Marshal(env.Message)
 	if err != nil {
-		log.Warning("Unable to decrypt offline message from %s: %s", addr.String(), err.Error())
+		log.Warningf("Unable to serialize the encrypted message, CID: %s: Error:%s\n", addr.String(), err.Error())
 		return
 	}
 	pubkey, err := libp2p.UnmarshalPublicKey(env.Pubkey)
 	if err != nil {
-		log.Warning("Unable to decrypt offline message from %s: %s", addr.String(), err.Error())
+		log.Warningf("Unable to unmarshal the public key from, CID: %s: Error:%s\n", addr.String(), err.Error())
 		return
 	}
 
 	valid, err := pubkey.Verify(ser, env.Signature)
 	if err != nil || !valid {
-		log.Warning("Unable to decrypt offline message from %s: %s", addr.String(), err.Error())
+		log.Warningf("Unable to verify message signature, CID: %s: Error:%s\n", addr.String(), err.Error())
 		return
 	}
 
 	id, err := peer.IDFromPublicKey(pubkey)
 	if err != nil {
-		log.Warning("Unable to decrypt offline message from %s: %s", addr.String(), err.Error())
+		log.Warningf("Unable to get a peer ID from the pubkey, CID: %s: Error:%s\n", addr.String(), err.Error())
 		return
 	}
+
+	log.Debugf("Received offline message %s from: %s\n", addr.String(), id.Pretty())
 
 	if m.bm.IsBanned(id) {
-		log.Warning("Unable to decrypt offline message from %s: %s", addr.String(), err.Error())
+		log.Warningf("Received and dropped offline message from banned user: %s\n", id.Pretty())
 		return
 	}
 
-	m.node.Peerstore.AddPubKey(id, pubkey)
+	if err := m.node.Peerstore.AddPubKey(id, pubkey); err != nil {
+		log.Errorf("adding pubkey to peerstore: %s", err.Error())
+	}
+	store := m.node.Repo.Datastore()
+	if err := ipfs.PutCachedPubkey(store, id.Pretty(), env.Pubkey); err != nil {
+		log.Errorf("caching pubkey: %s", err.Error())
+	}
 
 	// Respond with an ACK
 	if env.Message.MessageType != pb.Message_OFFLINE_ACK {
-		m.sendAck(id.Pretty(), pid)
+		err = m.sendAck(id.Pretty(), pid)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 
 	// handle
-	m.handleMessage(env, addr.String(), nil)
+	err = m.handleMessage(env, addr.String(), nil)
+	if err != nil {
+		log.Error(err)
+	}
 }
 
-// handleMessage loads the hander for this message type and attempts to process the message. Some message types (such
+// handleMessage loads the handler for this message type and attempts to process the message. Some message types (such
 // as those partaining to an order) need to be processed in order. In these cases the handler returns a net.OutOfOrderMessage error
 // and we must save the message to the database to await further processing.
 func (m *MessageRetriever) handleMessage(env pb.Envelope, addr string, id *peer.ID) error {
@@ -331,24 +402,33 @@ func (m *MessageRetriever) handleMessage(env pb.Envelope, addr string, id *peer.
 	handler := m.service.HandlerForMsgType(env.Message.MessageType)
 	if handler == nil {
 		log.Errorf("Nil handler for message type %s", env.Message.MessageType)
-		return errors.New("Nil handler for message")
+		return errors.New("nil handler for message")
 	}
 
 	// Dispatch handler
-	_, err := handler(*id, env.Message, true)
-	if err != nil && err == net.OutOfOrderMessage {
-		ser, err := proto.Marshal(&env)
-		if err == nil {
-			err := m.db.OfflineMessages().SetMessage(addr, ser)
-			if err != nil {
-				log.Errorf("Error saving offline message %s to database: %s", addr, err.Error())
+	resp, err := handler(*id, env.Message, true)
+	if err != nil {
+		if err == net.OutOfOrderMessage {
+			ser, err := proto.Marshal(&env)
+			if err == nil {
+				err := m.db.OfflineMessages().SetMessage(addr, ser)
+				if err != nil {
+					log.Errorf("Error saving offline message %s to database: %s", addr, err.Error())
+				}
+			} else {
+				log.Errorf("Error serializing offline message %s for storage", addr)
 			}
+		} else if env.Message.MessageType == pb.Message_ORDER && resp != nil {
+			log.Errorf("Error processing ORDER message: %s, sending ERROR response", err.Error())
+			err = m.sendError(id.Pretty(), nil, *resp)
+			if err != nil {
+				log.Error(err)
+			}
+			return err
 		} else {
-			log.Errorf("Error serializing offline message %s for storage")
+			log.Errorf("Error processing message %s. Type %s: %s", addr, env.Message.MessageType, err.Error())
+			return err
 		}
-	} else if err != nil {
-		log.Errorf("Error processing message %s. Type %s: %s", addr, env.Message.MessageType, err.Error())
-		return err
 	}
 	return nil
 }
@@ -358,10 +438,12 @@ var MessageProcessingOrder = []pb.Message_MessageType{
 	pb.Message_ORDER_CANCEL,
 	pb.Message_ORDER_REJECT,
 	pb.Message_ORDER_CONFIRMATION,
+	pb.Message_ORDER_PAYMENT,
 	pb.Message_ORDER_FULFILLMENT,
 	pb.Message_ORDER_COMPLETION,
 	pb.Message_DISPUTE_OPEN,
 	pb.Message_DISPUTE_UPDATE,
+	pb.Message_VENDOR_FINALIZED_PAYMENT,
 	pb.Message_DISPUTE_CLOSE,
 	pb.Message_REFUND,
 	pb.Message_CHAT,
@@ -370,11 +452,12 @@ var MessageProcessingOrder = []pb.Message_MessageType{
 	pb.Message_MODERATOR_ADD,
 	pb.Message_MODERATOR_REMOVE,
 	pb.Message_OFFLINE_ACK,
+	pb.Message_OFFLINE_RELAY,
 }
 
 // processQueuedMessages loads all the saved messaged from the database for processing. For each message it sorts them into a
 // queue based on message type and then processes the queue in order. Any messages that successfully process can then be deleted
-// from the databse.
+// from the database.
 func (m *MessageRetriever) processQueuedMessages() {
 	messageQueue := make(map[pb.Message_MessageType][]offlineMessage)
 	for _, messageType := range MessageProcessingOrder {
@@ -412,6 +495,9 @@ func (m *MessageRetriever) processQueuedMessages() {
 	}
 	// Delete messages that we're successfully processed from the database
 	for _, url := range toDelete {
-		m.db.OfflineMessages().DeleteMessage(url)
+		err = m.db.OfflineMessages().DeleteMessage(url)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 }

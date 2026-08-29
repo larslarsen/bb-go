@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io"
 	"runtime"
-	"strings"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
-	config "github.com/ipfs/go-ipfs/repo/config"
+	version "github.com/ipfs/go-ipfs"
 	fsrepo "github.com/ipfs/go-ipfs/repo/fsrepo"
+
+	cmds "gx/ipfs/QmQkW9fnCsg9SLHdViiAh6qfBppodsPZVpU92dZLqYtEfs/go-ipfs-cmds"
+	"gx/ipfs/Qmde5VP1qUkyQXKCfmEUA7bP64V2HAptbJ7phuPp7jXWwg/go-ipfs-cmdkit"
 )
 
 type VersionOutput struct {
@@ -19,70 +20,66 @@ type VersionOutput struct {
 	Golang  string
 }
 
+const (
+	versionNumberOptionName = "number"
+	versionCommitOptionName = "commit"
+	versionRepoOptionName   = "repo"
+	versionAllOptionName    = "all"
+)
+
 var VersionCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "Show ipfs version information.",
 		ShortDescription: "Returns the current version of ipfs and exits.",
 	},
 
-	Options: []cmds.Option{
-		cmds.BoolOption("number", "n", "Only show the version number.").Default(false),
-		cmds.BoolOption("commit", "Show the commit hash.").Default(false),
-		cmds.BoolOption("repo", "Show repo version.").Default(false),
-		cmds.BoolOption("all", "Show all version information").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption(versionNumberOptionName, "n", "Only show the version number."),
+		cmdkit.BoolOption(versionCommitOptionName, "Show the commit hash."),
+		cmdkit.BoolOption(versionRepoOptionName, "Show repo version."),
+		cmdkit.BoolOption(versionAllOptionName, "Show all version information"),
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		res.SetOutput(&VersionOutput{
-			Version: config.CurrentVersionNumber,
-			Commit:  config.CurrentCommit,
+	Run: func(req *cmds.Request, res cmds.ResponseEmitter, env cmds.Environment) error {
+		return cmds.EmitOnce(res, &VersionOutput{
+			Version: version.CurrentVersionNumber,
+			Commit:  version.CurrentCommit,
 			Repo:    fmt.Sprint(fsrepo.RepoVersion),
 			System:  runtime.GOARCH + "/" + runtime.GOOS, //TODO: Precise version here
 			Golang:  runtime.Version(),
 		})
 	},
-	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			v := res.Output().(*VersionOutput)
-
-			repo, _, err := res.Request().Option("repo").Bool()
-			if err != nil {
-				return nil, err
-			}
-
-			if repo {
-				return strings.NewReader(v.Repo + "\n"), nil
-			}
-
-			commit, _, err := res.Request().Option("commit").Bool()
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, version *VersionOutput) error {
+			commit, _ := req.Options[versionCommitOptionName].(bool)
 			commitTxt := ""
-			if err != nil {
-				return nil, err
-			}
 			if commit {
-				commitTxt = "-" + v.Commit
+				commitTxt = "-" + version.Commit
 			}
 
-			number, _, err := res.Request().Option("number").Bool()
-			if err != nil {
-				return nil, err
-			}
-			if number {
-				return strings.NewReader(fmt.Sprintln(v.Version + commitTxt)), nil
-			}
-
-			all, _, err := res.Request().Option("all").Bool()
-			if err != nil {
-				return nil, err
-			}
+			all, _ := req.Options[versionAllOptionName].(bool)
 			if all {
 				out := fmt.Sprintf("go-ipfs version: %s-%s\n"+
 					"Repo version: %s\nSystem version: %s\nGolang version: %s\n",
-					v.Version, v.Commit, v.Repo, v.System, v.Golang)
-				return strings.NewReader(out), nil
+					version.Version, version.Commit, version.Repo, version.System, version.Golang)
+				fmt.Fprint(w, out)
+				return nil
 			}
 
-			return strings.NewReader(fmt.Sprintf("ipfs version %s%s\n", v.Version, commitTxt)), nil
-		},
+			repo, _ := req.Options[versionRepoOptionName].(bool)
+			if repo {
+				fmt.Fprintln(w, version.Repo)
+				return nil
+			}
+
+			number, _ := req.Options[versionNumberOptionName].(bool)
+			if number {
+				fmt.Fprintln(w, version.Version+commitTxt)
+				return nil
+			}
+
+			fmt.Fprint(w, fmt.Sprintf("ipfs version %s%s\n", version.Version, commitTxt))
+			return nil
+		}),
 	},
 	Type: VersionOutput{},
 }

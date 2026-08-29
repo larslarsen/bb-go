@@ -5,49 +5,57 @@ import (
 	"os"
 	"path"
 	"testing"
+
+	"github.com/ipfs/go-ipfs/core/mock"
 )
 
 func TestMain(m *testing.M) {
-	setup()
+	mustSetup()
 	retCode := m.Run()
 	teardown()
 	os.Exit(retCode)
 }
 
-func setup() {
-	os.MkdirAll(path.Join("./", "root"), os.ModePerm)
-	d1 := []byte("hello world")
-	ioutil.WriteFile(path.Join("./", "root", "test"), d1, 0644)
+func mustSetup() {
+	err := os.MkdirAll(path.Join(os.TempDir(), "root"), os.ModePerm)
+	if err != nil {
+		panic(err.Error())
+	}
+	d := []byte("hello world")
+	err = ioutil.WriteFile(path.Join(os.TempDir(), "root", "test"), d, os.ModePerm)
+	if err != nil {
+		panic(err.Error())
+	}
 }
 
 func teardown() {
-	os.RemoveAll(path.Join("./", "root"))
+	os.RemoveAll(path.Join(os.TempDir(), "root"))
 }
 
 func TestAddFile(t *testing.T) {
-	ctx, err := MockCmdsCtx()
+	n, err := coremock.NewMockNode()
 	if err != nil {
 		t.Error(err)
 	}
-	hash, err := AddFile(ctx, path.Join("./", "root", "test"))
+	hash, err := AddFile(n, path.Join(os.TempDir(), "root", "test"))
 	if err != nil {
 		t.Error(err)
 	}
-	if hash != "zb2rhj7crUKTQYRGCRATFaQ6YFLTde2YzdqbbhAASkL9uRDXn" {
+	if hash != "Qmf412jQZiuVUtdgnB36FXFX7xg5V6KEbSJ4dpQuhkLyfD" {
 		t.Error("Ipfs add file failed")
 	}
 }
 
 func TestAddDirectory(t *testing.T) {
-	ctx, err := MockCmdsCtx()
+	n, err := coremock.NewMockNode()
 	if err != nil {
 		t.Error(err)
 	}
-	root, err := AddDirectory(ctx, path.Join("./", "root"))
+	root, err := AddDirectory(n, path.Join(os.TempDir(), "root"))
 	if err != nil {
 		t.Error(err)
 	}
-	if root != "zdj7WgdBhLbZ9f1Z8G3PobEHYk6ArexXBTWTjSCPv97oC4G1U" {
+	if root != "QmbuHqv8yQDwSsLvK4wGEBBXAYiqzXn23yqU9rh1tYwJSb" {
 		t.Error("Ipfs add directory failed")
 	}
 }

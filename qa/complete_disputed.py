@@ -9,17 +9,17 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
 
     def __init__(self):
         super().__init__()
-        self.num_nodes = 3
+        self.num_nodes = 4
 
     def run_test(self):
-        alice = self.nodes[0]
-        bob = self.nodes[1]
-        charlie = self.nodes[2]
+        alice = self.nodes[1]
+        bob = self.nodes[2]
+        charlie = self.nodes[3]
 
         # generate some coins and send them to bob
         generated_coins = 10
         time.sleep(4)
-        api_url = bob["gateway_url"] + "wallet/address"
+        api_url = bob["gateway_url"] + "wallet/address/" + self.cointype
         r = requests.get(api_url)
         if r.status_code == 200:
             resp = json.loads(r.text)
@@ -43,7 +43,7 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
         time.sleep(4)
 
         # make charlie a moderator
-        with open('testdata/moderation.json') as listing_file:
+        with open('testdata/'+ self.moderator_version +'/moderation.json') as listing_file:
             moderation_json = json.load(listing_file, object_pairs_hook=OrderedDict)
         api_url = charlie["gateway_url"] + "ob/moderator"
         r = requests.put(api_url, data=json.dumps(moderation_json, indent=4))
@@ -56,16 +56,20 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
         time.sleep(4)
 
         # post profile for alice
-        with open('testdata/profile.json') as profile_file:
+        with open('testdata/'+ self.vendor_version +'/profile.json') as profile_file:
             profile_json = json.load(profile_file, object_pairs_hook=OrderedDict)
         api_url = alice["gateway_url"] + "ob/profile"
         requests.post(api_url, data=json.dumps(profile_json, indent=4))
 
         # post listing to alice
-        with open('testdata/listing.json') as listing_file:
+        with open('testdata/'+ self.vendor_version +'/listing.json') as listing_file:
             listing_json = json.load(listing_file, object_pairs_hook=OrderedDict)
-        if self.bitcoincash:
-            listing_json["metadata"]["pricingCurrency"] = "tbch"
+        listing_json["metadata"]["acceptedCurrencies"] = ["t" + self.cointype]
+        if self.vendor_version == "v4":
+            listing_json["metadata"]["priceCurrency"] = "t" + self.cointype
+        else:
+            listing_json["item"]["priceCurrency"]["code"] = "t" + self.cointype
+
         listing_json["moderators"] = [moderatorId]
         api_url = alice["gateway_url"] + "ob/listing"
         r = requests.post(api_url, data=json.dumps(listing_json, indent=4))
@@ -79,7 +83,7 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
         time.sleep(4)
 
         # get listing hash
-        api_url = alice["gateway_url"] + "ipns/" + alice["peerId"] + "/listings.json"
+        api_url = alice["gateway_url"] + "ob/listings/" + alice["peerId"]
         r = requests.get(api_url)
         if r.status_code != 200:
             raise TestFailure("CompleteDisputedTest - FAIL: Couldn't get listing index")
@@ -87,10 +91,11 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
         listingId = resp[0]["hash"]
 
         # bob send order
-        with open('testdata/order_direct.json') as order_file:
+        with open('testdata/'+ self.buyer_version +'/order_direct.json') as order_file:
             order_json = json.load(order_file, object_pairs_hook=OrderedDict)
         order_json["items"][0]["listingHash"] = listingId
         order_json["moderator"] = moderatorId
+        order_json["paymentCoin"] = "t" + self.cointype
         api_url = bob["gateway_url"] + "ob/purchase"
         r = requests.post(api_url, data=json.dumps(order_json, indent=4))
         if r.status_code == 404:
@@ -128,10 +133,16 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
 
         # fund order
         spend = {
+            "currencyCode": "T" + self.cointype,
             "address": payment_address,
-            "amount": payment_amount,
-            "feeLevel": "NORMAL"
+            "amount": payment_amount["amount"],
+            "feeLevel": "NORMAL",
+            "requireAssociateOrder": False
         }
+        if self.buyer_version == "v4":
+            spend["amount"] = payment_amount
+            spend["wallet"] = "T" + self.cointype
+
         api_url = bob["gateway_url"] + "wallet/spend"
         r = requests.post(api_url, data=json.dumps(spend, indent=4))
         if r.status_code == 404:
@@ -162,7 +173,21 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
             raise TestFailure("CompleteDisputedTest - FAIL: Alice failed to detect payment")
         if resp["funded"] == False:
             raise TestFailure("CompleteDisputedTest - FAIL: Alice incorrectly saved as unfunded")
-        
+
+        # alice send order fulfillment
+        with open('testdata/'+ self.vendor_version +'/fulfillment.json') as fulfillment_file:
+            fulfillment_json = json.load(fulfillment_file, object_pairs_hook=OrderedDict)
+        fulfillment_json["orderId"] = orderId
+        fulfillment_json["slug"] = slug
+        api_url = alice["gateway_url"] + "ob/orderfulfillment"
+        r = requests.post(api_url, data=json.dumps(fulfillment_json, indent=4))
+        if r.status_code == 404:
+            raise TestFailure("CompleteDisputedTest - FAIL: Fulfillment post endpoint not found")
+        elif r.status_code != 200:
+            resp = json.loads(r.text)
+            raise TestFailure("CompleteDisputedTest - FAIL: Fulfillment POST failed. Reason: %s", resp["reason"])
+        time.sleep(4)
+
         # Bob open dispute
         dispute = {
             "orderId": orderId,
@@ -248,7 +273,7 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
         if resp["state"] != "RESOLVED":
             raise TestFailure("CompleteDisputedTest - FAIL: Charlie failed to detect the dispute resolution")
 
-        # Bob relase funds
+        # Bob release funds
         release = {
             "OrderID": orderId,
         }
@@ -261,17 +286,22 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
             raise TestFailure("CompleteDisputedTest - FAIL: ReleaseFunds POST failed. Reason: %s", resp["reason"])
         time.sleep(20)
 
-        self.send_bitcoin_cmd("generate", 1)
-        time.sleep(2)
+        self.send_bitcoin_cmd("generatetoaddress", 1, self.bitcoin_address)
+        time.sleep(5)
 
         # Check bob received payout
-        api_url = bob["gateway_url"] + "wallet/balance"
+        api_url = bob["gateway_url"] + "wallet/balance/T" + self.cointype
         r = requests.get(api_url)
         if r.status_code == 200:
             resp = json.loads(r.text)
             confirmed = int(resp["confirmed"])
             #unconfirmed = int(resp["unconfirmed"])
-            if confirmed <= (generated_coins*100000000) - payment_amount:
+            amt = 0
+            if self.buyer_version == "v4":
+                amt = payment_amount
+            else:
+                amt = int(payment_amount["amount"])
+            if confirmed <= (generated_coins*100000000) - amt:
                 raise TestFailure("CompleteDisputedTest - FAIL: Bob failed to detect dispute payout")
         elif r.status_code == 404:
             raise TestFailure("CompleteDisputedTest - FAIL: Receive coins endpoint not found")
@@ -318,31 +348,32 @@ class CompleteDisputedTest(OpenBazaarTestFramework):
         api_url = bob["gateway_url"] + "ob/ordercompletion"
         r = requests.post(api_url, data=json.dumps(oc, indent=4))
         if r.status_code == 404:
-            raise TestFailure("CompleteDirectOnlineTest - FAIL: Completion post endpoint not found")
+            raise TestFailure("CompleteDisputedTest - FAIL: Completion post endpoint not found")
         elif r.status_code != 200:
             resp = json.loads(r.text)
-            raise TestFailure("CompleteDirectOnlineTest - FAIL: Completion POST failed. Reason: %s", resp["reason"])
+            raise TestFailure("CompleteDisputedTest - FAIL: Completion POST failed. Reason: %s", resp["reason"])
         time.sleep(4)
 
         # check alice received completion
         api_url = alice["gateway_url"] + "ob/order/" + orderId
         r = requests.get(api_url)
         if r.status_code != 200:
-            raise TestFailure("CompleteDirectOnlineTest - FAIL: Couldn't load order from Alice")
+            raise TestFailure("CompleteDisputedTest - FAIL: Couldn't load order from Alice")
         resp = json.loads(r.text)
         if resp["state"] != "COMPLETED":
-            raise TestFailure("CompleteDirectOnlineTest - FAIL: Alice failed to detect order completion")
+            raise TestFailure("CompleteDisputedTest - FAIL: Alice failed to detect order completion")
 
         # check bob set completion correctly
         api_url = bob["gateway_url"] + "ob/order/" + orderId
         r = requests.get(api_url)
         if r.status_code != 200:
-            raise TestFailure("CompleteDirectOnlineTest - FAIL: Couldn't load order from Bob")
+            raise TestFailure("CompleteDisputedTest - FAIL: Couldn't load order from Bob")
         resp = json.loads(r.text)
         if resp["state"] != "COMPLETED":
-            raise TestFailure("CompleteDirectOnlineTest - FAIL: Bob failed to order completion")
+            raise TestFailure("CompleteDisputedTest - FAIL: Bob failed to order completion")
 
         print("CompleteDisputedTest - PASS")
+
 
 if __name__ == '__main__':
     print("Running CompleteDisputedTest")

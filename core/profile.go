@@ -6,31 +6,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OpenBazaar/jsonpb"
+
 	"github.com/larslarsen/bb-go/ipfs"
-	"github.com/larslarsen/bb-go/pb"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/imdario/mergo"
-	ipnspb "github.com/ipfs/go-ipfs/namesys/pb"
-	ipnspath "github.com/ipfs/go-ipfs/path"
-	"gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	u "gx/ipfs/QmSU6eubNdhXjFBJBSksTp8kv8YRub8mGAPv8tVJHmL2EU/go-ipfs-util"
-	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
-	proto "gx/ipfs/QmZ4Qi3GaRbjcx28Sme5eMH7RQjGkt8wHxt2a65oLaeFEV/gogo-protobuf/proto"
+	"github.com/larslarsen/bb-go/repo"
+
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	ipnspath "gx/ipfs/QmQAgv6Gaoe2tQpcabqwKXKChp2MZ7i3UXv9DqTTaxCaTR/go-path"
+
+	"github.com/OpenBazaar/jsonpb"
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/imdario/mergo"
 )
 
-const (
-	cachePrefix       = "IPNSPERSISENTCACHE_"
-	CachedProfileTime = time.Hour * 24 * 7
-)
+// ErrorProfileNotFound - profile not found error
+var ErrorProfileNotFound = errors.New("profile not found")
 
-var ErrorProfileNotFound error = errors.New("Profile not found")
-
+// GetProfile - fetch user profile
 func (n *OpenBazaarNode) GetProfile() (pb.Profile, error) {
 	var profile pb.Profile
 	f, err := os.Open(path.Join(n.RepoPath, "root", "profile.json"))
@@ -45,135 +44,77 @@ func (n *OpenBazaarNode) GetProfile() (pb.Profile, error) {
 	return profile, nil
 }
 
-func (n *OpenBazaarNode) FetchProfile(peerId string, useCache bool) (pb.Profile, error) {
-	fetch := func(rootHash string) (pb.Profile, error) {
-		var pro pb.Profile
-		var profile []byte
-		var err error
-		if rootHash == "" {
-			profile, err = ipfs.ResolveThenCat(n.Context, ipnspath.FromString(path.Join(peerId, "profile.json")), time.Minute)
-			if err != nil || len(profile) == 0 {
-				return pro, err
+// FetchProfile - fetch peer's profile
+func (n *OpenBazaarNode) FetchProfile(peerID string, useCache bool) (pb.Profile, error) {
+	var pro pb.Profile
+	b, err := ipfs.ResolveThenCat(n.IpfsNode, ipnspath.FromString(path.Join(peerID, "profile.json")), time.Minute, n.IPNSQuorumSize, true)
+	if err != nil || len(b) == 0 {
+		return pro, err
+	}
+	p, err := repo.UnmarshalJSONProfile(b)
+	if err != nil {
+		log.Error("Profile fetch error", peerID, err)
+		return pro, err
+	}
+	p.NormalizeDataForAllSchemas()
+	return *p.GetProtobuf(), nil
+}
+
+// UpdateProfile - update user profile
+func (n *OpenBazaarNode) UpdateProfile(profile *pb.Profile) error {
+	mPubkey, err := n.MasterPrivateKey.ECPubKey()
+	if err != nil {
+		return fmt.Errorf("getting public key: %s", err.Error())
+	}
+
+	profile.Version = repo.ListingVersion
+	profile.BitcoinPubkey = hex.EncodeToString(mPubkey.SerializeCompressed())
+	var acceptedCurrencies = profile.GetCurrencies()
+	settingsData, err := n.Datastore.Settings().Get()
+	if err != nil {
+		log.Debug("settings not set, using default preferred currencies")
+	}
+	if len(acceptedCurrencies) == 0 {
+		if settingsData.PreferredCurrencies != nil {
+			for _, ct := range *settingsData.PreferredCurrencies {
+				def, err := n.LookupCurrency(ct)
+				if err != nil {
+					return fmt.Errorf("lookup currency (%s): %s", ct, err)
+				}
+				acceptedCurrencies = append(acceptedCurrencies, def.CurrencyCode().String())
 			}
 		} else {
-			profile, err = ipfs.Cat(n.Context, path.Join(rootHash, "profile.json"), time.Minute)
-			if err != nil || len(profile) == 0 {
-				return pro, err
+			for ct := range n.Multiwallet {
+				def, err := n.LookupCurrency(ct.CurrencyCode())
+				if err != nil {
+					return fmt.Errorf("lookup currency (%s): %s", ct.CurrencyCode(), err)
+				}
+				acceptedCurrencies = append(acceptedCurrencies, def.CurrencyCode().String())
 			}
 		}
-		err = jsonpb.UnmarshalString(string(profile), &pro)
-		if err != nil {
-			return pro, err
-		}
-		return pro, nil
 	}
 
-	var pro pb.Profile
-	var err error
-	var recordAvailable bool
-	var val interface{}
-	if useCache {
-		val, err = n.IpfsNode.Repo.Datastore().Get(ds.NewKey(cachePrefix + peerId))
-		if err != nil { // No record in datastore
-			pro, err = fetch("")
-			if err != nil {
-				return pb.Profile{}, err
-			}
-		} else { // Record available, let's see how old it is
-			entry := new(ipnspb.IpnsEntry)
-			err = proto.Unmarshal(val.([]byte), entry)
-			if err != nil {
-				return pb.Profile{}, err
-			}
-			p, err := ipnspath.ParsePath(string(entry.GetValue()))
-			if err != nil {
-				return pb.Profile{}, err
-			}
-			eol, ok := checkEOL(entry)
-			if ok && eol.Before(time.Now()) { // Too old, fetch new profile
-				pro, err = fetch("")
-			} else { // Relatively new, we can do a standard IPFS query (which should be cached)
-				pro, err = fetch(strings.TrimPrefix(p.String(), "/ipfs/"))
-				// Let's now try to get the latest record in a new goroutine so it's available next time
-				go fetch("")
-			}
-			if err != nil {
-				return pb.Profile{}, err
-			}
-			recordAvailable = true
-		}
-	} else {
-		pro, err = fetch("")
-		if err != nil {
-			return pb.Profile{}, err
-		}
-		recordAvailable = false
-	}
-
-	if err := ValidateProfile(&pro); err != nil {
-		return pb.Profile{}, err
-	}
-
-	// Update the record with a new EOL
-	go func() {
-		if !recordAvailable {
-			val, err = n.IpfsNode.Repo.Datastore().Get(ds.NewKey(cachePrefix + peerId))
-			if err != nil {
-				return
-			}
-		}
-		entry := new(ipnspb.IpnsEntry)
-		err = proto.Unmarshal(val.([]byte), entry)
-		if err != nil {
-			return
-		}
-		entry.Validity = []byte(u.FormatRFC3339(time.Now().Add(CachedProfileTime)))
-		v, err := proto.Marshal(entry)
-		if err != nil {
-			return
-		}
-		n.IpfsNode.Repo.Datastore().Put(ds.NewKey(cachePrefix+peerId), v)
-	}()
-	return pro, nil
-}
-
-func checkEOL(e *ipnspb.IpnsEntry) (time.Time, bool) {
-	if e.GetValidityType() == ipnspb.IpnsEntry_EOL {
-		eol, err := u.ParseRFC3339(string(e.GetValidity()))
-		if err != nil {
-			return time.Time{}, false
-		}
-		return eol, true
-	}
-	return time.Time{}, false
-}
-
-func (n *OpenBazaarNode) UpdateProfile(profile *pb.Profile) error {
-	mPubkey, err := n.Wallet.MasterPublicKey().ECPubKey()
-	if err != nil {
-		return err
-	}
-
-	if err := ValidateProfile(profile); err != nil {
-		return err
-	}
-
-	profile.BitcoinPubkey = hex.EncodeToString(mPubkey.SerializeCompressed())
-	m := jsonpb.Marshaler{
-		EnumsAsInts:  false,
-		EmitDefaults: true,
-		Indent:       "    ",
-		OrigName:     false,
-	}
+	profile.Currencies = acceptedCurrencies
 	if profile.ModeratorInfo != nil {
-		profile.ModeratorInfo.AcceptedCurrencies = []string{strings.ToUpper(n.Wallet.CurrencyCode())}
+		profile.ModeratorInfo.AcceptedCurrencies = acceptedCurrencies
 	}
+
 	profile.PeerID = n.IpfsNode.Identity.Pretty()
 	ts, err := ptypes.TimestampProto(time.Now())
 	if err != nil {
 		return err
 	}
 	profile.LastModified = ts
+	if err := ValidateProfile(profile); err != nil {
+		return err
+	}
+
+	m := jsonpb.Marshaler{
+		EnumsAsInts:  false,
+		EmitDefaults: true,
+		Indent:       "    ",
+		OrigName:     false,
+	}
 	out, err := m.MarshalToString(profile)
 	if err != nil {
 		return err
@@ -181,16 +122,17 @@ func (n *OpenBazaarNode) UpdateProfile(profile *pb.Profile) error {
 
 	profilePath := path.Join(n.RepoPath, "root", "profile.json")
 	f, err := os.Create(profilePath)
-	defer f.Close()
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	if _, err := f.WriteString(out); err != nil {
 		return err
 	}
 	return nil
 }
 
+// PatchProfile - patch user profile
 func (n *OpenBazaarNode) PatchProfile(patch map[string]interface{}) error {
 	profilePath := path.Join(n.RepoPath, "root", "profile.json")
 
@@ -214,11 +156,11 @@ func (n *OpenBazaarNode) PatchProfile(patch map[string]interface{}) error {
 	if pok && sok {
 		patchBool, ok := patchMod.(bool)
 		if !ok {
-			return errors.New("Invalid moderator type")
+			return errors.New("invalid moderator type")
 		}
 		storedBool, ok := storedMod.(bool)
 		if !ok {
-			return errors.New("Invalid moderator type")
+			return errors.New("invalid moderator type")
 		}
 		if patchBool && patchBool != storedBool {
 			if err := n.SetSelfAsModerator(nil); err != nil {
@@ -239,16 +181,37 @@ func (n *OpenBazaarNode) PatchProfile(patch map[string]interface{}) error {
 		return err
 	}
 
-	// Execute UpdateProfile with new profile
 	newProfile, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
 	p := new(pb.Profile)
 	if err := jsonpb.Unmarshal(bytes.NewReader(newProfile), p); err != nil {
 		return err
 	}
-	return n.UpdateProfile(p)
+
+	repoProfile, err := repo.UnmarshalJSONProfile(newProfile)
+	if err != nil {
+		return fmt.Errorf("building profile for validation: %s", err.Error())
+	}
+
+	repoProfile.NormalizeDataForAllSchemas()
+
+	if repoProfile.GetProtobuf().ModeratorInfo != nil &&
+		repoProfile.GetProtobuf().ModeratorInfo.Fee != nil &&
+		repoProfile.GetProtobuf().ModeratorInfo.Fee.FeeType == pb.Moderator_Fee_PERCENTAGE {
+
+		repoProfile.GetProtobuf().ModeratorInfo.Fee.FixedFee = nil
+	}
+
+	if err := repoProfile.Valid(); err != nil {
+		return fmt.Errorf("invalid profile: %s", err.Error())
+	}
+
+	return n.UpdateProfile(repoProfile.GetProtobuf())
 }
 
-func (n *OpenBazaarNode) appendCountsToProfile(profile *pb.Profile) (*pb.Profile, bool, error) {
+func (n *OpenBazaarNode) appendCountsToProfile(profile *pb.Profile) (*pb.Profile, bool) {
 	if profile.Stats == nil {
 		profile.Stats = new(pb.Profile_Stats)
 	}
@@ -279,7 +242,7 @@ func (n *OpenBazaarNode) appendCountsToProfile(profile *pb.Profile) (*pb.Profile
 		profile.Stats.AverageRating = averageRating
 		changed = true
 	}
-	return profile, changed, nil
+	return profile, changed
 }
 
 func (n *OpenBazaarNode) updateProfileCounts() error {
@@ -289,10 +252,10 @@ func (n *OpenBazaarNode) updateProfileCounts() error {
 	if !os.IsNotExist(ferr) {
 		// Read existing file
 		file, err := os.Open(profilePath)
-		defer file.Close()
 		if err != nil {
 			return err
 		}
+		defer file.Close()
 		err = jsonpb.Unmarshal(file, profile)
 		if err != nil {
 			return err
@@ -300,10 +263,7 @@ func (n *OpenBazaarNode) updateProfileCounts() error {
 	} else {
 		return nil
 	}
-	newPro, changed, err := n.appendCountsToProfile(profile)
-	if err != nil {
-		return err
-	}
+	newPro, changed := n.appendCountsToProfile(profile)
 	if changed {
 		return n.UpdateProfile(newPro)
 	}
@@ -330,84 +290,90 @@ func (n *OpenBazaarNode) updateProfileRatings(newRating *pb.Rating) error {
 	if profile.Stats != nil && newRating.RatingData != nil {
 		total := profile.Stats.AverageRating * float32(profile.Stats.RatingCount)
 		total += float32(newRating.RatingData.Overall)
-		profile.Stats.RatingCount += 1
+		profile.Stats.RatingCount++ // += 1
 		profile.Stats.AverageRating = total / float32(profile.Stats.RatingCount)
 	}
-	newPro, _, err := n.appendCountsToProfile(profile)
-	if err != nil {
-		return err
-	}
+	newPro, _ := n.appendCountsToProfile(profile)
 
 	return n.UpdateProfile(newPro)
 }
 
+// ValidateProfile - validate fetched profile
 func ValidateProfile(profile *pb.Profile) error {
 	if strings.Contains(profile.Handle, "@") {
-		return errors.New("Handle should not contain @")
+		return errors.New("handle should not contain @")
 	}
-	if len(profile.Handle) > WordMaxCharacters {
-		return fmt.Errorf("Handle character length is greater than the max of %d", WordMaxCharacters)
+	if len(profile.Handle) > repo.WordMaxCharacters {
+		return fmt.Errorf("handle character length is greater than the max of %d", repo.WordMaxCharacters)
 	}
 	if len(profile.Name) == 0 {
-		return errors.New("Profile name not set")
+		return errors.New("profile name not set")
 	}
-	if len(profile.Name) > WordMaxCharacters {
-		return fmt.Errorf("Name character length is greater than the max of %d", WordMaxCharacters)
+	if len(profile.Name) > repo.WordMaxCharacters {
+		return fmt.Errorf("name character length is greater than the max of %d", repo.WordMaxCharacters)
 	}
-	if len(profile.Location) > WordMaxCharacters {
-		return fmt.Errorf("Location character length is greater than the max of %d", WordMaxCharacters)
+	if len(profile.Location) > repo.WordMaxCharacters {
+		return fmt.Errorf("location character length is greater than the max of %d", repo.WordMaxCharacters)
 	}
-	if len(profile.About) > AboutMaxCharacters {
-		return fmt.Errorf("About character length is greater than the max of %d", AboutMaxCharacters)
+	if len(profile.About) > repo.AboutMaxCharacters {
+		return fmt.Errorf("about character length is greater than the max of %d", repo.AboutMaxCharacters)
 	}
-	if len(profile.ShortDescription) > ShortDescriptionLength {
-		return fmt.Errorf("Short description character length is greater than the max of %d", ShortDescriptionLength)
+	if len(profile.ShortDescription) > repo.ShortDescriptionLength {
+		return fmt.Errorf("short description character length is greater than the max of %d", repo.ShortDescriptionLength)
 	}
 	if profile.ContactInfo != nil {
-		if len(profile.ContactInfo.Website) > URLMaxCharacters {
-			return fmt.Errorf("Website character length is greater than the max of %d", URLMaxCharacters)
+		if len(profile.ContactInfo.Website) > repo.URLMaxCharacters {
+			return fmt.Errorf("website character length is greater than the max of %d", repo.URLMaxCharacters)
 		}
-		if len(profile.ContactInfo.Email) > SentenceMaxCharacters {
-			return fmt.Errorf("Email character length is greater than the max of %d", SentenceMaxCharacters)
+		if len(profile.ContactInfo.Email) > repo.SentenceMaxCharacters {
+			return fmt.Errorf("email character length is greater than the max of %d", repo.SentenceMaxCharacters)
 		}
-		if len(profile.ContactInfo.PhoneNumber) > WordMaxCharacters {
-			return fmt.Errorf("Phone number character length is greater than the max of %d", WordMaxCharacters)
+		if len(profile.ContactInfo.PhoneNumber) > repo.WordMaxCharacters {
+			return fmt.Errorf("phone number character length is greater than the max of %d", repo.WordMaxCharacters)
 		}
-		if len(profile.ContactInfo.Social) > MaxListItems {
-			return fmt.Errorf("Number of social accounts is greater than the max of %d", MaxListItems)
+		if len(profile.ContactInfo.Social) > repo.MaxListItems {
+			return fmt.Errorf("number of social accounts is greater than the max of %d", repo.MaxListItems)
 		}
 		for _, s := range profile.ContactInfo.Social {
-			if len(s.Username) > WordMaxCharacters {
-				return fmt.Errorf("Social username character length is greater than the max of %d", WordMaxCharacters)
+			if len(s.Username) > repo.WordMaxCharacters {
+				return fmt.Errorf("social username character length is greater than the max of %d", repo.WordMaxCharacters)
 			}
-			if len(s.Type) > WordMaxCharacters {
-				return fmt.Errorf("Social account type character length is greater than the max of %d", WordMaxCharacters)
+			if len(s.Type) > repo.WordMaxCharacters {
+				return fmt.Errorf("social account type character length is greater than the max of %d", repo.WordMaxCharacters)
 			}
-			if len(s.Proof) > URLMaxCharacters {
-				return fmt.Errorf("Social proof character length is greater than the max of %d", WordMaxCharacters)
+			if len(s.Proof) > repo.URLMaxCharacters {
+				return fmt.Errorf("social proof character length is greater than the max of %d", repo.WordMaxCharacters)
 			}
 		}
 	}
 	if profile.ModeratorInfo != nil {
-		if len(profile.ModeratorInfo.Description) > AboutMaxCharacters {
-			return fmt.Errorf("Moderator description character length is greater than the max of %d", AboutMaxCharacters)
+		if len(profile.ModeratorInfo.Description) > repo.AboutMaxCharacters {
+			return fmt.Errorf("moderator description character length is greater than the max of %d", repo.AboutMaxCharacters)
 		}
-		if len(profile.ModeratorInfo.TermsAndConditions) > PolicyMaxCharacters {
-			return fmt.Errorf("Moderator terms and conditions character length is greater than the max of %d", PolicyMaxCharacters)
+		if len(profile.ModeratorInfo.TermsAndConditions) > repo.PolicyMaxCharacters {
+			return fmt.Errorf("moderator terms and conditions character length is greater than the max of %d", repo.PolicyMaxCharacters)
 		}
-		if len(profile.ModeratorInfo.Languages) > MaxListItems {
-			return fmt.Errorf("Moderator number of languages greater than the max of %d", MaxListItems)
+		if len(profile.ModeratorInfo.Languages) > repo.MaxListItems {
+			return fmt.Errorf("moderator number of languages greater than the max of %d", repo.MaxListItems)
 		}
 		for _, l := range profile.ModeratorInfo.Languages {
-			if len(l) > WordMaxCharacters {
-				return fmt.Errorf("Moderator language character length is greater than the max of %d", WordMaxCharacters)
+			if len(l) > repo.WordMaxCharacters {
+				return fmt.Errorf("moderator language character length is greater than the max of %d", repo.WordMaxCharacters)
 			}
 		}
 		if profile.ModeratorInfo.Fee != nil {
+			var moderatorCurrencyCode string
 			if profile.ModeratorInfo.Fee.FixedFee != nil {
-				if len(profile.ModeratorInfo.Fee.FixedFee.CurrencyCode) > WordMaxCharacters {
-					return fmt.Errorf("Moderator fee currency code character length is greater than the max of %d", WordMaxCharacters)
+				if profile.ModeratorInfo.Fee.FixedFee.AmountCurrency == nil {
+					moderatorCurrencyCode = profile.ModeratorInfo.Fee.FixedFee.CurrencyCode
+				} else {
+					moderatorCurrencyCode = profile.ModeratorInfo.Fee.FixedFee.AmountCurrency.Code
 				}
+			}
+
+			if profile.ModeratorInfo.Fee.FeeType != pb.Moderator_Fee_PERCENTAGE && profile.ModeratorInfo.Fee.FixedFee != nil &&
+				len(moderatorCurrencyCode) > repo.WordMaxCharacters {
+				return fmt.Errorf("moderator fee currency code character length is greater than the max of %d", repo.WordMaxCharacters)
 			}
 		}
 	}
@@ -415,54 +381,54 @@ func ValidateProfile(profile *pb.Profile) error {
 		profile.AvatarHashes.Small != "" || profile.AvatarHashes.Tiny != "" || profile.AvatarHashes.Original != "") {
 		_, err := cid.Decode(profile.AvatarHashes.Tiny)
 		if err != nil {
-			return errors.New("Tiny image hashes must be properly formatted CID")
+			return errors.New("tiny image hashes must be properly formatted CID")
 		}
 		_, err = cid.Decode(profile.AvatarHashes.Small)
 		if err != nil {
-			return errors.New("Small image hashes must be properly formatted CID")
+			return errors.New("small image hashes must be properly formatted CID")
 		}
 		_, err = cid.Decode(profile.AvatarHashes.Medium)
 		if err != nil {
-			return errors.New("Medium image hashes must be properly formatted CID")
+			return errors.New("medium image hashes must be properly formatted CID")
 		}
 		_, err = cid.Decode(profile.AvatarHashes.Large)
 		if err != nil {
-			return errors.New("Large image hashes must be properly formatted CID")
+			return errors.New("large image hashes must be properly formatted CID")
 		}
 		_, err = cid.Decode(profile.AvatarHashes.Original)
 		if err != nil {
-			return errors.New("Original image hashes must be properly formatted CID")
+			return errors.New("original image hashes must be properly formatted CID")
 		}
 	}
 	if profile.HeaderHashes != nil && (profile.HeaderHashes.Large != "" || profile.HeaderHashes.Medium != "" ||
 		profile.HeaderHashes.Small != "" || profile.HeaderHashes.Tiny != "" || profile.HeaderHashes.Original != "") {
 		_, err := cid.Decode(profile.HeaderHashes.Tiny)
 		if err != nil {
-			return errors.New("Tiny image hashes must be properly formatted CID")
+			return errors.New("tiny image hashes must be properly formatted CID")
 		}
 		_, err = cid.Decode(profile.HeaderHashes.Small)
 		if err != nil {
-			return errors.New("Small image hashes must be properly formatted CID")
+			return errors.New("small image hashes must be properly formatted CID")
 		}
 		_, err = cid.Decode(profile.HeaderHashes.Medium)
 		if err != nil {
-			return errors.New("Medium image hashes must be properly formatted CID")
+			return errors.New("medium image hashes must be properly formatted CID")
 		}
 		_, err = cid.Decode(profile.HeaderHashes.Large)
 		if err != nil {
-			return errors.New("Large image hashes must be properly formatted CID")
+			return errors.New("large image hashes must be properly formatted CID")
 		}
 		_, err = cid.Decode(profile.HeaderHashes.Original)
 		if err != nil {
-			return errors.New("Original image hashes must be properly formatted CID")
+			return errors.New("original image hashes must be properly formatted CID")
 		}
 	}
 	if len(profile.BitcoinPubkey) > 66 {
-		return fmt.Errorf("Bitcoin public key character length is greater than the max of %d", 66)
+		return fmt.Errorf("bitcoin public key character length is greater than the max of %d", 66)
 	}
 	if profile.Stats != nil {
 		if profile.Stats.AverageRating > 5 {
-			return fmt.Errorf("Average rating cannot be greater than %d", 5)
+			return fmt.Errorf("average rating cannot be greater than %d", 5)
 		}
 	}
 	return nil

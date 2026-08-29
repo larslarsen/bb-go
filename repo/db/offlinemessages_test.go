@@ -1,30 +1,46 @@
-package db
+package db_test
 
 import (
 	"bytes"
-	"database/sql"
 	"sync"
 	"testing"
+
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/repo/db"
+	"github.com/larslarsen/bb-go/schema"
 )
 
-var odb OfflineMessagesDB
-
-func init() {
-	conn, _ := sql.Open("sqlite3", ":memory:")
-	initDatabaseTables(conn, "")
-	odb = OfflineMessagesDB{
-		db:   conn,
-		lock: new(sync.Mutex),
+func buildNewOfflineMessageStore() (repo.OfflineMessageStore, func(), error) {
+	appSchema := schema.MustNewCustomSchemaManager(schema.SchemaContext{
+		DataPath:        schema.GenerateTempPath(),
+		TestModeEnabled: true,
+	})
+	if err := appSchema.BuildSchemaDirectories(); err != nil {
+		return nil, nil, err
 	}
+	if err := appSchema.InitializeDatabase(); err != nil {
+		return nil, nil, err
+	}
+	database, err := appSchema.OpenDatabase()
+	if err != nil {
+		return nil, nil, err
+	}
+	return db.NewOfflineMessageStore(database, new(sync.Mutex)), appSchema.DestroySchemaDirectories, nil
 }
 
 func TestOfflineMessagesPut(t *testing.T) {
-	err := odb.Put("abc")
+	odb, teardown, err := buildNewOfflineMessageStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = odb.Put("abc")
 	if err != nil {
 		t.Error(err)
 	}
 
-	stmt, _ := odb.db.Prepare("select url, timestamp from offlinemessages where url=?")
+	stmt, _ := odb.PrepareQuery("select url, timestamp from offlinemessages where url=?")
 	defer stmt.Close()
 
 	var url string
@@ -39,7 +55,13 @@ func TestOfflineMessagesPut(t *testing.T) {
 }
 
 func TestOfflineMessagesPutDuplicate(t *testing.T) {
-	err := odb.Put("123")
+	odb, teardown, err := buildNewOfflineMessageStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = odb.Put("123")
 	if err != nil {
 		t.Error(err)
 	}
@@ -50,7 +72,13 @@ func TestOfflineMessagesPutDuplicate(t *testing.T) {
 }
 
 func TestOfflineMessagesHas(t *testing.T) {
-	err := odb.Put("abcc")
+	odb, teardown, err := buildNewOfflineMessageStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = odb.Put("abcc")
 	if err != nil {
 		t.Error(err)
 	}
@@ -65,7 +93,13 @@ func TestOfflineMessagesHas(t *testing.T) {
 }
 
 func TestOfflineMessagesSetMessage(t *testing.T) {
-	err := odb.Put("abccc")
+	odb, teardown, err := buildNewOfflineMessageStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardown()
+
+	err = odb.Put("abccc")
 	if err != nil {
 		t.Error(err)
 	}
@@ -90,7 +124,7 @@ func TestOfflineMessagesSetMessage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	m, ok = messages["abccc"]
+	_, ok = messages["abccc"]
 	if ok {
 		t.Error("Failed to delete")
 	}

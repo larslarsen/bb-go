@@ -1,47 +1,57 @@
 package core
 
 import (
-	multihash "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
-	libp2p "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
-
 	"errors"
+	"fmt"
+	"sync"
+	"time"
+
+	libp2p "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	"gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	"gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
+
 	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"golang.org/x/net/context"
-	"gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	"sync"
-	"time"
 )
 
 const (
-	CHAT_MESSAGE_MAX_CHARACTERS = 20000
-	CHAT_SUBJECT_MAX_CHARACTERS = 500
-	DefaultPointerPrefixLength  = 14
+	// ChatMessageMaxCharacters - limit for chat msg
+	ChatMessageMaxCharacters = 20000
+	// ChatSubjectMaxCharacters - limit for chat subject
+	ChatSubjectMaxCharacters = 500
+	// DefaultPointerPrefixLength - default ipfs pointer prefix
+	DefaultPointerPrefixLength = 14
 )
 
+// OfflineMessageWaitGroup - used for offline msgs
 var OfflineMessageWaitGroup sync.WaitGroup
 
-func (n *OpenBazaarNode) sendMessage(peerId string, k *libp2p.PubKey, message pb.Message) error {
-	p, err := peer.IDB58Decode(peerId)
+func (n *OpenBazaarNode) sendMessage(peerID string, k *libp2p.PubKey, message pb.Message) error {
+	p, err := peer.IDB58Decode(peerID)
 	if err != nil {
+		log.Errorf("failed to decode peerID: %v", err)
 		return err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), n.OfflineMessageFailoverTimeout)
 	defer cancel()
 	err = n.Service.SendMessage(ctx, p, &message)
 	if err != nil {
-		if err := n.SendOfflineMessage(p, k, &message); err != nil {
-			return err
-		}
+		go func() {
+			if err := n.SendOfflineMessage(p, k, &message); err != nil {
+				log.Errorf("Error sending offline message %s", err.Error())
+			}
+		}()
 	}
 	return nil
 }
 
-// Supply of a public key is optional, if nil is instead provided n.EncryptMessage does a lookup
+// SendOfflineMessage Supply of a public key is optional, if nil is instead provided n.EncryptMessage does a lookup
 func (n *OpenBazaarNode) SendOfflineMessage(p peer.ID, k *libp2p.PubKey, m *pb.Message) error {
 	pubKeyBytes, err := n.IpfsNode.PrivateKey.GetPublic().Bytes()
 	if err != nil {
@@ -60,6 +70,7 @@ func (n *OpenBazaarNode) SendOfflineMessage(p peer.ID, k *libp2p.PubKey, m *pb.M
 	if merr != nil {
 		return merr
 	}
+	// TODO: this function blocks if the recipient's public key is not on the local machine
 	ciphertext, cerr := n.EncryptMessage(p, k, messageBytes)
 	if cerr != nil {
 		return cerr
@@ -87,41 +98,62 @@ func (n *OpenBazaarNode) SendOfflineMessage(p peer.ID, k *libp2p.PubKey, m *pb.M
 		}
 	}
 	log.Debugf("Sending offline message to: %s, Message Type: %s, PointerID: %s, Location: %s", p.Pretty(), m.MessageType.String(), pointer.Cid.String(), pointer.Value.Addrs[0].String())
-	OfflineMessageWaitGroup.Add(1)
+
+	// We publish our pointers to three different locations:
+	// 1. The pushnodes
+	// 2. The DHT
+	// 3. Pubsub
+	// Each one is done in a separate goroutine so as to not block but we
+	// do increment the OfflineMessageWaitGroup which is used to block
+	// shutdown until all publishing is finished.
+	OfflineMessageWaitGroup.Add(2 + len(n.PushNodes))
+	for _, p := range n.PushNodes {
+		go func(pid peer.ID) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			err := ipfs.PutPointerToPeer(n.DHT, ctx, pid, pointer)
+			if err != nil {
+				log.Error(err)
+			}
+			OfflineMessageWaitGroup.Done()
+		}(p)
+	}
 	go func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		err := ipfs.PublishPointer(n.IpfsNode, ctx, pointer)
+		err := ipfs.PublishPointer(n.DHT, ctx, pointer)
 		if err != nil {
 			log.Error(err)
 		}
 
-		// Push provider to our push nodes for redundancy
-		for _, p := range n.PushNodes {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			err := ipfs.PutPointerToPeer(n.IpfsNode, ctx, p, pointer)
-			if err != nil {
-				log.Error(err)
-			}
+		OfflineMessageWaitGroup.Done()
+	}()
+	go func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		err := n.Pubsub.Publisher.Publish(ctx, pointer.Cid.String(), ciphertext)
+		if err != nil {
+			log.Error(err)
 		}
-
 		OfflineMessageWaitGroup.Done()
 	}()
 	return nil
 }
 
-func (n *OpenBazaarNode) SendOfflineAck(peerId string, pointerID peer.ID) error {
+// SendOfflineAck - send ack to offline peer
+func (n *OpenBazaarNode) SendOfflineAck(peerID string, pointerID peer.ID) error {
 	a := &any.Any{Value: []byte(pointerID.Pretty())}
 	m := pb.Message{
 		MessageType: pb.Message_OFFLINE_ACK,
 		Payload:     a}
-	return n.sendMessage(peerId, nil, m)
+	return n.sendMessage(peerID, nil, m)
 }
 
-func (n *OpenBazaarNode) GetPeerStatus(peerId string) (string, error) {
-	p, err := peer.IDB58Decode(peerId)
+// GetPeerStatus - check if a peer is online/offline
+func (n *OpenBazaarNode) GetPeerStatus(peerID string) (string, error) {
+	p, err := peer.IDB58Decode(peerID)
 	if err != nil {
+		log.Errorf("failed to decode peerID: %v", err)
 		return "", err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -134,7 +166,8 @@ func (n *OpenBazaarNode) GetPeerStatus(peerId string) (string, error) {
 	return "online", nil
 }
 
-func (n *OpenBazaarNode) Follow(peerId string) error {
+// Follow - follow a peer
+func (n *OpenBazaarNode) Follow(peerID string) error {
 	m := pb.Message{MessageType: pb.Message_FOLLOW}
 
 	pubkey := n.IpfsNode.PrivateKey.GetPublic()
@@ -147,7 +180,7 @@ func (n *OpenBazaarNode) Follow(peerId string) error {
 		return err
 	}
 	data := &pb.SignedData_Command{
-		PeerID:    peerId,
+		PeerID:    peerID,
 		Type:      pb.Message_FOLLOW,
 		Timestamp: ts,
 	}
@@ -164,17 +197,18 @@ func (n *OpenBazaarNode) Follow(peerId string) error {
 		SenderPubkey:   pubkeyBytes,
 		Signature:      sig,
 	}
-	any, err := ptypes.MarshalAny(sd)
+	pbAny, err := ptypes.MarshalAny(sd)
 	if err != nil {
+		log.Errorf("failed to marshal the signedData: %v", err)
 		return err
 	}
-	m.Payload = any
+	m.Payload = pbAny
 
-	err = n.sendMessage(peerId, nil, m)
+	err = n.sendMessage(peerID, nil, m)
 	if err != nil {
 		return err
 	}
-	err = n.Datastore.Following().Put(peerId)
+	err = n.Datastore.Following().Put(peerID)
 	if err != nil {
 		return err
 	}
@@ -185,7 +219,8 @@ func (n *OpenBazaarNode) Follow(peerId string) error {
 	return nil
 }
 
-func (n *OpenBazaarNode) Unfollow(peerId string) error {
+// Unfollow - unfollow a peer
+func (n *OpenBazaarNode) Unfollow(peerID string) error {
 	m := pb.Message{MessageType: pb.Message_UNFOLLOW}
 
 	pubkey := n.IpfsNode.PrivateKey.GetPublic()
@@ -198,7 +233,7 @@ func (n *OpenBazaarNode) Unfollow(peerId string) error {
 		return err
 	}
 	data := &pb.SignedData_Command{
-		PeerID:    peerId,
+		PeerID:    peerID,
 		Type:      pb.Message_UNFOLLOW,
 		Timestamp: ts,
 	}
@@ -215,17 +250,18 @@ func (n *OpenBazaarNode) Unfollow(peerId string) error {
 		SenderPubkey:   pubkeyBytes,
 		Signature:      sig,
 	}
-	any, err := ptypes.MarshalAny(sd)
+	pbAny, err := ptypes.MarshalAny(sd)
 	if err != nil {
+		log.Errorf("failed to marshal the signedData: %v", err)
 		return err
 	}
-	m.Payload = any
+	m.Payload = pbAny
 
-	err = n.sendMessage(peerId, nil, m)
+	err = n.sendMessage(peerID, nil, m)
 	if err != nil {
 		return err
 	}
-	err = n.Datastore.Following().Delete(peerId)
+	err = n.Datastore.Following().Delete(peerID)
 	if err != nil {
 		return err
 	}
@@ -236,33 +272,85 @@ func (n *OpenBazaarNode) Unfollow(peerId string) error {
 	return nil
 }
 
-func (n *OpenBazaarNode) SendOrder(peerId string, contract *pb.RicardianContract) (resp *pb.Message, err error) {
-	p, err := peer.IDB58Decode(peerId)
+// ResendCachedOrderMessage will retrieve the ORDER message from the datastore and resend it to the peerID
+// for which it was originally intended
+func (n *OpenBazaarNode) ResendCachedOrderMessage(orderID string, msgType pb.Message_MessageType) error {
+	if _, ok := pb.Message_MessageType_name[int32(msgType)]; !ok {
+		return fmt.Errorf("invalid order message type (%d)", int(msgType))
+	}
+
+	msg, peerID, err := n.Datastore.Messages().GetByOrderIDType(orderID, msgType)
+	if err != nil || msg == nil || msg.Msg.GetPayload() == nil {
+		return fmt.Errorf("unable to find message for order ID (%s) and message type (%s)", orderID, msgType.String())
+	}
+
+	p, err := peer.IDB58Decode(peerID)
 	if err != nil {
+		return fmt.Errorf("unable to decode invalid peer ID for order (%s) and message type (%s)", orderID, msgType.String())
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), n.OfflineMessageFailoverTimeout)
+	defer cancel()
+
+	if err = n.Service.SendMessage(ctx, p, &msg.Msg); err != nil {
+		go func() {
+			if err := n.SendOfflineMessage(p, nil, &msg.Msg); err != nil {
+				log.Errorf("error resending offline message for order id (%s) and message type (%+v): %s", orderID, msgType, err.Error())
+			}
+		}()
+	}
+	return nil
+}
+
+// SendOrder - send order created msg to peer
+func (n *OpenBazaarNode) SendOrder(peerID string, contract *pb.RicardianContract) (resp *pb.Message, err error) {
+	p, err := peer.IDB58Decode(peerID)
+	if err != nil {
+		log.Errorf("failed to decode peerID: %v", err)
 		return resp, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), n.OfflineMessageFailoverTimeout)
 	defer cancel()
-	any, err := ptypes.MarshalAny(contract)
+	pbAny, err := ptypes.MarshalAny(contract)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return resp, err
 	}
 	m := pb.Message{
 		MessageType: pb.Message_ORDER,
-		Payload:     any,
+		Payload:     pbAny,
 	}
-
+	orderID0, err := n.CalcOrderID(contract.BuyerOrder)
+	if err != nil {
+		log.Errorf("failed calculating order id: %v", err)
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_ORDER)),
+			orderID0, pb.Message_ORDER, peerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_ORDER), err)
+		}
+	}
 	resp, err = n.Service.SendRequest(ctx, p, &m)
 	if err != nil {
+		log.Errorf("failed to send order request: %v", err)
 		return resp, err
 	}
 	return resp, nil
 }
 
-func (n *OpenBazaarNode) SendOrderConfirmation(peerId string, contract *pb.RicardianContract) error {
+// SendError - send error msg to peer
+func (n *OpenBazaarNode) SendError(peerID string, k *libp2p.PubKey, errorMessage pb.Message) error {
+	return n.sendMessage(peerID, k, errorMessage)
+}
+
+// SendOrderConfirmation - send order confirmed msg to peer
+func (n *OpenBazaarNode) SendOrderConfirmation(peerID string, contract *pb.RicardianContract) error {
 	a, err := ptypes.MarshalAny(contract)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return err
 	}
 	m := pb.Message{
@@ -271,35 +359,61 @@ func (n *OpenBazaarNode) SendOrderConfirmation(peerId string, contract *pb.Ricar
 	}
 	k, err := libp2p.UnmarshalPublicKey(contract.GetBuyerOrder().GetBuyerID().GetPubkeys().Identity)
 	if err != nil {
+		log.Errorf("failed to unmarshal the publicKey: %v", err)
 		return err
 	}
-	return n.sendMessage(peerId, &k, m)
+	orderID0 := contract.VendorOrderConfirmation.OrderID
+	if orderID0 == "" {
+		log.Errorf("failed fetching orderID")
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_ORDER_CONFIRMATION)),
+			orderID0, pb.Message_ORDER_CONFIRMATION, peerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_ORDER_CONFIRMATION), err)
+		}
+	}
+	return n.sendMessage(peerID, &k, m)
 }
 
-func (n *OpenBazaarNode) SendCancel(peerId, orderId string) error {
-	a := &any.Any{Value: []byte(orderId)}
+// SendCancel - send order canceled msg to peer
+func (n *OpenBazaarNode) SendCancel(peerID, orderID string) error {
+	a := &any.Any{Value: []byte(orderID)}
 	m := pb.Message{
 		MessageType: pb.Message_ORDER_CANCEL,
 		Payload:     a,
 	}
 	//try to get public key from order
-	order, _, _, _, _, err := n.Datastore.Purchases().GetByOrderId(orderId)
+	order, _, _, _, _, _, err := n.Datastore.Purchases().GetByOrderId(orderID)
 	var kp *libp2p.PubKey
+	var pub []byte
 	if err != nil { //probably implies we can't find the order in the Datastore
 		kp = nil //instead SendOfflineMessage can try to get the key from the peerId
+		pub = order.BuyerOrder.BuyerID.Pubkeys.Identity
 	} else {
 		k, err := libp2p.UnmarshalPublicKey(order.GetVendorListings()[0].GetVendorID().GetPubkeys().Identity)
 		if err != nil {
 			return err
 		}
 		kp = &k
+		pub = order.VendorListings[0].VendorID.Pubkeys.Identity
 	}
-	return n.sendMessage(peerId, kp, m)
+	err = n.Datastore.Messages().Put(
+		fmt.Sprintf("%s-%d", orderID, int(pb.Message_ORDER_CANCEL)),
+		orderID, pb.Message_ORDER_CANCEL, peerID, repo.Message{Msg: m},
+		"", 0, pub)
+	if err != nil {
+		log.Errorf("failed putting message (%s-%d): %v", orderID, int(pb.Message_ORDER_CANCEL), err)
+	}
+	return n.sendMessage(peerID, kp, m)
 }
 
-func (n *OpenBazaarNode) SendReject(peerId string, rejectMessage *pb.OrderReject) error {
+// SendReject - send order rejected msg to peer
+func (n *OpenBazaarNode) SendReject(peerID string, rejectMessage *pb.OrderReject) error {
 	a, err := ptypes.MarshalAny(rejectMessage)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return err
 	}
 	m := pb.Message{
@@ -307,103 +421,234 @@ func (n *OpenBazaarNode) SendReject(peerId string, rejectMessage *pb.OrderReject
 		Payload:     a,
 	}
 	var kp *libp2p.PubKey
+	var pub []byte
 	//try to get public key from order
-	order, _, _, _, _, err := n.Datastore.Sales().GetByOrderId(rejectMessage.OrderID)
+	order, _, _, _, _, _, err := n.Datastore.Sales().GetByOrderId(rejectMessage.OrderID)
 	if err != nil { //probably implies we can't find the order in the Datastore
 		kp = nil //instead SendOfflineMessage can try to get the key from the peerId
+		pub = order.BuyerOrder.BuyerID.Pubkeys.Identity
 	} else {
 		k, err := libp2p.UnmarshalPublicKey(order.GetBuyerOrder().GetBuyerID().GetPubkeys().Identity)
 		if err != nil {
+			log.Errorf("failed to unmarshal publicKey: %v", err)
 			return err
 		}
 		kp = &k
+		pub = order.VendorListings[0].VendorID.Pubkeys.Identity
 	}
-	return n.sendMessage(peerId, kp, m)
+	err = n.Datastore.Messages().Put(
+		fmt.Sprintf("%s-%d", rejectMessage.OrderID, int(pb.Message_ORDER_REJECT)),
+		rejectMessage.OrderID, pb.Message_ORDER_REJECT, peerID, repo.Message{Msg: m}, "", 0, pub)
+	if err != nil {
+		log.Errorf("failed putting message (%s-%d): %v", rejectMessage.OrderID, int(pb.Message_ORDER_REJECT), err)
+	}
+	return n.sendMessage(peerID, kp, m)
 }
 
-func (n *OpenBazaarNode) SendRefund(peerId string, refundMessage *pb.RicardianContract) error {
+// SendRefund - send refund msg to peer
+func (n *OpenBazaarNode) SendRefund(peerID string, refundMessage *pb.RicardianContract) error {
 	a, err := ptypes.MarshalAny(refundMessage)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return err
 	}
+	// Create the REFUND message
 	m := pb.Message{
 		MessageType: pb.Message_REFUND,
 		Payload:     a,
 	}
+
+	// Save REFUND message to the database for this order for resending if necessary
+	orderID0 := refundMessage.Refund.OrderID
+	if orderID0 == "" {
+		log.Errorf("failed fetching orderID")
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_REFUND)),
+			orderID0, pb.Message_REFUND, peerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_REFUND), err)
+		}
+	}
+
 	k, err := libp2p.UnmarshalPublicKey(refundMessage.GetBuyerOrder().GetBuyerID().GetPubkeys().Identity)
 	if err != nil {
+		log.Errorf("failed to unmarshal publicKey: %v", err)
 		return err
 	}
-	return n.sendMessage(peerId, &k, m)
+	return n.sendMessage(peerID, &k, m)
 }
 
-func (n *OpenBazaarNode) SendOrderFulfillment(peerId string, k *libp2p.PubKey, fulfillmentMessage *pb.RicardianContract) error {
+// SendOrderFulfillment - send order fulfillment msg to peer
+func (n *OpenBazaarNode) SendOrderFulfillment(peerID string, k *libp2p.PubKey, fulfillmentMessage *pb.RicardianContract) error {
 	a, err := ptypes.MarshalAny(fulfillmentMessage)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return err
 	}
 	m := pb.Message{
 		MessageType: pb.Message_ORDER_FULFILLMENT,
 		Payload:     a,
 	}
-	return n.sendMessage(peerId, k, m)
+	orderID0 := fulfillmentMessage.VendorOrderFulfillment[0].OrderId
+	if orderID0 == "" {
+		log.Errorf("failed fetching orderID")
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_ORDER_FULFILLMENT)),
+			orderID0, pb.Message_ORDER_FULFILLMENT, peerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_ORDER_FULFILLMENT), err)
+		}
+	}
+	return n.sendMessage(peerID, k, m)
 }
 
-func (n *OpenBazaarNode) SendOrderCompletion(peerId string, k *libp2p.PubKey, completionMessage *pb.RicardianContract) error {
+// SendOrderCompletion - send order completion msg to peer
+func (n *OpenBazaarNode) SendOrderCompletion(peerID string, k *libp2p.PubKey, completionMessage *pb.RicardianContract) error {
 	a, err := ptypes.MarshalAny(completionMessage)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return err
 	}
 	m := pb.Message{
 		MessageType: pb.Message_ORDER_COMPLETION,
 		Payload:     a,
 	}
-	if err != nil {
-		return err
+	orderID0 := completionMessage.BuyerOrderCompletion.OrderId
+	if orderID0 == "" {
+		log.Errorf("failed fetching orderID")
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_ORDER_COMPLETION)),
+			orderID0, pb.Message_ORDER_COMPLETION, peerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_ORDER_COMPLETION), err)
+		}
 	}
-	return n.sendMessage(peerId, k, m)
+	return n.sendMessage(peerID, k, m)
 }
 
-func (n *OpenBazaarNode) SendDisputeOpen(peerId string, k *libp2p.PubKey, disputeMessage *pb.RicardianContract) error {
+// SendDisputeOpen - send open dispute msg to peer
+func (n *OpenBazaarNode) SendDisputeOpen(peerID string, k *libp2p.PubKey, disputeMessage *pb.RicardianContract, orderID string) error {
 	a, err := ptypes.MarshalAny(disputeMessage)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return err
 	}
+
+	// Create the DISPUTE_OPEN message
 	m := pb.Message{
 		MessageType: pb.Message_DISPUTE_OPEN,
 		Payload:     a,
 	}
-	return n.sendMessage(peerId, k, m)
+
+	// Save DISPUTE_OPEN message to the database for this order for resending if necessary
+	orderID0 := orderID
+	if orderID0 == "" {
+		log.Errorf("failed fetching orderID")
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_DISPUTE_OPEN)),
+			orderID0, pb.Message_DISPUTE_OPEN, peerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_DISPUTE_OPEN), err)
+		}
+	}
+
+	return n.sendMessage(peerID, k, m)
 }
 
-func (n *OpenBazaarNode) SendDisputeUpdate(peerId string, updateMessage *pb.DisputeUpdate) error {
+// SendDisputeUpdate - send update dispute msg to peer
+func (n *OpenBazaarNode) SendDisputeUpdate(peerID string, updateMessage *pb.DisputeUpdate) error {
 	a, err := ptypes.MarshalAny(updateMessage)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return err
 	}
+
+	// Create the DISPUTE_UPDATE message
 	m := pb.Message{
 		MessageType: pb.Message_DISPUTE_UPDATE,
 		Payload:     a,
 	}
-	return n.sendMessage(peerId, nil, m)
+
+	// Save DISPUTE_UPDATE message to the database for this order for resending if necessary
+	orderID0 := updateMessage.OrderId
+	if orderID0 == "" {
+		log.Errorf("failed fetching orderID")
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_DISPUTE_UPDATE)),
+			orderID0, pb.Message_DISPUTE_UPDATE, peerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_DISPUTE_UPDATE), err)
+		}
+	}
+
+	return n.sendMessage(peerID, nil, m)
 }
 
-func (n *OpenBazaarNode) SendDisputeClose(peerId string, k *libp2p.PubKey, resolutionMessage *pb.RicardianContract) error {
+// SendDisputeClose - send dispute closed msg to peer
+func (n *OpenBazaarNode) SendDisputeClose(peerID string, k *libp2p.PubKey, resolutionMessage *pb.RicardianContract, orderID string) error {
 	a, err := ptypes.MarshalAny(resolutionMessage)
 	if err != nil {
+		log.Errorf("failed to marshal the contract: %v", err)
 		return err
 	}
+
+	// Create the DISPUTE_CLOSE message
 	m := pb.Message{
 		MessageType: pb.Message_DISPUTE_CLOSE,
 		Payload:     a,
 	}
-	return n.sendMessage(peerId, k, m)
-	return nil
+
+	// Save DISPUTE_CLOSE message to the database for this order for resending if necessary
+	orderID0 := orderID
+	if orderID0 == "" {
+		log.Errorf("failed fetching orderID")
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_DISPUTE_CLOSE)),
+			orderID0, pb.Message_DISPUTE_CLOSE, peerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_DISPUTE_CLOSE), err)
+		}
+	}
+
+	return n.sendMessage(peerID, k, m)
 }
 
-func (n *OpenBazaarNode) SendChat(peerId string, chatMessage *pb.Chat) error {
+// SendFundsReleasedByVendor - send funds released by vendor msg to peer
+func (n *OpenBazaarNode) SendFundsReleasedByVendor(peerID string, marshalledPeerPublicKey []byte, orderID string) error {
+	peerKey, err := libp2p.UnmarshalPublicKey(marshalledPeerPublicKey)
+	if err != nil {
+		log.Errorf("failed to unmarshal the publicKey: %v", err)
+		return err
+	}
+	payload, err := ptypes.MarshalAny(&pb.VendorFinalizedPayment{OrderID: orderID})
+	if err != nil {
+		log.Errorf("failed to marshal the finalized payment: %v", err)
+		return err
+	}
+	message := pb.Message{
+		MessageType: pb.Message_VENDOR_FINALIZED_PAYMENT,
+		Payload:     payload,
+	}
+	return n.sendMessage(peerID, &peerKey, message)
+}
+
+// SendChat - send chat msg to peer
+func (n *OpenBazaarNode) SendChat(peerID string, chatMessage *pb.Chat) error {
 	a, err := ptypes.MarshalAny(chatMessage)
 	if err != nil {
+		log.Errorf("failed to marshal the chat message: %v", err)
 		return err
 	}
 	m := pb.Message{
@@ -411,22 +656,25 @@ func (n *OpenBazaarNode) SendChat(peerId string, chatMessage *pb.Chat) error {
 		Payload:     a,
 	}
 
-	p, err := peer.IDB58Decode(peerId)
+	p, err := peer.IDB58Decode(peerID)
 	if err != nil {
+		log.Errorf("failed to decode peerID: %v", err)
 		return err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), n.OfflineMessageFailoverTimeout)
 	defer cancel()
 	err = n.Service.SendMessage(ctx, p, &m)
 	if err != nil && chatMessage.Flag != pb.Chat_TYPING {
 		if err := n.SendOfflineMessage(p, nil, &m); err != nil {
+			log.Errorf("failed to send offline message: %v", err)
 			return err
 		}
 	}
 	return nil
 }
 
-func (n *OpenBazaarNode) SendModeratorAdd(peerId string) error {
+// SendModeratorAdd - send add moderator msg to peer
+func (n *OpenBazaarNode) SendModeratorAdd(peerID string) error {
 	m := pb.Message{MessageType: pb.Message_MODERATOR_ADD}
 
 	pubkey := n.IpfsNode.PrivateKey.GetPublic()
@@ -439,7 +687,7 @@ func (n *OpenBazaarNode) SendModeratorAdd(peerId string) error {
 		return err
 	}
 	data := &pb.SignedData_Command{
-		PeerID:    peerId,
+		PeerID:    peerID,
 		Type:      pb.Message_MODERATOR_ADD,
 		Timestamp: ts,
 	}
@@ -456,20 +704,22 @@ func (n *OpenBazaarNode) SendModeratorAdd(peerId string) error {
 		SenderPubkey:   pubkeyBytes,
 		Signature:      sig,
 	}
-	any, err := ptypes.MarshalAny(sd)
+	pbAny, err := ptypes.MarshalAny(sd)
 	if err != nil {
+		log.Errorf("failed to marshal the signed data: %v", err)
 		return err
 	}
-	m.Payload = any
+	m.Payload = pbAny
 
-	err = n.sendMessage(peerId, nil, m)
+	err = n.sendMessage(peerID, nil, m)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (n *OpenBazaarNode) SendModeratorRemove(peerId string) error {
+// SendModeratorRemove - send remove moderator msg to peer
+func (n *OpenBazaarNode) SendModeratorRemove(peerID string) error {
 	m := pb.Message{MessageType: pb.Message_MODERATOR_REMOVE}
 
 	pubkey := n.IpfsNode.PrivateKey.GetPublic()
@@ -482,7 +732,7 @@ func (n *OpenBazaarNode) SendModeratorRemove(peerId string) error {
 		return err
 	}
 	data := &pb.SignedData_Command{
-		PeerID:    peerId,
+		PeerID:    peerID,
 		Type:      pb.Message_MODERATOR_REMOVE,
 		Timestamp: ts,
 	}
@@ -499,23 +749,25 @@ func (n *OpenBazaarNode) SendModeratorRemove(peerId string) error {
 		SenderPubkey:   pubkeyBytes,
 		Signature:      sig,
 	}
-	any, err := ptypes.MarshalAny(sd)
+	pbAny, err := ptypes.MarshalAny(sd)
 	if err != nil {
+		log.Errorf("failed to marshal the signedData: %v", err)
 		return err
 	}
-	m.Payload = any
+	m.Payload = pbAny
 
-	err = n.sendMessage(peerId, nil, m)
+	err = n.sendMessage(peerID, nil, m)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (n *OpenBazaarNode) SendBlock(peerId string, id cid.Cid) error {
+// SendBlock - send requested ipfs block to peer
+func (n *OpenBazaarNode) SendBlock(peerID string, id cid.Cid) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	block, err := n.IpfsNode.Blocks.GetBlock(ctx, &id)
+	block, err := n.IpfsNode.Blocks.GetBlock(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -526,6 +778,7 @@ func (n *OpenBazaarNode) SendBlock(peerId string, id cid.Cid) error {
 	}
 	a, err := ptypes.MarshalAny(b)
 	if err != nil {
+		log.Errorf("failed to marshal the block: %v", err)
 		return err
 	}
 	m := pb.Message{
@@ -533,14 +786,16 @@ func (n *OpenBazaarNode) SendBlock(peerId string, id cid.Cid) error {
 		Payload:     a,
 	}
 
-	p, err := peer.IDB58Decode(peerId)
+	p, err := peer.IDB58Decode(peerID)
 	if err != nil {
+		log.Errorf("failed to decode peerID: %v", err)
 		return err
 	}
 	return n.Service.SendMessage(context.Background(), p, &m)
 }
 
-func (n *OpenBazaarNode) SendStore(peerId string, ids []cid.Cid) error {
+// SendStore - send requested stores to peer
+func (n *OpenBazaarNode) SendStore(peerID string, ids []cid.Cid) error {
 	var s []string
 	for _, d := range ids {
 		s = append(s, d.String())
@@ -550,6 +805,7 @@ func (n *OpenBazaarNode) SendStore(peerId string, ids []cid.Cid) error {
 
 	a, err := ptypes.MarshalAny(cList)
 	if err != nil {
+		log.Errorf("failed to marshal the cidList: %v", err)
 		return err
 	}
 
@@ -558,8 +814,9 @@ func (n *OpenBazaarNode) SendStore(peerId string, ids []cid.Cid) error {
 		Payload:     a,
 	}
 
-	p, err := peer.IDB58Decode(peerId)
+	p, err := peer.IDB58Decode(peerID)
 	if err != nil {
+		log.Errorf("failed to decode peerID: %v", err)
 		return err
 	}
 	pmes, err := n.Service.SendRequest(context.Background(), p, &m)
@@ -568,29 +825,94 @@ func (n *OpenBazaarNode) SendStore(peerId string, ids []cid.Cid) error {
 	}
 	defer n.Service.DisconnectFromPeer(p)
 	if pmes.Payload == nil {
-		return errors.New("Peer responded with nil payload")
+		return errors.New("peer responded with nil payload")
 	}
 	if pmes.MessageType == pb.Message_ERROR {
-		log.Errorf("Error response from %s: %s", peerId, string(pmes.Payload.Value))
-		return errors.New("Peer responded with error message")
+		log.Errorf("Error response from %s: %s", peerID, string(pmes.Payload.Value))
+		return errors.New("peer responded with error message")
 	}
 
 	resp := new(pb.CidList)
 	err = ptypes.UnmarshalAny(pmes.Payload, resp)
 	if err != nil {
+		log.Errorf("failed to unmarshal the cidList: %v", err)
 		return err
 	}
 	if len(resp.Cids) == 0 {
-		log.Debugf("Peer %s requested no blocks", peerId)
+		log.Debugf("peer %s requested no blocks", peerID)
 		return nil
 	}
-	log.Debugf("Sending %d blocks to %s", len(resp.Cids), peerId)
+	log.Debugf("Sending %d blocks to %s", len(resp.Cids), peerID)
 	for _, id := range resp.Cids {
 		decoded, err := cid.Decode(id)
 		if err != nil {
+			log.Debugf("failed decoding store block (%s) for peer (%s)", id, peerID)
 			continue
 		}
-		n.SendBlock(peerId, *decoded)
+		if err := n.SendBlock(peerID, decoded); err != nil {
+			log.Debugf("failed sending store block (%s) to peer (%s)", id, peerID)
+			continue
+		}
+	}
+	return nil
+}
+
+// SendOfflineRelay - send and offline relay message to the peer. Used for relaying messages from
+// a client node to another peer.
+func (n *OpenBazaarNode) SendOfflineRelay(peerID string, encryptedMessage []byte) error {
+	m := pb.Message{
+		MessageType: pb.Message_OFFLINE_RELAY,
+		Payload:     &any.Any{Value: encryptedMessage},
+	}
+	return n.sendMessage(peerID, nil, m)
+}
+
+// SendOrderPayment - send order payment msg to seller from buyer
+func (n *OpenBazaarNode) SendOrderPayment(spend *SpendResponse) error {
+	var msg = &pb.OrderPaymentTxn{
+		Coin:          spend.Currency.Code.String(),
+		OrderID:       spend.OrderID,
+		TransactionID: spend.Txid,
+		WithInput:     spend.ConsumedInput,
+	}
+
+	a, err := ptypes.MarshalAny(msg)
+	if err != nil {
+		return err
+	}
+
+	// Create the ORDER_PAYMENT message
+	m := pb.Message{
+		MessageType: pb.Message_ORDER_PAYMENT,
+		Payload:     a,
+	}
+
+	p, err := peer.IDB58Decode(spend.PeerID)
+	if err != nil {
+		return err
+	}
+
+	// Save ORDER_PAYMENT message to the database for this order for resending if necessary
+	orderID0 := msg.OrderID
+	if orderID0 == "" {
+		log.Errorf("failed fetching orderID")
+	} else {
+		err = n.Datastore.Messages().Put(
+			fmt.Sprintf("%s-%d", orderID0, int(pb.Message_ORDER_PAYMENT)),
+			orderID0, pb.Message_ORDER_PAYMENT, spend.PeerID, repo.Message{Msg: m},
+			"", 0, []byte{})
+		if err != nil {
+			log.Errorf("failed putting message (%s-%d): %v", orderID0, int(pb.Message_ORDER_PAYMENT), err)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), n.OfflineMessageFailoverTimeout)
+	err = n.Service.SendMessage(ctx, p, &m)
+	cancel()
+	if err != nil {
+		if err := n.SendOfflineMessage(p, nil, &m); err != nil {
+			return err
+		}
 	}
 	return nil
 }

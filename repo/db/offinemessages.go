@@ -2,33 +2,34 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"sync"
 	"time"
+
+	"github.com/larslarsen/bb-go/repo"
 )
 
 type OfflineMessagesDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
+}
+
+func NewOfflineMessageStore(db *sql.DB, lock *sync.Mutex) repo.OfflineMessageStore {
+	return &OfflineMessagesDB{modelStore{db, lock}}
 }
 
 func (o *OfflineMessagesDB) Put(url string) error {
 	o.lock.Lock()
 	defer o.lock.Unlock()
-	tx, err := o.db.Begin()
+	stmt, err := o.PrepareQuery("insert into offlinemessages(url, timestamp) values(?,?)")
 	if err != nil {
-		return err
-	}
-	stmt, err := tx.Prepare("insert into offlinemessages(url, timestamp) values(?,?)")
-	if err != nil {
-		return err
+		return fmt.Errorf("prepare offline message sql: %s", err.Error())
 	}
 	defer stmt.Close()
+
 	_, err = stmt.Exec(url, int(time.Now().Unix()))
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("commit offline message: %s", err.Error())
 	}
-	tx.Commit()
 	return nil
 }
 
@@ -42,10 +43,7 @@ func (o *OfflineMessagesDB) Has(url string) bool {
 	defer stmt.Close()
 	var ret string
 	err = stmt.QueryRow(url).Scan(&ret)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func (o *OfflineMessagesDB) SetMessage(url string, message []byte) error {
@@ -73,7 +71,10 @@ func (o *OfflineMessagesDB) GetMessages() (map[string][]byte, error) {
 	for rows.Next() {
 		var url string
 		var message []byte
-		rows.Scan(&url, &message)
+		err = rows.Scan(&url, &message)
+		if err != nil {
+			log.Error(err)
+		}
 		ret[url] = message
 	}
 	return ret, nil

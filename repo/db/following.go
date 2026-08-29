@@ -2,27 +2,33 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 	"sync"
+
+	"github.com/larslarsen/bb-go/repo"
 )
 
 type FollowingDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
+}
+
+func NewFollowingStore(db *sql.DB, lock *sync.Mutex) repo.FollowingStore {
+	return &FollowingDB{modelStore{db, lock}}
 }
 
 func (f *FollowingDB) Put(follower string) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	tx, _ := f.db.Begin()
-	stmt, _ := tx.Prepare("insert into following(peerID) values(?)")
-	defer stmt.Close()
-	_, err := stmt.Exec(follower)
+	stmt, err := f.PrepareQuery("insert into following(peerID) values(?)")
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("prepare following sql: %s", err.Error())
 	}
-	tx.Commit()
+	defer stmt.Close()
+	_, err = stmt.Exec(follower)
+	if err != nil {
+		return fmt.Errorf("commit following: %s", err.Error())
+	}
 	return nil
 }
 
@@ -43,7 +49,10 @@ func (f *FollowingDB) Get(offsetId string, limit int) ([]string, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var peerID string
-		rows.Scan(&peerID)
+		err = rows.Scan(&peerID)
+		if err != nil {
+			log.Error(err)
+		}
 		ret = append(ret, peerID)
 	}
 	return ret, nil
@@ -52,7 +61,10 @@ func (f *FollowingDB) Get(offsetId string, limit int) ([]string, error) {
 func (f *FollowingDB) Delete(follower string) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	f.db.Exec("delete from following where peerID=?", follower)
+	_, err := f.db.Exec("delete from following where peerID=?", follower)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -61,7 +73,10 @@ func (f *FollowingDB) Count() int {
 	defer f.lock.Unlock()
 	row := f.db.QueryRow("select Count(*) from following")
 	var count int
-	row.Scan(&count)
+	err := row.Scan(&count)
+	if err != nil {
+		log.Error(err)
+	}
 	return count
 }
 
@@ -69,11 +84,11 @@ func (f *FollowingDB) IsFollowing(peerId string) bool {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	stmt, err := f.db.Prepare("select peerID from following where peerID=?")
-	defer stmt.Close()
-	var follower string
-	err = stmt.QueryRow(peerId).Scan(&follower)
 	if err != nil {
 		return false
 	}
-	return true
+	defer stmt.Close()
+	var follower string
+	err = stmt.QueryRow(peerId).Scan(&follower)
+	return err == nil
 }

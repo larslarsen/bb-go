@@ -28,7 +28,7 @@ You can decrypt the database by running the `decryptdatabase` command. Note: thi
 
 If you are running the openbazaar-go daemon on a remote machine you MUST enable API authentication otherwise anyone will be able to log into your
 node, steal your bitcoins, and view your order/sales history. Additionally, you MUST enable SSL (see below) otherwise your authentication credentials
-will be sent to the remote node in the clear (unencrypted) ― meaning they could be intercepted by anyone viewing your network traffic. 
+will be sent to the remote node in the clear (unencrypted) ― meaning they could be intercepted by anyone viewing your network traffic.
 
 The settings to enable authentication are found in the config file located in the `openbazaar2.0` data directory. To enable authentication first set the
 JSON-API authentication boolean to true:
@@ -75,7 +75,7 @@ http://username:password@localhost:8080/ob/
 ```
 ### SSL
 As mentioned above, NEVER allow outside internet access without both enabling authentication and SSL as your authentication creditials will be sent to the remote node unencrypted otherwise.
-The instructions to set up SSL can be found in a separate [doc](https://github.com/larslarsen/bb-go/blob/master/docs/ssl.md). 
+The instructions to set up SSL can be found in a separate [doc](https://github.com/larslarsen/bb-go/blob/master/docs/ssl.md).
 
 ### Restrict Access By IP
 You can (and probably should) restrict access to the API to specific IP addresses. To do so you can either enter them in the config file:

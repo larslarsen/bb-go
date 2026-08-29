@@ -2,22 +2,25 @@ package db
 
 import (
 	"database/sql"
-	"github.com/larslarsen/bb-go/repo"
 	"sync"
+
+	"github.com/larslarsen/bb-go/repo"
 )
 
 type TxMetadataDB struct {
-	db   *sql.DB
-	lock *sync.Mutex
+	modelStore
+}
+
+func NewTransactionMetadataStore(db *sql.DB, lock *sync.Mutex) repo.TransactionMetadataStore {
+	return &TxMetadataDB{modelStore{db, lock}}
 }
 
 func (t *TxMetadataDB) Put(m repo.Metadata) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	tx, _ := t.db.Begin()
-	stmt, err := tx.Prepare("insert or replace into txmetadata(txid, address, memo, orderID, thumbnail, canBumpFee) values(?,?,?,?,?,?)")
+	stmt, err := t.db.Prepare("insert or replace into txmetadata(txid, address, memo, orderID, thumbnail, canBumpFee) values(?,?,?,?,?,?)")
 	if err != nil {
-		tx.Rollback()
+		log.Errorf("prepring txmetadata sql for order (%s): %s", m.OrderId, err.Error())
 		return err
 	}
 	defer stmt.Close()
@@ -27,10 +30,9 @@ func (t *TxMetadataDB) Put(m repo.Metadata) error {
 	}
 	_, err = stmt.Exec(m.Txid, m.Address, m.Memo, m.OrderId, m.Thumbnail, bumpable)
 	if err != nil {
-		tx.Rollback()
+		log.Errorf("putting txmetadata for order (%s): %s", m.OrderId, err.Error())
 		return err
 	}
-	tx.Commit()
 	return nil
 }
 
@@ -39,6 +41,9 @@ func (t *TxMetadataDB) Get(txid string) (repo.Metadata, error) {
 	defer t.lock.Unlock()
 	var m repo.Metadata
 	stmt, err := t.db.Prepare("select txid, address, memo, orderID, thumbnail, canBumpFee from txmetadata where txid=?")
+	if err != nil {
+		return m, err
+	}
 	defer stmt.Close()
 	var id, address, memo, orderId, thumbnail string
 	var canBumpFee int
@@ -50,7 +55,7 @@ func (t *TxMetadataDB) Get(txid string) (repo.Metadata, error) {
 	if canBumpFee > 0 {
 		bumpable = true
 	}
-	m = repo.Metadata{id, address, memo, orderId, thumbnail, bumpable}
+	m = repo.Metadata{Txid: id, Address: address, Memo: memo, OrderId: orderId, Thumbnail: thumbnail, CanBumpFee: bumpable}
 	return m, nil
 }
 

@@ -2,53 +2,59 @@ package core
 
 import (
 	"errors"
-	routing "gx/ipfs/QmPR2JzfKd9poHx9XBhzoFeBBC31ZM3W5iUPKJZWyaoZZm/go-libp2p-routing"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
-	libp2p "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
+	"fmt"
+	"net/http"
 	"path"
+	"sync"
 	"time"
 
-	"github.com/larslarsen/bb-go/api/notifications"
-	"github.com/larslarsen/bb-go/bitcoin"
+	"gx/ipfs/QmSY3nkMNLzh9GdbFKK5tT7YMfLpf52iUZ8ZRkr29MJaa5/go-libp2p-kad-dht"
+	libp2p "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	routing "gx/ipfs/QmYxUdYY9S6yg5tSPVin5GFTvtfsLauVcr7reHDD3dM8xf/go-libp2p-routing"
+
+	"github.com/OpenBazaar/multiwallet"
 	"github.com/larslarsen/bb-go/ipfs"
-	"github.com/larslarsen/bb-go/namesys"
 	"github.com/larslarsen/bb-go/net"
 	rep "github.com/larslarsen/bb-go/net/repointer"
 	ret "github.com/larslarsen/bb-go/net/retriever"
+	"github.com/larslarsen/bb-go/pb"
 	"github.com/larslarsen/bb-go/repo"
 	sto "github.com/larslarsen/bb-go/storage"
-	"github.com/OpenBazaar/wallet-interface"
-	"github.com/ipfs/go-ipfs/commands"
+	"github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/ipfs/go-ipfs/core"
-	"github.com/op/go-logging"
+	logging "github.com/op/go-logging"
 	"golang.org/x/net/context"
 	"golang.org/x/net/proxy"
-	"gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
-	"sync"
 )
 
-var (
-	VERSION   = "0.11.0"
-	USERAGENT = "/openbazaar-go:" + VERSION + "/"
+const (
+	// VERSION - current version
+	VERSION = "0.14.5"
+	// USERAGENT - user-agent header string
+	USERAGENT = "/bb-go:" + VERSION + "/"
 )
 
 var log = logging.MustGetLogger("core")
 
+// Node - ob node
 var Node *OpenBazaarNode
 
 var inflightPublishRequests int
 
+// OpenBazaarNode - represent ob node which encapsulates ipfsnode, wallet etc
 type OpenBazaarNode struct {
-	// Context for issuing IPFS commands
-	Context commands.Context
-
 	// IPFS node object
 	IpfsNode *core.IpfsNode
 
-	/* The roothash of the node directory inside the openbazaar repo.
-	   This directory hash is published on IPNS at our peer ID making
-	   the directory publicly viewable on the network. */
+	// An implementation of the custom DHT used by OpenBazaar
+	DHT *dht.IpfsDHT
+
+	// The roothash of the node directory inside the openbazaar repo.
+	// This directory hash is published on IPNS at our peer ID making
+	// the directory publicly viewable on the network.
 	RootHash string
 
 	// The path to the openbazaar repo in the file system
@@ -61,10 +67,10 @@ type OpenBazaarNode struct {
 	Datastore repo.Datastore
 
 	// Websocket channel used for pushing data to the UI
-	Broadcast chan interface{}
+	Broadcast chan repo.Notifier
 
-	// Bitcoin wallet implementation
-	Wallet wallet.Wallet
+	// A map of cryptocurrency wallets
+	Multiwallet multiwallet.MultiWallet
 
 	// Storage for our outgoing messages
 	MessageStorage sto.OfflineMessagingStorage
@@ -72,14 +78,13 @@ type OpenBazaarNode struct {
 	// A service that periodically checks the dht for outstanding messages
 	MessageRetriever *ret.MessageRetriever
 
+	// OfflineMessageFailoverTimeout is the duration until the protocol
+	// will stop looking for the peer to send a direct message and failover to
+	// sending an offline message
+	OfflineMessageFailoverTimeout time.Duration
+
 	// A service that periodically republishes active pointers
 	PointerRepublisher *rep.PointerRepublisher
-
-	// Used to resolve domains to OpenBazaar IDs
-	NameSystem *namesys.NameSystem
-
-	// A service that periodically fetches and caches the bitcoin exchange rates
-	ExchangeRates bitcoin.ExchangeRates
 
 	// Optional nodes to push user data to
 	PushNodes []peer.ID
@@ -95,34 +100,66 @@ type OpenBazaarNode struct {
 
 	// Allow other nodes to push data to this node for storage
 	AcceptStoreRequests bool
+
+	// RecordAgingNotifier is a worker that walks the cases datastore to
+	// notify the user as disputes age past certain thresholds
+	RecordAgingNotifier *recordAgingNotifier
+
+	// Generic pubsub interface
+	Pubsub ipfs.Pubsub
+
+	// The master private key derived from the mnemonic
+	MasterPrivateKey *hdkeychain.ExtendedKey
+
+	// The number of DHT records to collect before returning. The larger the number
+	// the slower the query but the less likely we will get an old record.
+	IPNSQuorumSize uint
+
+	TestnetEnable        bool
+	RegressionTestEnable bool
+
+	PublishLock sync.Mutex
+	seedLock    sync.Mutex
+
+	InitalPublishComplete bool
+
+	// InboundMsgScanner is a worker that scans the messages
+	// table and tries to retry a failed order message
+	InboundMsgScanner *inboundMessageScanner
 }
 
-// Unpin the current node repo, re-add it, then publish to IPNS
-var seedLock sync.Mutex
-var PublishLock sync.Mutex
-var InitalPublishComplete bool = false
+// TestNetworkEnabled indicates whether the node is operating with test parameters
+func (n *OpenBazaarNode) TestNetworkEnabled() bool { return n.TestnetEnable }
 
+// RegressionNetworkEnabled indicates whether the node is operating with regression parameters
+func (n *OpenBazaarNode) RegressionNetworkEnabled() bool { return n.RegressionTestEnable }
+
+// SeedNode - publish to IPNS
 func (n *OpenBazaarNode) SeedNode() error {
-	seedLock.Lock()
-	ipfs.UnPinDir(n.Context, n.RootHash)
+	n.seedLock.Lock()
+	err := ipfs.UnPinDir(n.IpfsNode, n.RootHash)
+	if err != nil {
+		log.Errorf("unpinning old root: %s", err.Error())
+	}
 	var aerr error
 	var rootHash string
 	// There's an IPFS bug on Windows that might be related to the Windows indexer that could cause this to fail
 	// If we fail the first time, let's retry a couple times before giving up.
 	for i := 0; i < 3; i++ {
-		rootHash, aerr = ipfs.AddDirectory(n.Context, path.Join(n.RepoPath, "root"))
+		rootHash, aerr = ipfs.AddDirectory(n.IpfsNode, path.Join(n.RepoPath, "root"))
 		if aerr == nil {
 			break
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
 	if aerr != nil {
-		seedLock.Unlock()
+		n.seedLock.Unlock()
 		return aerr
 	}
 	n.RootHash = rootHash
-	seedLock.Unlock()
-	InitalPublishComplete = true
+
+	n.seedLock.Unlock()
+	n.InitalPublishComplete = true
 	go n.publish(rootHash)
 	return nil
 }
@@ -130,33 +167,72 @@ func (n *OpenBazaarNode) SeedNode() error {
 func (n *OpenBazaarNode) publish(hash string) {
 	// Multiple publishes may have been queued
 	// We only need to publish the most recent
-	PublishLock.Lock()
-	defer PublishLock.Unlock()
+	n.PublishLock.Lock()
+	defer n.PublishLock.Unlock()
 	if hash != n.RootHash {
 		return
 	}
 
 	if inflightPublishRequests == 0 {
-		n.Broadcast <- notifications.StatusNotification{"publishing"}
+		n.Broadcast <- repo.StatusNotification{Status: "publishing"}
 	}
 
-	id, err := cid.Decode(hash)
+	err := n.sendToPushNodes(hash)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	var graph []cid.Cid
-	if len(n.PushNodes) > 0 {
-		graph, err = ipfs.FetchGraph(n.IpfsNode.DAG, id)
+	go func() {
+		// Update search endpoint with published hash
+		peerId, _ := n.GetNodeID()
+		endpoint := fmt.Sprintf("https://search.ob1.io/update/%s/%s", peerId.PeerID, hash)
+		log.Infof("Publishing new rootHash to: %s\n", endpoint)
+
+		var client *http.Client
+		if n.TorDialer != nil {
+			tbTransport := &http.Transport{Dial: n.TorDialer.Dial}
+			client = &http.Client{Transport: tbTransport, Timeout: time.Second * 30}
+		} else {
+			client = &http.Client{Timeout: time.Second * 30}
+		}
+
+		resp, err := client.Get(endpoint)
+		if err != nil {
+			log.Errorf("Search update did not succeed. %v\n", err)
+		}
+		log.Debugf("%s response: %v", endpoint, resp)
+	}()
+
+	inflightPublishRequests++
+	err = ipfs.Publish(n.IpfsNode, hash)
+
+	inflightPublishRequests--
+	if inflightPublishRequests == 0 {
 		if err != nil {
 			log.Error(err)
-			return
+			n.Broadcast <- repo.StatusNotification{Status: "error publishing"}
+		} else {
+			n.Broadcast <- repo.StatusNotification{Status: "publish complete"}
+		}
+	}
+}
+
+func (n *OpenBazaarNode) sendToPushNodes(hash string) error {
+	id, err := cid.Decode(hash)
+	if err != nil {
+		return err
+	}
+
+	var graph []cid.Cid
+	if len(n.PushNodes) > 0 {
+		graph, err = ipfs.FetchGraph(n.IpfsNode, &id)
+		if err != nil {
+			return err
 		}
 		pointers, err := n.Datastore.Pointers().GetByPurpose(ipfs.MESSAGE)
 		if err != nil {
-			log.Error(err)
-			return
+			return err
 		}
 		// Check if we're seeding any outgoing messages and add their CIDs to the graph
 		for _, p := range pointers {
@@ -169,33 +245,40 @@ func (n *OpenBazaarNode) publish(hash string) {
 				if err != nil {
 					continue
 				}
-				graph = append(graph, *c)
+				graph = append(graph, c)
 			}
 		}
 	}
 	for _, p := range n.PushNodes {
-		go func(pid peer.ID) {
-			err := n.SendStore(pid.Pretty(), graph)
-			if err != nil {
-				log.Errorf("Error pushing data to peer %s: %s", pid.Pretty(), err.Error())
-			}
-		}(p)
+		go n.retryableSeedStoreToPeer(p, hash, graph)
 	}
 
-	inflightPublishRequests++
-	_, err = ipfs.Publish(n.Context, hash)
+	return nil
+}
 
-	inflightPublishRequests--
-	if inflightPublishRequests == 0 {
-		if err != nil {
-			log.Error(err)
-			n.Broadcast <- notifications.StatusNotification{"error publishing"}
-		} else {
-			n.Broadcast <- notifications.StatusNotification{"publish complete"}
+func (n *OpenBazaarNode) retryableSeedStoreToPeer(pid peer.ID, graphHash string, graph []cid.Cid) {
+	var retryTimeout = 2 * time.Second
+	for {
+		if graphHash != n.RootHash {
+			log.Errorf("root hash has changed, aborting push to %s", pid.Pretty())
+			return
 		}
+		err := n.SendStore(pid.Pretty(), graph)
+		if err != nil {
+			if retryTimeout > 8*time.Second {
+				log.Errorf("error pushing to peer %s: %s", pid.Pretty(), err.Error())
+				return
+			}
+			log.Errorf("error pushing to peer %s...backing off: %s", pid.Pretty(), err.Error())
+			time.Sleep(retryTimeout)
+			retryTimeout *= 2
+			continue
+		}
+		return
 	}
 }
 
+// SetUpRepublisher - periodic publishing to IPNS
 func (n *OpenBazaarNode) SetUpRepublisher(interval time.Duration) {
 	if interval == 0 {
 		return
@@ -203,23 +286,42 @@ func (n *OpenBazaarNode) SetUpRepublisher(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		for range ticker.C {
-			n.UpdateFollow()
-			n.SeedNode()
+			err := n.UpdateFollow()
+			if err != nil {
+				log.Error(err)
+			}
+			err = n.SeedNode()
+			if err != nil {
+				log.Error(err)
+			}
 		}
 	}()
 }
 
-/* This is a placeholder until the libsignal is operational.
-   For now we will just encrypt outgoing offline messages with the long lived identity key.
-   Optionally you may provide a public key, to avoid doing an IPFS lookup */
+/*EncryptMessage This is a placeholder until the libsignal is operational.
+  For now we will just encrypt outgoing offline messages with the long lived identity key.
+  Optionally you may provide a public key, to avoid doing an IPFS lookup */
 func (n *OpenBazaarNode) EncryptMessage(peerID peer.ID, peerKey *libp2p.PubKey, message []byte) (ct []byte, rerr error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), n.OfflineMessageFailoverTimeout)
 	defer cancel()
 	if peerKey == nil {
-		pubKey, err := routing.GetPublicKey(n.IpfsNode.Routing, ctx, []byte(peerID))
+		var (
+			pubKey libp2p.PubKey
+			store  = n.IpfsNode.Repo.Datastore()
+		)
+		keyval, err := ipfs.GetCachedPubkey(store, peerID.Pretty())
 		if err != nil {
-			log.Errorf("Failed to find public key for %s", peerID.Pretty())
-			return nil, err
+			pubKey, err = routing.GetPublicKey(n.IpfsNode.Routing, ctx, peerID)
+			if err != nil {
+				log.Errorf("Failed to find public key for %s", peerID.Pretty())
+				return nil, err
+			}
+		} else {
+			pubKey, err = libp2p.UnmarshalPublicKey(keyval)
+			if err != nil {
+				log.Errorf("Failed to find public key for %s", peerID.Pretty())
+				return nil, err
+			}
 		}
 		peerKey = &pubKey
 	}
@@ -229,8 +331,53 @@ func (n *OpenBazaarNode) EncryptMessage(peerID peer.ID, peerKey *libp2p.PubKey, 
 			return nil, err
 		}
 		return ciphertext, nil
-	} else {
-		log.Errorf("peer public key and id do not match for peer: %s", peerID.Pretty())
-		return nil, errors.New("peer public key and id do not match")
 	}
+	log.Errorf("peer public key and id do not match for peer: %s", peerID.Pretty())
+	return nil, errors.New("peer public key and id do not match")
+}
+
+// IPFSIdentityString - IPFS identifier
+func (n *OpenBazaarNode) IPFSIdentityString() string {
+	return n.IpfsNode.Identity.Pretty()
+}
+
+// GetNodeID returns the protobuf representing the node's identity and crypto
+// keys with the peer ID
+func (n *OpenBazaarNode) GetNodeID() (*pb.ID, error) {
+	var id = new(pb.ID)
+	id.PeerID = n.IpfsNode.Identity.Pretty()
+
+	if p, err := n.GetProfile(); err == nil {
+		id.Handle = p.Handle
+	}
+
+	p := new(pb.ID_Pubkeys)
+	pubkey, err := n.IpfsNode.PrivateKey.GetPublic().Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("ipfs pubkey bytes: %s", err.Error())
+	}
+	p.Identity = pubkey
+	coinPubkey, err := n.MasterPrivateKey.ECPubKey()
+	if err != nil {
+		return nil, fmt.Errorf("master pubkey: %s", err.Error())
+	}
+	p.Bitcoin = coinPubkey.SerializeCompressed()
+	id.Pubkeys = p
+
+	coinPrivKey, err := n.MasterPrivateKey.ECPrivKey()
+	if err != nil {
+		return nil, fmt.Errorf("master privkey: %s", err.Error())
+	}
+	coinSig, err := coinPrivKey.Sign([]byte(id.PeerID))
+	if err != nil {
+		return nil, fmt.Errorf("sign id: %s", err.Error())
+	}
+	id.BitcoinSig = coinSig.Serialize()
+
+	return id, nil
+}
+
+// Sign returns a signature for the payload signed by the IPFS private key
+func (n *OpenBazaarNode) Sign(payload []byte) ([]byte, error) {
+	return n.IpfsNode.PrivateKey.Sign(payload)
 }

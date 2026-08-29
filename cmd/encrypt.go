@@ -11,7 +11,8 @@ import (
 
 	"github.com/larslarsen/bb-go/repo"
 	"github.com/larslarsen/bb-go/repo/db"
-	lockfile "github.com/ipfs/go-ipfs/repo/fsrepo/lock"
+	"github.com/OpenBazaar/wallet-interface"
+	"github.com/ipfs/go-ipfs/repo/fsrepo"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -27,7 +28,7 @@ func (x *EncryptDatabase) Execute(args []string) error {
 	var testnet bool
 	var err error
 	if x.DataDir == "" {
-		repoPath, err = repo.GetRepoPath(false)
+		repoPath, err = repo.GetRepoPath(false, "")
 		if err != nil {
 			fmt.Println(err)
 			return nil
@@ -41,7 +42,7 @@ func (x *EncryptDatabase) Execute(args []string) error {
 		if strings.Contains(strings.ToLower(resp), "mainnet") {
 			filename = "mainnet.db"
 			dbPath = path.Join(repoPath, "datastore", filename)
-			repoLockFile := filepath.Join(repoPath, lockfile.LockFile)
+			repoLockFile := filepath.Join(repoPath, fsrepo.LockFile)
 			if _, err := os.Stat(repoLockFile); !os.IsNotExist(err) {
 				fmt.Println("Cannot encrypt while the daemon is running.")
 				return nil
@@ -55,7 +56,7 @@ func (x *EncryptDatabase) Execute(args []string) error {
 			testnet = true
 			filename = "testnet.db"
 			dbPath = path.Join(repoPath, "datastore", filename)
-			repoLockFile := filepath.Join(repoPath, lockfile.LockFile)
+			repoLockFile := filepath.Join(repoPath, fsrepo.LockFile)
 			if _, err := os.Stat(repoLockFile); !os.IsNotExist(err) {
 				fmt.Println("Cannot encrypt while the daemon is running.")
 				return nil
@@ -72,6 +73,7 @@ func (x *EncryptDatabase) Execute(args []string) error {
 	var pw string
 	for {
 		fmt.Print("Enter a veerrrry strong password: ")
+		// nolint:unconvert
 		bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
 		fmt.Println("")
 		resp := string(bytePassword)
@@ -86,6 +88,7 @@ func (x *EncryptDatabase) Execute(args []string) error {
 	}
 	for {
 		fmt.Print("Confirm your password: ")
+		// nolint:unconvert
 		bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
 		fmt.Println("")
 		resp := string(bytePassword)
@@ -97,25 +100,29 @@ func (x *EncryptDatabase) Execute(args []string) error {
 	}
 	pw = strings.Replace(pw, "'", "''", -1)
 	tmpPath := path.Join(repoPath, "tmp")
-	sqlliteDB, err := db.Create(repoPath, "", testnet)
+	sqlliteDB, err := db.Create(repoPath, "", testnet, wallet.Bitcoin)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
 	if sqlliteDB.Config().IsEncrypted() {
-		fmt.Println("The database is alredy encrypted")
+		fmt.Println("The database is already encrypted")
 		return nil
 	}
 	if err := os.MkdirAll(path.Join(repoPath, "tmp", "datastore"), os.ModePerm); err != nil {
 		return err
 	}
-	tmpDB, err := db.Create(tmpPath, pw, testnet)
+	tmpDB, err := db.Create(tmpPath, pw, testnet, wallet.Bitcoin)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
 
-	tmpDB.InitTables(pw)
+	err = tmpDB.InitTables(pw)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 	if err := sqlliteDB.Copy(path.Join(tmpPath, "datastore", filename), pw); err != nil {
 		fmt.Println(err)
 		return err
@@ -126,6 +133,6 @@ func (x *EncryptDatabase) Execute(args []string) error {
 		return err
 	}
 	os.RemoveAll(path.Join(tmpPath))
-	fmt.Println("Success! You must now run bitbookd start with the --password flag.")
+	fmt.Println("Success! You must now run bitbookd start with a password.")
 	return nil
 }

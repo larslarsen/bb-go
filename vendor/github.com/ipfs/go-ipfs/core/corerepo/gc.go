@@ -7,18 +7,18 @@ import (
 	"time"
 
 	"github.com/ipfs/go-ipfs/core"
-	mfs "github.com/ipfs/go-ipfs/mfs"
 	gc "github.com/ipfs/go-ipfs/pin/gc"
 	repo "github.com/ipfs/go-ipfs/repo"
 
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	humanize "gx/ipfs/QmPSBJL4momYnE7DcUyk2DVhD6rH488ZmHBGLbxNdhU44K/go-humanize"
-	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	humanize "gx/ipfs/QmQMxG9D52TirZd9eLA37nxiNspnMRkKbyPWrVAa1gvtSy/go-humanize"
+	cid "gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	mfs "gx/ipfs/Qmb74fRYPgpjYzoBV7PAVNmP3DQaRrh8dHdKE4PwnF3cRx/go-mfs"
+	logging "gx/ipfs/QmbkT7eMTyXfpeyB3ZMxxcxg7XH8t6uXp49jqzz4HB7BGF/go-log"
 )
 
 var log = logging.Logger("corerepo")
 
-var ErrMaxStorageExceeded = errors.New("Maximum storage limit exceeded. Maybe unpin some files?")
+var ErrMaxStorageExceeded = errors.New("maximum storage limit exceeded. Try to unpin some files")
 
 type GC struct {
 	Node       *core.IpfsNode
@@ -70,13 +70,13 @@ func NewGC(n *core.IpfsNode) (*GC, error) {
 	}, nil
 }
 
-func BestEffortRoots(filesRoot *mfs.Root) ([]*cid.Cid, error) {
-	rootDag, err := filesRoot.GetValue().GetNode()
+func BestEffortRoots(filesRoot *mfs.Root) ([]cid.Cid, error) {
+	rootDag, err := filesRoot.GetDirectory().GetNode()
 	if err != nil {
 		return nil, err
 	}
 
-	return []*cid.Cid{rootDag.Cid()}, nil
+	return []cid.Cid{rootDag.Cid()}, nil
 }
 
 func GarbageCollect(n *core.IpfsNode, ctx context.Context) error {
@@ -86,7 +86,7 @@ func GarbageCollect(n *core.IpfsNode, ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	rmed := gc.GC(ctx, n.Blockstore, n.DAG, n.Pinning, roots)
+	rmed := gc.GC(ctx, n.Blockstore, n.Repo.Datastore(), n.Pinning, roots)
 
 	return CollectResult(ctx, rmed, nil)
 }
@@ -94,7 +94,7 @@ func GarbageCollect(n *core.IpfsNode, ctx context.Context) error {
 // CollectResult collects the output of a garbage collection run and calls the
 // given callback for each object removed.  It also collects all errors into a
 // MultiError which is returned after the gc is completed.
-func CollectResult(ctx context.Context, gcOut <-chan gc.Result, cb func(*cid.Cid)) error {
+func CollectResult(ctx context.Context, gcOut <-chan gc.Result, cb func(cid.Cid)) error {
 	var errors []error
 loop:
 	for {
@@ -105,7 +105,7 @@ loop:
 			}
 			if res.Error != nil {
 				errors = append(errors, res.Error)
-			} else if res.KeyRemoved != nil && cb != nil {
+			} else if res.KeyRemoved.Defined() && cb != nil {
 				cb(res.KeyRemoved)
 			}
 		case <-ctx.Done():
@@ -154,7 +154,7 @@ func GarbageCollectAsync(n *core.IpfsNode, ctx context.Context) <-chan gc.Result
 		return out
 	}
 
-	return gc.GC(ctx, n.Blockstore, n.DAG, n.Pinning, roots)
+	return gc.GC(ctx, n.Blockstore, n.Repo.Datastore(), n.Pinning, roots)
 }
 
 func PeriodicGC(ctx context.Context, node *core.IpfsNode) error {

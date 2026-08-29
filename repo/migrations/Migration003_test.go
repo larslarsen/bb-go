@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var testConfig3 string = `{
+var testConfig3 = `{
     "RepublishInterval": "24h"
 }`
 
@@ -16,9 +16,12 @@ func TestMigration003(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f.Write([]byte(testConfig3))
+	_, err = f.Write([]byte(testConfig3))
+	if err != nil {
+		t.Error(err)
+	}
 	f.Close()
-	var m migration003
+	var m Migration003
 
 	// Up
 	err = m.Up("./", "", false)

@@ -5,16 +5,20 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"github.com/larslarsen/bb-go/pb"
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/golang/protobuf/proto"
-	peer "gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
-	crypto "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
+
+	crypto "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+
 	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/golang/protobuf/proto"
 )
 
+// ValidateRating - validates rating for API GET and Post/Update
 func ValidateRating(rating *pb.Rating) (bool, error) {
 	if rating.RatingData == nil || rating.RatingData.VendorID == nil || rating.RatingData.VendorID.Pubkeys == nil || rating.RatingData.VendorSig == nil || rating.RatingData.VendorSig.Metadata == nil {
 		return false, errors.New("missing rating data")
@@ -50,7 +54,7 @@ func ValidateRating(rating *pb.Rating) (bool, error) {
 	}
 	valid, err = vendorKey.Verify(ser, rating.RatingData.VendorSig.Signature)
 	if !valid || err != nil {
-		return false, errors.New("invaid vendor signature")
+		return false, errors.New("invalid vendor signature")
 	}
 
 	// Validate vendor peerID matches pubkey
@@ -113,6 +117,7 @@ func ValidateRating(rating *pb.Rating) (bool, error) {
 	return true, nil
 }
 
+// GetRatingCounts - fetch rating count
 func (n *OpenBazaarNode) GetRatingCounts() (uint32, float32, error) {
 	indexPath := path.Join(n.RepoPath, "root", "ratings.json")
 
@@ -136,8 +141,8 @@ func (n *OpenBazaarNode) GetRatingCounts() (uint32, float32, error) {
 	var totalRating float32
 	for _, i := range index {
 		ratingCount += uint32(i.Count)
-		totalRating += (float32(i.Count) * i.Average)
+		totalRating += float32(i.Count) * i.Average
 	}
-	averageRating := (totalRating / float32(ratingCount))
+	averageRating := totalRating / float32(ratingCount)
 	return ratingCount, averageRating, nil
 }

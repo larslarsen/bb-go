@@ -3,23 +3,31 @@ package core
 import (
 	"crypto/sha256"
 	"errors"
-	multihash "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
-	ma "gx/ipfs/QmXY77cVe7rVRQXZZQRioukUM7aRW3BTcAgJe12MCtb3Ji/go-multiaddr"
+	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
+	"strconv"
+
+	routing "gx/ipfs/QmSY3nkMNLzh9GdbFKK5tT7YMfLpf52iUZ8ZRkr29MJaa5/go-libp2p-kad-dht"
+	ma "gx/ipfs/QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL/go-multiaddr"
+	"gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
 
 	"github.com/OpenBazaar/jsonpb"
 	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
 	"golang.org/x/net/context"
 )
 
+// ModeratorPointerID  moderator ipfs multihash
 var ModeratorPointerID multihash.Multihash
 
-var NoListingsError error = errors.New("No listings to set moderators on")
+// ErrNoListings - no listing error
+// FIXME : This is not used anywhere
+var ErrNoListings = errors.New("no listings to set moderators on")
 
 func init() {
 	modHash := sha256.Sum256([]byte("moderators"))
@@ -34,6 +42,7 @@ func init() {
 	ModeratorPointerID = mh
 }
 
+// IsModerator - Am I a moderator?
 func (n *OpenBazaarNode) IsModerator() bool {
 	profile, err := n.GetProfile()
 	if err != nil {
@@ -42,13 +51,14 @@ func (n *OpenBazaarNode) IsModerator() bool {
 	return profile.Moderator
 }
 
+// SetSelfAsModerator - set self as a moderator
 func (n *OpenBazaarNode) SetSelfAsModerator(moderator *pb.Moderator) error {
 	if moderator != nil {
 		if moderator.Fee == nil {
-			return errors.New("Moderator must have a fee set")
+			return errors.New("moderator must have a fee set")
 		}
-		if (int(moderator.Fee.FeeType) == 0 || int(moderator.Fee.FeeType) == 2) && moderator.Fee.FixedFee == nil {
-			return errors.New("Fixed fee must be set when using a fixed fee type")
+		if (int(moderator.Fee.FeeType) == 0 || int(moderator.Fee.FeeType) == 2) && moderator.Fee.FixedFee.BigAmount == "" && moderator.Fee.FixedFee.Amount == 0 {
+			return errors.New("fixed fee must be set when using a fixed fee type")
 		}
 
 		// Update profile
@@ -56,7 +66,24 @@ func (n *OpenBazaarNode) SetSelfAsModerator(moderator *pb.Moderator) error {
 		if err != nil {
 			return err
 		}
-		moderator.AcceptedCurrencies = []string{strings.ToUpper(n.Wallet.CurrencyCode())}
+
+		var currencies []string
+		settingsData, _ := n.Datastore.Settings().Get()
+		if settingsData.PreferredCurrencies != nil {
+			currencies = append(currencies, *settingsData.PreferredCurrencies...)
+		} else {
+			for ct := range n.Multiwallet {
+				currencies = append(currencies, ct.CurrencyCode())
+			}
+		}
+		for _, cc := range currencies {
+			currency, err := n.LookupCurrency(cc)
+			if err != nil {
+				return fmt.Errorf("moderator fee currency (%s) unknown: %s", cc, err)
+			}
+			moderator.AcceptedCurrencies = append(moderator.AcceptedCurrencies, currency.CurrencyCode().String())
+		}
+
 		profile.Moderator = true
 		profile.ModeratorInfo = moderator
 		err = n.UpdateProfile(&profile)
@@ -77,18 +104,29 @@ func (n *OpenBazaarNode) SetSelfAsModerator(moderator *pb.Moderator) error {
 		if err != nil {
 			return err
 		}
-		go ipfs.PublishPointer(n.IpfsNode, ctx, pointer)
+		go func(dht *routing.IpfsDHT, ctx context.Context, pointer ipfs.Pointer) {
+			err := ipfs.PublishPointer(dht, ctx, pointer)
+			if err != nil {
+				log.Error(err)
+			}
+		}(n.DHT, ctx, pointer)
 		pointer.Purpose = ipfs.MODERATOR
 		err = n.Datastore.Pointers().Put(pointer)
 		if err != nil {
 			return err
 		}
 	} else {
-		go ipfs.PublishPointer(n.IpfsNode, ctx, pointers[0])
+		go func(dht *routing.IpfsDHT, ctx context.Context, pointer ipfs.Pointer) {
+			err := ipfs.PublishPointer(dht, ctx, pointer)
+			if err != nil {
+				log.Error(err)
+			}
+		}(n.DHT, ctx, pointers[0])
 	}
 	return nil
 }
 
+// RemoveSelfAsModerator - relinquish moderatorship
 func (n *OpenBazaarNode) RemoveSelfAsModerator() error {
 	// Update profile
 	profile, err := n.GetProfile()
@@ -109,55 +147,124 @@ func (n *OpenBazaarNode) RemoveSelfAsModerator() error {
 	return nil
 }
 
-func (n *OpenBazaarNode) GetModeratorFee(transactionTotal uint64) (uint64, error) {
+// GetModeratorFee is called by the Moderator when determining their take of the dispute
+func (n *OpenBazaarNode) GetModeratorFee(transactionTotal *big.Int, txCurrencyCode string) (*big.Int, error) {
+	var curDef *pb.CurrencyDefinition
+	var bigAmount string
+
 	file, err := ioutil.ReadFile(path.Join(n.RepoPath, "root", "profile.json"))
 	if err != nil {
-		return 0, err
+		return big.NewInt(0), err
 	}
 	profile := new(pb.Profile)
 	err = jsonpb.UnmarshalString(string(file), profile)
 	if err != nil {
-		return 0, err
+		return big.NewInt(0), err
 	}
-
+	txCurrency, err := n.LookupCurrency(txCurrencyCode)
+	if err != nil {
+		return big.NewInt(0), fmt.Errorf("lookup dispute transaction currency (%s): %s", txCurrencyCode, err)
+	}
 	switch profile.ModeratorInfo.Fee.FeeType {
 	case pb.Moderator_Fee_PERCENTAGE:
-		return uint64(float64(transactionTotal) * (float64(profile.ModeratorInfo.Fee.Percentage) / 100)), nil
+		feePercent := new(big.Float).Mul(big.NewFloat(float64(profile.ModeratorInfo.Fee.Percentage)), big.NewFloat(0.01))
+		feePercentAmt, _ := repo.NewCurrencyValueFromBigInt(transactionTotal, txCurrency).MulBigFloat(feePercent)
+		return feePercentAmt.AmountBigInt(), nil
+
 	case pb.Moderator_Fee_FIXED:
-		if strings.ToLower(profile.ModeratorInfo.Fee.FixedFee.CurrencyCode) == "btc" {
-			if profile.ModeratorInfo.Fee.FixedFee.Amount >= transactionTotal {
-				return 0, errors.New("Fixed moderator fee exceeds transaction amount")
-			}
-			return profile.ModeratorInfo.Fee.FixedFee.Amount, nil
-		} else {
-			fee, err := n.getPriceInSatoshi(profile.ModeratorInfo.Fee.FixedFee.CurrencyCode, profile.ModeratorInfo.Fee.FixedFee.Amount)
+		if profile.ModeratorInfo.Fee.FixedFee.AmountCurrency == nil {
+			currency, err := n.LookupCurrency(profile.ModeratorInfo.Fee.FixedFee.CurrencyCode)
 			if err != nil {
-				return 0, err
-			} else if fee >= transactionTotal {
-				return 0, errors.New("Fixed moderator fee exceeds transaction amount")
+				return nil, err
 			}
-			return fee, err
+			curDef = &pb.CurrencyDefinition{
+				Code:         currency.Code.String(),
+				Divisibility: uint32(currency.Divisibility),
+			}
+			bigAmount = strconv.FormatUint(profile.ModeratorInfo.Fee.FixedFee.Amount, 10)
+		} else {
+			currency, err := n.LookupCurrency(profile.ModeratorInfo.Fee.FixedFee.AmountCurrency.Code)
+			if err != nil {
+				return nil, err
+			}
+			curDef = &pb.CurrencyDefinition{
+				Code:         currency.Code.String(),
+				Divisibility: uint32(currency.Divisibility),
+			}
+			bigAmount = profile.ModeratorInfo.Fee.FixedFee.BigAmount
 		}
+
+		modFeeValue, err := repo.NewCurrencyValueFromProtobuf(bigAmount, curDef)
+		if err != nil {
+			return big.NewInt(0), fmt.Errorf("parse moderator fee currency: %s", err)
+		}
+
+		cc, err := n.ReserveCurrencyConverter()
+		if err != nil {
+			return big.NewInt(0), fmt.Errorf("preparing reserve currency converter: %s", err.Error())
+		}
+
+		convertedModFee, _, err := modFeeValue.ConvertTo(txCurrency, cc)
+		if err != nil {
+			return big.NewInt(0), fmt.Errorf("convert moderator fee into transaction currency (%s): %s", txCurrency.String(), err)
+		}
+		if convertedModFee.AmountBigInt().Cmp(transactionTotal) > 0 {
+			return big.NewInt(0), errors.New("Fixed moderator fee exceeds transaction amount")
+		}
+		return convertedModFee.AmountBigInt(), nil
+
 	case pb.Moderator_Fee_FIXED_PLUS_PERCENTAGE:
-		var fixed uint64
-		if strings.ToLower(profile.ModeratorInfo.Fee.FixedFee.CurrencyCode) == "btc" {
-			fixed = profile.ModeratorInfo.Fee.FixedFee.Amount
-		} else {
-			fixed, err = n.getPriceInSatoshi(profile.ModeratorInfo.Fee.FixedFee.CurrencyCode, profile.ModeratorInfo.Fee.FixedFee.Amount)
+		if profile.ModeratorInfo.Fee.FixedFee.AmountCurrency == nil {
+			currency, err := n.LookupCurrency(profile.ModeratorInfo.Fee.FixedFee.CurrencyCode)
 			if err != nil {
-				return 0, err
+				return nil, err
 			}
+			curDef = &pb.CurrencyDefinition{
+				Code:         currency.Code.String(),
+				Divisibility: uint32(currency.Divisibility),
+			}
+			bigAmount = strconv.FormatUint(profile.ModeratorInfo.Fee.FixedFee.Amount, 10)
+		} else {
+			currency, err := n.LookupCurrency(profile.ModeratorInfo.Fee.FixedFee.AmountCurrency.Code)
+			if err != nil {
+				return nil, err
+			}
+			curDef = &pb.CurrencyDefinition{
+				Code:         currency.Code.String(),
+				Divisibility: uint32(currency.Divisibility),
+			}
+			bigAmount = profile.ModeratorInfo.Fee.FixedFee.BigAmount
 		}
-		percentage := uint64(float64(transactionTotal) * (float64(profile.ModeratorInfo.Fee.Percentage) / 100))
-		if fixed+percentage >= transactionTotal {
-			return 0, errors.New("Fixed moderator fee exceeds transaction amount")
+
+		modFeeValue, err := repo.NewCurrencyValueFromProtobuf(bigAmount, curDef)
+		if err != nil {
+			return big.NewInt(0), fmt.Errorf("parse moderator fee currency: %s", err)
 		}
-		return fixed + percentage, nil
+
+		cc, err := n.ReserveCurrencyConverter()
+		if err != nil {
+			return big.NewInt(0), fmt.Errorf("preparing reserve currency converter: %s", err.Error())
+		}
+
+		convertedModFee, _, err := modFeeValue.ConvertTo(txCurrency, cc)
+		if err != nil {
+			return big.NewInt(0), fmt.Errorf("convert moderator fee into transaction currency (%s): %s", txCurrency.String(), err)
+		}
+
+		feePercent := new(big.Float).Mul(big.NewFloat(float64(profile.ModeratorInfo.Fee.Percentage)), big.NewFloat(0.01))
+		feePercentAmt, _ := repo.NewCurrencyValueFromBigInt(transactionTotal, txCurrency).MulBigFloat(feePercent)
+		feeTotal := feePercentAmt.AddBigInt(convertedModFee.AmountBigInt())
+		if feeTotal.AmountBigInt().Cmp(transactionTotal) > 0 {
+			return big.NewInt(0), errors.New("Fixed moderator fee exceeds transaction amount")
+		}
+		return feeTotal.AmountBigInt(), nil
+
 	default:
-		return 0, errors.New("Unrecognized fee type")
+		return big.NewInt(0), errors.New("Unrecognized fee type")
 	}
 }
 
+// SetModeratorsOnListings - set moderators for a listing
 func (n *OpenBazaarNode) SetModeratorsOnListings(moderators []string) error {
 	absPath, err := filepath.Abs(path.Join(n.RepoPath, "root", "listings"))
 	if err != nil {
@@ -166,59 +273,46 @@ func (n *OpenBazaarNode) SetModeratorsOnListings(moderators []string) error {
 	hashes := make(map[string]string)
 	walkpath := func(p string, f os.FileInfo, err error) error {
 		if !f.IsDir() {
-			file, err := ioutil.ReadFile(p)
+			listingJSONBytes, err := ioutil.ReadFile(p)
 			if err != nil {
 				return err
 			}
-			sl := new(pb.SignedListing)
-			err = jsonpb.UnmarshalString(string(file), sl)
+			oldSL, err := repo.UnmarshalJSONSignedListing(listingJSONBytes)
 			if err != nil {
 				return err
 			}
-			coupons, err := n.Datastore.Coupons().Get(sl.Listing.Slug)
-			if err != nil {
-				return err
-			}
-			couponMap := make(map[string]string)
-			for _, c := range coupons {
-				couponMap[c.Hash] = c.Code
-			}
-			for _, coupon := range sl.Listing.Coupons {
-				code, ok := couponMap[coupon.GetHash()]
-				if ok {
-					coupon.Code = &pb.Listing_Coupon_DiscountCode{code}
-				}
+			l := oldSL.GetListing()
+
+			if err := l.SetModerators(moderators); err != nil {
+				return fmt.Errorf("settings moderator on (%s): %s", f.Name(), err.Error())
 			}
 
-			sl.Listing.Moderators = moderators
-			sl, err = n.SignListing(sl.Listing)
+			sl, err := l.Sign(n)
 			if err != nil {
-				return err
+				return fmt.Errorf("signing listing (%s): %s", l.GetSlug(), err.Error())
 			}
-			m := jsonpb.Marshaler{
-				EnumsAsInts:  false,
-				EmitDefaults: false,
-				Indent:       "    ",
-				OrigName:     false,
-			}
+
 			fi, err := os.Create(p)
 			if err != nil {
 				return err
 			}
-			out, err := m.MarshalToString(sl)
-			if err != nil {
-				return err
-			}
-			if _, err := fi.WriteString(out); err != nil {
-				return err
-			}
-			hash, err := ipfs.GetHashOfFile(n.Context, p)
-			if err != nil {
-				return err
-			}
-			hashes[sl.Listing.Slug] = hash
+			defer fi.Close()
 
-			return n.UpdateListingIndex(sl)
+			slBytes, err := sl.MarshalJSON()
+			if err != nil {
+				return fmt.Errorf("marshal signed listing (%s): %s", l.GetSlug(), err.Error())
+			}
+
+			if _, err := fi.Write(slBytes); err != nil {
+				return err
+			}
+			hash, err := ipfs.GetHashOfFile(n.IpfsNode, p)
+			if err != nil {
+				return err
+			}
+			hashes[sl.GetSlug()] = hash
+
+			return nil
 		}
 		return nil
 	}
@@ -227,36 +321,36 @@ func (n *OpenBazaarNode) SetModeratorsOnListings(moderators []string) error {
 	if err != nil {
 		return err
 	}
-	return n.UpdateIndexHashes(hashes)
+
+	// Update moderators and hashes on index
+	updater := func(listing *repo.ListingIndexData) error {
+		listing.ModeratorIDs = moderators
+		if hash, ok := hashes[listing.Slug]; ok {
+			listing.Hash = hash
+		}
+		return nil
+	}
+	return n.UpdateEachListingOnIndex(updater)
 }
 
-func (n *OpenBazaarNode) NotifyModerators(moderators []string) error {
-	settings, err := n.Datastore.Settings().Get()
-	if err != nil {
-		return err
-	}
-	currentMods := make(map[string]bool)
-	if settings.StoreModerators != nil {
-		for _, mod := range *settings.StoreModerators {
-			currentMods[mod] = true
-		}
-	}
-	var addedMods []string
-	for _, mod := range moderators {
-		if !currentMods[mod] {
-			addedMods = append(addedMods, mod)
-		} else {
-			delete(currentMods, mod)
-		}
-	}
-
-	removedMods := currentMods
-
+// NotifyModerators - notify moderators(peers)
+func (n *OpenBazaarNode) NotifyModerators(addedMods, removedMods []string) error {
+	n.Service.WaitForReady()
 	for _, mod := range addedMods {
-		go n.SendModeratorAdd(mod)
+		go func(mod string) {
+			err := n.SendModeratorAdd(mod)
+			if err != nil {
+				log.Error(err)
+			}
+		}(mod)
 	}
-	for mod := range removedMods {
-		go n.SendModeratorRemove(mod)
+	for _, mod := range removedMods {
+		go func(mod string) {
+			err := n.SendModeratorRemove(mod)
+			if err != nil {
+				log.Error(err)
+			}
+		}(mod)
 	}
 	return nil
 }

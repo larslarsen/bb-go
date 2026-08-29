@@ -5,19 +5,20 @@ import (
 )
 
 type SettingsData struct {
-	PaymentDataInQR    *bool              `json:"paymentDataInQR"`
-	ShowNotifications  *bool              `json:"showNotifications"`
-	ShowNsfw           *bool              `json:"showNsfw"`
-	ShippingAddresses  *[]ShippingAddress `json:"shippingAddresses"`
-	LocalCurrency      *string            `json:"localCurrency"`
-	Country            *string            `json:"country"`
-	TermsAndConditions *string            `json:"termsAndConditions"`
-	RefundPolicy       *string            `json:"refundPolicy"`
-	BlockedNodes       *[]string          `json:"blockedNodes"`
-	StoreModerators    *[]string          `json:"storeModerators"`
-	MisPaymentBuffer   *float32           `json:"mispaymentBuffer"`
-	SMTPSettings       *SMTPSettings      `json:"smtpSettings"`
-	Version            *string            `json:"version"`
+	PaymentDataInQR     *bool              `json:"paymentDataInQR"`
+	ShowNotifications   *bool              `json:"showNotifications"`
+	ShowNsfw            *bool              `json:"showNsfw"`
+	ShippingAddresses   *[]ShippingAddress `json:"shippingAddresses"`
+	LocalCurrency       *string            `json:"localCurrency"`
+	Country             *string            `json:"country"`
+	TermsAndConditions  *string            `json:"termsAndConditions"`
+	RefundPolicy        *string            `json:"refundPolicy"`
+	BlockedNodes        *[]string          `json:"blockedNodes"`
+	StoreModerators     *[]string          `json:"storeModerators"`
+	MisPaymentBuffer    *float32           `json:"mispaymentBuffer"`
+	SMTPSettings        *SMTPSettings      `json:"smtpSettings"`
+	Version             *string            `json:"version"`
+	PreferredCurrencies *[]string          `json:"preferredCurrencies"`
 }
 
 type ShippingAddress struct {
@@ -39,6 +40,7 @@ type SMTPSettings struct {
 	Password       string `json:"password"`
 	SenderEmail    string `json:"senderEmail"`
 	RecipientEmail string `json:"recipientEmail"`
+	OpenBazaarName string `json:"openBazaarName"`
 }
 
 type Follower struct {
@@ -52,30 +54,6 @@ type Coupon struct {
 	Hash string
 }
 
-type ChatMessage struct {
-	MessageId string    `json:"messageId"`
-	PeerId    string    `json:"peerId"`
-	Subject   string    `json:"subject"`
-	Message   string    `json:"message"`
-	Read      bool      `json:"read"`
-	Outgoing  bool      `json:"outgoing"`
-	Timestamp time.Time `json:"timestamp"`
-}
-
-type GroupChatMessage struct {
-	PeerIds []string `json:"peerIds"`
-	Subject string   `json:"subject"`
-	Message string   `json:"message"`
-}
-
-type ChatConversation struct {
-	PeerId    string    `json:"peerId"`
-	Unread    int       `json:"unread"`
-	Last      string    `json:"lastMessage"`
-	Timestamp time.Time `json:"timestamp"`
-	Outgoing  bool      `json:"outgoing"`
-}
-
 type Metadata struct {
 	Txid       string
 	Address    string
@@ -86,57 +64,75 @@ type Metadata struct {
 }
 
 type Purchase struct {
-	OrderId            string    `json:"orderId"`
-	Slug               string    `json:"slug"`
-	Timestamp          time.Time `json:"timestamp"`
-	Title              string    `json:"title"`
-	Thumbnail          string    `json:"thumbnail"`
-	Total              uint64    `json:"total"`
-	VendorId           string    `json:"vendorId"`
-	VendorHandle       string    `json:"vendorHandle"`
-	ShippingName       string    `json:"shippingName"`
-	ShippingAddress    string    `json:"shippingAddress"`
-	State              string    `json:"state"`
-	Read               bool      `json:"read"`
-	Moderated          bool      `json:"moderated"`
-	UnreadChatMessages int       `json:"unreadChatMessages"`
+	OrderId            string        `json:"orderId"`
+	Slug               string        `json:"slug"`
+	Timestamp          time.Time     `json:"timestamp"`
+	Title              string        `json:"title"`
+	Thumbnail          string        `json:"thumbnail"`
+	Total              CurrencyValue `json:"total"`
+	VendorId           string        `json:"vendorId"`
+	VendorHandle       string        `json:"vendorHandle"`
+	ShippingName       string        `json:"shippingName"`
+	ShippingAddress    string        `json:"shippingAddress"`
+	CoinType           string        `json:"coinType"`
+	PaymentCoin        string        `json:"paymentCoin"`
+	State              string        `json:"state"`
+	Read               bool          `json:"read"`
+	Moderated          bool          `json:"moderated"`
+	UnreadChatMessages int           `json:"unreadChatMessages"`
 }
 
 type Sale struct {
-	OrderId            string    `json:"orderId"`
-	Slug               string    `json:"slug"`
-	Timestamp          time.Time `json:"timestamp"`
-	Title              string    `json:"title"`
-	Thumbnail          string    `json:"thumbnail"`
-	Total              uint64    `json:"total"`
-	BuyerId            string    `json:"buyerId"`
-	BuyerHandle        string    `json:"buyerHandle"`
-	ShippingName       string    `json:"shippingName"`
-	ShippingAddress    string    `json:"shippingAddress"`
-	State              string    `json:"state"`
-	Read               bool      `json:"read"`
-	Moderated          bool      `json:"moderated"`
-	UnreadChatMessages int       `json:"unreadChatMessages"`
+	OrderId            string        `json:"orderId"`
+	Slug               string        `json:"slug"`
+	Timestamp          time.Time     `json:"timestamp"`
+	Title              string        `json:"title"`
+	Thumbnail          string        `json:"thumbnail"`
+	Total              CurrencyValue `json:"total"`
+	BuyerId            string        `json:"buyerId"`
+	BuyerHandle        string        `json:"buyerHandle"`
+	ShippingName       string        `json:"shippingName"`
+	ShippingAddress    string        `json:"shippingAddress"`
+	CoinType           string        `json:"coinType"`
+	PaymentCoin        string        `json:"paymentCoin"`
+	State              string        `json:"state"`
+	Read               bool          `json:"read"`
+	Moderated          bool          `json:"moderated"`
+	UnreadChatMessages int           `json:"unreadChatMessages"`
 }
 
 type Case struct {
-	CaseId             string    `json:"caseId"`
-	Slug               string    `json:"slug"`
-	Timestamp          time.Time `json:"timestamp"`
-	Title              string    `json:"title"`
-	Thumbnail          string    `json:"thumbnail"`
-	Total              uint64    `json:"total"`
-	BuyerId            string    `json:"buyerId"`
-	BuyerHandle        string    `json:"buyerHandle"`
-	VendorId           string    `json:"vendorId"`
-	VendorHandle       string    `json:"vendorHandle"`
-	BuyerOpened        bool      `json:"buyerOpened"`
-	State              string    `json:"state"`
-	Read               bool      `json:"read"`
-	UnreadChatMessages int       `json:"unreadChatMessages"`
+	CaseId             string        `json:"caseId"`
+	Slug               string        `json:"slug"`
+	Timestamp          time.Time     `json:"timestamp"`
+	Title              string        `json:"title"`
+	Thumbnail          string        `json:"thumbnail"`
+	Total              CurrencyValue `json:"total"`
+	BuyerId            string        `json:"buyerId"`
+	BuyerHandle        string        `json:"buyerHandle"`
+	VendorId           string        `json:"vendorId"`
+	VendorHandle       string        `json:"vendorHandle"`
+	CoinType           string        `json:"coinType"`
+	PaymentCoin        string        `json:"paymentCoin"`
+	BuyerOpened        bool          `json:"buyerOpened"`
+	State              string        `json:"state"`
+	Read               bool          `json:"read"`
+	UnreadChatMessages int           `json:"unreadChatMessages"`
 }
 
-type UnfundedSale struct {
-	OrderId   string
-	Timestamp time.Time
+type UnfundedOrder struct {
+	OrderId        string
+	Timestamp      time.Time
+	PaymentCoin    string
+	PaymentAddress string
+}
+
+type OrderMessage struct {
+	MessageID   string `json:"messageID"`
+	OrderID     string `json:"orderID"`
+	MessageType int32  `json:"message_type"`
+	Message     []byte `json:"message"`
+	MsgErr      string `json:"error"`
+	PeerID      string `json:"peerID"`
+	PeerPubkey  []byte `json:"pubkey"`
 }

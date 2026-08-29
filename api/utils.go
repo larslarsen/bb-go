@@ -1,10 +1,11 @@
 package api
 
 import (
-	"github.com/larslarsen/bb-go/pb"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/larslarsen/bb-go/pb"
 )
 
 type TransactionQuery struct {
@@ -57,4 +58,32 @@ func convertOrderStates(states []int) []pb.OrderState {
 		orderStates = append(orderStates, pb.OrderState(i))
 	}
 	return orderStates
+}
+
+func extractModeratorChanges(newModList []string, currentModList *[]string) (toAdd, toDelete []string) {
+	currentModMap := make(map[string]bool)
+	if currentModList != nil {
+		for _, mod := range *currentModList {
+			currentModMap[mod] = true
+		}
+	}
+
+	newModMap := make(map[string]bool)
+	for _, mod := range newModList {
+		newModMap[mod] = true
+	}
+
+	for _, mod := range newModList {
+		if !currentModMap[mod] {
+			toAdd = append(toAdd, mod)
+		}
+	}
+
+	for mod := range currentModMap {
+		if !newModMap[mod] {
+			toDelete = append(toDelete, mod)
+		}
+	}
+
+	return toAdd, toDelete
 }

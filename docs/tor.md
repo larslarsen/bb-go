@@ -62,7 +62,7 @@ The runtime option will override the swarm address configuration in the config f
 If you changed the tor control port in your `torrc` file or you require authentication you can set both the control port and your tor control password in the openbazaar-go config file:
 ```
 "Tor-config": {
-    "Password": "yourpassword", 
+    "Password": "yourpassword",
     "TorControl": "127.0.0.1:9000"
 },
 ```
@@ -75,7 +75,7 @@ Aternatively you can pass the tor control password in as a start up option:
 ## Configuring the client
 The openbazaar-desktop client **must** also be configured to run over Tor as some html tags, such as `IMG`, are allowed in the profile and store data and will trigger the client to make outgoing network calls.
 
-To set tor in the reference client select `Manage Servers` from the menu then check `Use Tor` and make sure the socks5 proxy url is correct. 
+To set tor in the reference client select `Manage Servers` from the menu then check `Use Tor` and make sure the socks5 proxy url is correct.
 
 <img src="https://i.imgur.com/Ht2ZRMd.png">
 
@@ -88,4 +88,4 @@ peer ID and your IP address. Therefore using a given peer ID in the clear, *then
 Therefore if you wish to run in Tor-only mode, it is *highly recommended* that you use a fresh peer ID which has never been used on the network and has not had a chance
 to get associated with your actual IP address. To get a new peer ID you can just delete your data folder and restart openbazaar-go. It will create a new peer ID on start up.
 
-Finally, as noted in the [bitcoind doc](https://github.com/larslarsen/bb-go/blob/master/docs/bitcoind.md) the default SPV wallet has known privacy issues which may allow attackers to associate your bitcoin transactions with your OpenBazaar peer ID. For those looking to maximize privacy it's recommended you switch out the default wallet for bitcoind. See the bitcoind doc for instructions. 
+Finally, as noted in the [bitcoind doc](https://github.com/larslarsen/bb-go/blob/master/docs/bitcoind.md) the default SPV wallet has known privacy issues which may allow attackers to associate your bitcoin transactions with your OpenBazaar peer ID. For those looking to maximize privacy it's recommended you switch out the default wallet for bitcoind. See the bitcoind doc for instructions.
