@@ -30,8 +30,16 @@ The easiest way to run the server is to download a pre-built binary. You can fin
 
 ### Build from Source
 
-BitBook targets Go 1.27.0. Its embedded IPFS fork still uses the pre-module
-`gx` dependency layout, so use the included compatibility wrapper:
+BitBook targets Go 1.27.0. Build the maintained social daemon from its module:
+
+```sh
+cd modern
+GOTOOLCHAIN=go1.27.0 go build -o bitbookd ./cmd/bitbookd
+```
+
+The historical daemon remains available during migration. Its embedded IPFS
+fork still uses the pre-module `gx` dependency layout, so build that version
+with the compatibility wrapper:
 
 ```sh
 ./scripts/go.sh build -o bitbookd ./bitbookd.go
@@ -66,7 +74,19 @@ You can either pull in remote changes as normal or run `go get -u github.com/lar
 
 ## Usage
 
-Run the server with the Go 1.27 wrapper:
+Run the maintained server with one or more BitBook v2 bootstrap peers:
+
+```sh
+cd modern
+./bitbookd -bootstrap /ip4/203.0.113.10/tcp/4001/p2p/12D3KooW...
+```
+
+It stores its stable identity and social state under `~/.bitbook/modern`,
+serves the local API at `http://127.0.0.1:4002`, and prints the BitBook banner
+and dialable peer addresses at startup. See [the maintained daemon
+README](modern/README.md) for flags and the currently migrated endpoints.
+
+The historical server can still be run with the Go 1.27 wrapper:
 
 ```sh
 ./scripts/go.sh run bitbookd.go start

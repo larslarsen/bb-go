@@ -51,6 +51,7 @@ type Config struct {
 type Node struct {
 	Host       host.Host
 	DHT        *dht.IpfsDHT
+	Datastore  datastore.Batching
 	Blockstore blockstore.Blockstore
 	Bitswap    *bitswap.Bitswap
 	Publisher  *namesys.IPNSPublisher
@@ -139,6 +140,7 @@ func New(parent context.Context, cfg Config) (_ *Node, err error) {
 	n := &Node{
 		Host:       h,
 		DHT:        kad,
+		Datastore:  cfg.Datastore,
 		Blockstore: store,
 		Bitswap:    exchange,
 		Publisher:  namesys.NewIPNSPublisher(kad, cfg.Datastore),

@@ -28,20 +28,22 @@ The replacement has started in [`modern/`](../modern). It is a conventional Go
 - go-libp2p 0.49.0; and
 - go-libp2p-kad-dht 0.42.1.
 
-It already owns peer identity, persistent network storage, the BitBook DHT,
-Bitswap block transfer, and signed IPNS root publishing/resolution. Its
-integration tests start two real libp2p peers, transfer a block over the
-isolated BitBook protocol namespace, publish the author's root, resolve it by
-peer ID, and retrieve the signed content from the reader.
+It now owns peer identity, persistent network and social storage, the BitBook
+DHT, Bitswap block transfer, signed IPNS roots, profiles, posts, and following
+lists. The `modern/cmd/bitbookd` command exposes those functions through the
+social-only portion of the historical `/ob` API. Its integration tests start
+two real libp2p peers, publish signed social state, resolve it by peer ID, and
+retrieve and verify the content from the reader.
 
 ```sh
 make modern_test
 ```
 
-The legacy daemon remains buildable through `scripts/go.sh` while social data
-publishing, name resolution, and direct messaging are moved behind the new
-network boundary. Once those callers no longer depend on the old `IpfsNode`,
-the root daemon can become the module and the `vendor/gx` tree can be removed.
+The legacy daemon remains buildable through `scripts/go.sh` while followers,
+direct messaging, media, and any required desktop compatibility are moved
+behind the new boundary. The maintained daemon already has no `gx`
+dependency; the root `vendor/gx` tree can be removed after the remaining
+legacy runtime is retired.
 
 ## Protocol generation
 
