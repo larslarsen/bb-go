@@ -6,10 +6,10 @@ import (
 	"os/signal"
 	"path/filepath"
 
-	"github.com/larslarsen/bb-go/cmd"
-	"github.com/larslarsen/bb-go/core"
 	"github.com/ipfs/go-ipfs/repo/fsrepo"
 	"github.com/jessevdk/go-flags"
+	"github.com/larslarsen/bb-go/cmd"
+	"github.com/larslarsen/bb-go/core"
 	"github.com/op/go-logging"
 )
 
@@ -32,17 +32,25 @@ func main() {
 			log.Info("BitBook Server shutting down...")
 			if core.Node != nil {
 				if core.Node.MessageRetriever != nil {
-					core.Node.RecordAgingNotifier.Stop()
-					core.Node.InboundMsgScanner.Stop()
+					if core.Node.RecordAgingNotifier != nil {
+						core.Node.RecordAgingNotifier.Stop()
+					}
+					if core.Node.InboundMsgScanner != nil {
+						core.Node.InboundMsgScanner.Stop()
+					}
 					close(core.Node.MessageRetriever.DoneChan)
-					core.Node.MessageRetriever.Wait()
+					if !core.Node.IsSocialOnly() {
+						core.Node.MessageRetriever.Wait()
+					}
 				}
 				core.OfflineMessageWaitGroup.Wait()
 				core.Node.PublishLock.Lock()
 				core.Node.Datastore.Close()
 				repoLockFile := filepath.Join(core.Node.RepoPath, fsrepo.LockFile)
 				os.Remove(repoLockFile)
-				core.Node.Multiwallet.Close()
+				if core.Node.WalletsStarted {
+					core.Node.Multiwallet.Close()
+				}
 				core.Node.IpfsNode.Close()
 			}
 			os.Exit(1)

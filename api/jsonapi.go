@@ -34,11 +34,6 @@ import (
 	mh "gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
 
 	"github.com/OpenBazaar/jsonpb"
-	"github.com/larslarsen/bb-go/core"
-	"github.com/larslarsen/bb-go/ipfs"
-	"github.com/larslarsen/bb-go/pb"
-	"github.com/larslarsen/bb-go/repo"
-	"github.com/larslarsen/bb-go/schema"
 	"github.com/OpenBazaar/spvwallet"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -48,6 +43,11 @@ import (
 	ipfscore "github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/core/coreapi"
 	"github.com/ipfs/go-ipfs/repo/fsrepo"
+	"github.com/larslarsen/bb-go/core"
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
+	"github.com/larslarsen/bb-go/schema"
 )
 
 type JSONAPIConfig struct {
@@ -100,6 +100,10 @@ func (i *jsonAPIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	u, err := url.Parse(r.URL.Path)
 	if err != nil {
 		log.Error(err)
+		return
+	}
+	if i.node.IsSocialOnly() && !socialOnlyAllowedEndpoint(u.Path, r.Method) {
+		ErrorResponse(w, http.StatusNotFound, "Not Found")
 		return
 	}
 	if !i.config.Enabled && !gatewayAllowedPath(u.Path, r.Method) {

@@ -16,6 +16,8 @@ import (
 	routing "gx/ipfs/QmYxUdYY9S6yg5tSPVin5GFTvtfsLauVcr7reHDD3dM8xf/go-libp2p-routing"
 
 	"github.com/OpenBazaar/multiwallet"
+	"github.com/btcsuite/btcutil/hdkeychain"
+	"github.com/ipfs/go-ipfs/core"
 	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/larslarsen/bb-go/net"
 	rep "github.com/larslarsen/bb-go/net/repointer"
@@ -23,8 +25,6 @@ import (
 	"github.com/larslarsen/bb-go/pb"
 	"github.com/larslarsen/bb-go/repo"
 	sto "github.com/larslarsen/bb-go/storage"
-	"github.com/btcsuite/btcutil/hdkeychain"
-	"github.com/ipfs/go-ipfs/core"
 	logging "github.com/op/go-logging"
 	"golang.org/x/net/context"
 	"golang.org/x/net/proxy"
@@ -46,6 +46,9 @@ var inflightPublishRequests int
 
 // OpenBazaarNode - represent ob node which encapsulates ipfsnode, wallet etc
 type OpenBazaarNode struct {
+	// RuntimeMode selects the product-level feature set exposed by the node.
+	RuntimeMode RuntimeMode
+
 	// IPFS node object
 	IpfsNode *core.IpfsNode
 
@@ -71,6 +74,8 @@ type OpenBazaarNode struct {
 
 	// A map of cryptocurrency wallets
 	Multiwallet multiwallet.MultiWallet
+	// WalletsStarted is true after the multiwallet runtime has been started.
+	WalletsStarted bool
 
 	// Storage for our outgoing messages
 	MessageStorage sto.OfflineMessagingStorage
@@ -183,26 +188,28 @@ func (n *OpenBazaarNode) publish(hash string) {
 		return
 	}
 
-	go func() {
-		// Update search endpoint with published hash
-		peerId, _ := n.GetNodeID()
-		endpoint := fmt.Sprintf("https://search.ob1.io/update/%s/%s", peerId.PeerID, hash)
-		log.Infof("Publishing new rootHash to: %s\n", endpoint)
+	if !n.IsSocialOnly() {
+		go func() {
+			// Update search endpoint with published hash.
+			peerId, _ := n.GetNodeID()
+			endpoint := fmt.Sprintf("https://search.ob1.io/update/%s/%s", peerId.PeerID, hash)
+			log.Infof("Publishing new rootHash to: %s\n", endpoint)
 
-		var client *http.Client
-		if n.TorDialer != nil {
-			tbTransport := &http.Transport{Dial: n.TorDialer.Dial}
-			client = &http.Client{Transport: tbTransport, Timeout: time.Second * 30}
-		} else {
-			client = &http.Client{Timeout: time.Second * 30}
-		}
+			var client *http.Client
+			if n.TorDialer != nil {
+				tbTransport := &http.Transport{Dial: n.TorDialer.Dial}
+				client = &http.Client{Transport: tbTransport, Timeout: time.Second * 30}
+			} else {
+				client = &http.Client{Timeout: time.Second * 30}
+			}
 
-		resp, err := client.Get(endpoint)
-		if err != nil {
-			log.Errorf("Search update did not succeed. %v\n", err)
-		}
-		log.Debugf("%s response: %v", endpoint, resp)
-	}()
+			resp, err := client.Get(endpoint)
+			if err != nil {
+				log.Errorf("Search update did not succeed. %v\n", err)
+			}
+			log.Debugf("%s response: %v", endpoint, resp)
+		}()
+	}
 
 	inflightPublishRequests++
 	err = ipfs.Publish(n.IpfsNode, hash)
@@ -298,9 +305,12 @@ func (n *OpenBazaarNode) SetUpRepublisher(interval time.Duration) {
 	}()
 }
 
-/*EncryptMessage This is a placeholder until the libsignal is operational.
-  For now we will just encrypt outgoing offline messages with the long lived identity key.
-  Optionally you may provide a public key, to avoid doing an IPFS lookup */
+/*
+EncryptMessage This is a placeholder until the libsignal is operational.
+
+	For now we will just encrypt outgoing offline messages with the long lived identity key.
+	Optionally you may provide a public key, to avoid doing an IPFS lookup
+*/
 func (n *OpenBazaarNode) EncryptMessage(peerID peer.ID, peerKey *libp2p.PubKey, message []byte) (ct []byte, rerr error) {
 	ctx, cancel := context.WithTimeout(context.Background(), n.OfflineMessageFailoverTimeout)
 	defer cancel()

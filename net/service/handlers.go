@@ -13,18 +13,18 @@ import (
 	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
 	blocks "gx/ipfs/QmYYLnAzR28nAQ4U5MFniLprnktu6eTFKibeNt96V21EZK/go-block-format"
 
-	"github.com/larslarsen/bb-go/core"
-	"github.com/larslarsen/bb-go/ipfs"
-	"github.com/larslarsen/bb-go/net"
-	"github.com/larslarsen/bb-go/pb"
-	"github.com/larslarsen/bb-go/repo"
-	ut "github.com/larslarsen/bb-go/util"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/larslarsen/bb-go/core"
+	"github.com/larslarsen/bb-go/ipfs"
+	"github.com/larslarsen/bb-go/net"
+	"github.com/larslarsen/bb-go/pb"
+	"github.com/larslarsen/bb-go/repo"
+	ut "github.com/larslarsen/bb-go/util"
 )
 
 var (
@@ -33,6 +33,9 @@ var (
 )
 
 func (service *OpenBazaarService) HandlerForMsgType(t pb.Message_MessageType) func(peer.ID, *pb.Message, interface{}) (*pb.Message, error) {
+	if service.node.IsSocialOnly() && !socialOnlyMessageType(t) {
+		return nil
+	}
 	switch t {
 	case pb.Message_PING:
 		return service.handlePing
@@ -84,6 +87,26 @@ func (service *OpenBazaarService) HandlerForMsgType(t pb.Message_MessageType) fu
 		return service.handleOrderProcessingFailure
 	default:
 		return nil
+	}
+}
+
+// socialOnlyMessageType is the peer-protocol composition boundary for a social
+// node. It retains identity, following, chat, blocking, and offline delivery
+// while refusing marketplace and dispute messages before they reach handlers.
+func socialOnlyMessageType(t pb.Message_MessageType) bool {
+	switch t {
+	case pb.Message_PING,
+		pb.Message_FOLLOW,
+		pb.Message_UNFOLLOW,
+		pb.Message_OFFLINE_ACK,
+		pb.Message_OFFLINE_RELAY,
+		pb.Message_CHAT,
+		pb.Message_BLOCK,
+		pb.Message_STORE,
+		pb.Message_ERROR:
+		return true
+	default:
+		return false
 	}
 }
 

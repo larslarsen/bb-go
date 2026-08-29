@@ -28,6 +28,15 @@ import (
 	ipfslogging "gx/ipfs/QmbkT7eMTyXfpeyB3ZMxxcxg7XH8t6uXp49jqzz4HB7BGF/go-log/writer"
 	manet "gx/ipfs/Qmc85NSvmSG4Frn9Vb2cBc1rMyULH6D3TNVEfCzSKoUpip/go-multiaddr-net"
 
+	wi "github.com/OpenBazaar/wallet-interface"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcutil/hdkeychain"
+	"github.com/fatih/color"
+	"github.com/ipfs/go-ipfs/commands"
+	ipfscore "github.com/ipfs/go-ipfs/core"
+	"github.com/ipfs/go-ipfs/core/corehttp"
+	"github.com/ipfs/go-ipfs/repo/fsrepo"
 	"github.com/larslarsen/bb-go/api"
 	"github.com/larslarsen/bb-go/core"
 	"github.com/larslarsen/bb-go/ipfs"
@@ -42,15 +51,6 @@ import (
 	"github.com/larslarsen/bb-go/wallet"
 	lis "github.com/larslarsen/bb-go/wallet/listeners"
 	"github.com/larslarsen/bb-go/wallet/resync"
-	wi "github.com/OpenBazaar/wallet-interface"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcutil/base58"
-	"github.com/btcsuite/btcutil/hdkeychain"
-	"github.com/fatih/color"
-	"github.com/ipfs/go-ipfs/commands"
-	ipfscore "github.com/ipfs/go-ipfs/core"
-	"github.com/ipfs/go-ipfs/core/corehttp"
-	"github.com/ipfs/go-ipfs/repo/fsrepo"
 	"github.com/natefinch/lumberjack"
 	"github.com/op/go-logging"
 	"github.com/tyler-smith/go-bip39"
@@ -86,6 +86,7 @@ type Start struct {
 	DualStack            bool     `long:"dualstack" description:"Automatically configure the daemon to run as a Tor hidden service IN ADDITION to using the clear internet. Requires Tor to be running. WARNING: this mode is not private"`
 	DisableWallet        bool     `long:"disablewallet" description:"disable the wallet functionality of the node"`
 	DisableExchangeRates bool     `long:"disableexchangerates" description:"disable the exchange rate service to prevent api queries"`
+	SocialOnly           bool     `long:"social-only" description:"run profiles, follows, posts, chat, media, and optional wallets without marketplace features"`
 	Storage              string   `long:"storage" description:"set the outgoing message storage option [self-hosted, dropbox] default=self-hosted"`
 
 	ForceKeyCachePurge bool `long:"forcekeypurge" description:"repair test for issue OpenBazaar/openbazaar-go#1593; use as instructed only"`
@@ -217,6 +218,13 @@ func (x *Start) Execute(args []string) error {
 	if err != nil {
 		log.Error("scan data sharing config:", err)
 		return err
+	}
+	runtimeMode := core.RuntimeModeFull
+	if x.SocialOnly {
+		runtimeMode = core.RuntimeModeSocial
+		// The historical defaults point at OpenBazaar-operated replication
+		// nodes. Social mode publishes through BitBook's DHT/IPNS namespace.
+		dataSharing.PushTo = nil
 	}
 	dropboxToken, err := schema.GetDropboxApiToken(configFile)
 	if err != nil {
@@ -454,7 +462,10 @@ func (x *Start) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	resyncManager := resync.NewResyncManager(sqliteDB.Sales(), sqliteDB.Purchases(), mw)
+	var resyncManager *resync.ResyncManager
+	if !x.SocialOnly {
+		resyncManager = resync.NewResyncManager(sqliteDB.Sales(), sqliteDB.Purchases(), mw)
+	}
 
 	// Master key setup
 	seed := bip39.NewSeed(mn, "")
@@ -566,6 +577,7 @@ func (x *Start) Execute(args []string) error {
 
 	// OpenBazaar node setup
 	core.Node = &core.OpenBazaarNode{
+		RuntimeMode:                   runtimeMode,
 		AcceptStoreRequests:           dataSharing.AcceptStoreRequests,
 		BanManager:                    bm,
 		Datastore:                     sqliteDB,
@@ -642,17 +654,23 @@ func (x *Start) Execute(args []string) error {
 	go func() {
 		if !x.DisableWallet {
 			// If the wallet doesn't allow resyncing from a specific height to scan for unpaid orders, wait for all messages to process before continuing.
-			if resyncManager == nil {
+			if resyncManager == nil && !x.SocialOnly {
 				core.Node.WaitForMessageRetrieverCompletion()
 			}
-			TL := lis.NewTransactionListener(core.Node.Multiwallet, core.Node.Datastore, core.Node.Broadcast)
+			var transactionListener *lis.TransactionListener
+			if !x.SocialOnly {
+				transactionListener = lis.NewTransactionListener(core.Node.Multiwallet, core.Node.Datastore, core.Node.Broadcast)
+			}
 			for ct, wal := range mw {
 				WL := lis.NewWalletListener(core.Node.Datastore, core.Node.Broadcast, ct)
 				wal.AddTransactionListener(WL.OnTransactionReceived)
-				wal.AddTransactionListener(TL.OnTransactionReceived)
+				if transactionListener != nil {
+					wal.AddTransactionListener(transactionListener.OnTransactionReceived)
+				}
 			}
 			log.Info("Starting multiwallet...")
 			su := wallet.NewStatusUpdater(mw, core.Node.Broadcast, nd.Context())
+			core.Node.WalletsStarted = true
 			go su.Start()
 			go mw.Start()
 			if resyncManager != nil {
@@ -665,12 +683,14 @@ func (x *Start) Execute(args []string) error {
 		}
 		core.Node.Service = service.New(core.Node, sqliteDB)
 		core.Node.Service.WaitForReady()
-		log.Info("OpenBazaar Service Ready")
+		log.Infof("BitBook %s service ready", runtimeMode)
 
 		core.Node.StartMessageRetriever()
 		core.Node.StartPointerRepublisher()
-		core.Node.StartRecordAgingNotifier()
-		core.Node.StartInboundMsgScanner()
+		if !core.Node.IsSocialOnly() {
+			core.Node.StartRecordAgingNotifier()
+			core.Node.StartInboundMsgScanner()
+		}
 
 		core.Node.PublishLock.Unlock()
 		err = core.Node.UpdateFollow()

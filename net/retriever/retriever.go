@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/ipfs/go-ipfs/core"
 	"github.com/larslarsen/bb-go/ipfs"
 	"github.com/larslarsen/bb-go/net"
 	"github.com/larslarsen/bb-go/pb"
 	"github.com/larslarsen/bb-go/repo"
-	"github.com/golang/protobuf/proto"
-	"github.com/ipfs/go-ipfs/core"
 	"github.com/op/go-logging"
 	"golang.org/x/net/proxy"
 )
@@ -104,6 +104,8 @@ func (m *MessageRetriever) Run() {
 	go m.fetchPointersFromPushNodes()
 	for {
 		select {
+		case <-m.DoneChan:
+			return
 		case <-dht.C:
 			m.Add(1)
 			go m.fetchPointersFromDHT()
@@ -125,6 +127,13 @@ func (m *MessageRetriever) RunOnce() {
 func (m *MessageRetriever) fetchPointersFromDHT() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	go func() {
+		select {
+		case <-m.DoneChan:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 	mh, _ := multihash.FromB58String(m.node.Identity.Pretty())
 	peerOut := make(chan ps.PeerInfo)
 	go func(c chan ps.PeerInfo) {

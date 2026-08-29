@@ -1,4 +1,4 @@
-# openbazaar-go
+# bb-go
 ![banner](https://i.imgur.com/iOnXDXK.png)
 BitBook Server Daemon in Go
 
@@ -6,7 +6,7 @@ BitBook Server Daemon in Go
 [![Coverage Status](https://coveralls.io/repos/github/OpenBazaar/openbazaar-go/badge.svg?branch=master)](https://coveralls.io/github/OpenBazaar/openbazaar-go?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/larslarsen/bb-go)](https://goreportcard.com/report/github.com/larslarsen/bb-go)
 
-This repository contains the OpenBazaar server daemon which handles the heavy lifting for the [BitBook](https://openbazaar.org/) desktop application. The server combines several technologies: A modified [IPFS](https://ipfs.io) node, which itself combines ideas from Git, BitTorrent, and Kademlia. A lightweight wallet for interacting with several cryptocurrency networks. And a JSON API which can be used by a user interface to control the node and browse the network. Find the user interface for the server at [github.com/OpenBazaar/openbazaar-desktop](https://github.com/OpenBazaar/openbazaar-desktop).
+This repository contains the BitBook peer-to-peer social daemon. It uses the mature networking, identity, content distribution, and wallet foundations from OpenBazaar while providing a social-only runtime that excludes marketplace behavior.
 
 ## Table of Contents
 
@@ -58,6 +58,16 @@ You can either pull in remote changes as normal or run `go get -u github.com/lar
 
 You can run the server with `go run bitbookd.go start`. Ensure you are using at least version `1.10` of Golang, otherwise you might get errors while running.
 
+### Social-only mode
+
+Run the BitBook feature set with:
+
+```
+go run bitbookd.go start --social-only
+```
+
+This mode exposes profiles, follows, posts, media, chat, peer discovery, IPNS, and wallet routes. It rejects marketplace HTTP endpoints and peer messages, does not start order/dispute maintenance workers, and does not publish to historical OpenBazaar replication or search services. Add `--disablewallet` when no tipping or payment functionality is needed.
+
 ### Options
 
 ```
@@ -91,6 +101,7 @@ Help Options:
                                   internet. Requires Tor to be running. WARNING: this mode is not private
           --disablewallet         disable the wallet functionality of the node
           --disableexchangerates  disable the exchange rate service to prevent api queries
+          --social-only           run profiles, follows, posts, chat, media, and optional wallets without marketplace features
           --storage=              set the outgoing message storage option [self-hosted, dropbox] default=self-hosted
           --forcekeypurge         repair test for issue OpenBazaar/openbazaar-go#1593; use as instructed only
 ```
