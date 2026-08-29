@@ -22,8 +22,31 @@ fi
 ln -sfn "${repo_root}" "${import_path}"
 
 cd "${repo_root}"
+
+# GOPATH mode predates nested-module boundaries and would otherwise descend
+# into modern/, then try to resolve its module dependencies from the legacy
+# vendor tree. Expand ./... ourselves and keep this wrapper scoped to the
+# legacy daemon. The modern module is tested from its own directory.
+args=("$@")
+for index in "${!args[@]}"; do
+	if [[ ${args[index]} != "./..." ]]; then
+		continue
+	fi
+	legacy_packages=()
+	while IFS= read -r package; do
+		case "${package}" in
+			github.com/larslarsen/bb-go/modern | github.com/larslarsen/bb-go/modern/*)
+				continue
+				;;
+		esac
+		legacy_packages+=("${package}")
+	done < <(env PWD="${import_path}" GO111MODULE=off GOPATH="${gopath_root}" "${go_binary}" list -e ./...)
+	args=("${args[@]:0:index}" "${legacy_packages[@]}" "${args[@]:index+1}")
+	break
+done
+
 env \
 	PWD="${import_path}" \
 	GO111MODULE=off \
 	GOPATH="${gopath_root}" \
-	"${go_binary}" "$@"
+	"${go_binary}" "${args[@]}"

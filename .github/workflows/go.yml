@@ -20,3 +20,6 @@ jobs:
         run: ./scripts/go.sh test -vet=off ./... -run '^$' -count=1
       - name: Test social runtime boundaries
         run: ./scripts/go.sh test -vet=off ./api ./net/service ./net/retriever ./core ./cmd ./ipfs ./schema -run 'TestSocialOnly|^$' -count=1
+      - name: Test maintained P2P core
+        working-directory: modern
+        run: go test ./... -count=1

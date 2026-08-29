@@ -50,9 +50,11 @@ docker run -it openbazaar/server:latest [OPTIONS] start [start-OPTIONS]
 
 ## Dependency Management
 
-The historical dependency graph is vendored with Godeps and `gx`. Modern Go
-compiler support is provided by `scripts/go.sh`; conversion to Go modules is
-coupled to replacing the embedded IPFS/libp2p stack.
+The historical daemon dependency graph is vendored with Godeps and `gx`.
+Modern Go compiler support is provided by `scripts/go.sh`. Its maintained
+replacement lives in the Go 1.27 module under [`modern/`](modern), pinned to
+the networking releases used by Kubo 0.43 and tested with a real two-peer
+BitBook block transfer and signed peer-ID root resolution.
 
 ### IPFS Dependency
 

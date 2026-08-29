@@ -49,8 +49,12 @@ BITCOIND_PATH ?= .
 
 .PHONY: bitbookd
 bitbookd: ## Build daemon
-	$(info "Building openbazaar daemon...")
-	go build -o ./$(BITBOOKD_NAME) .
+	$(info "Building BitBook daemon...")
+	./scripts/go.sh build -o ./$(BITBOOKD_NAME) ./bitbookd.go
+
+.PHONY: modern_test
+modern_test: ## Test the maintained Go 1.27 P2P core
+	cd modern && GOTOOLCHAIN=go1.27.0 go test ./... -count=1
 
 .PHONY: qa_test
 qa_test: bitbookd ## Run QA test suite against current working copy
