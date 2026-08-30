@@ -77,3 +77,10 @@ That correction passed red/green and Gosec now reports zero issues. Gitleaks the
 25 inherited-history matches. Redacted triage found only root-tree test/docs/examples and
 a PGP public-key block, with nothing under `modern/`. Grok is authorized only for the
 exact expiring baseline in `docs/handoff/GROK_BUILD_BBGO_SEC_001_GITLEAKS_01.md`.
+
+Grok delivered that six-path baseline drop test-first and stopped without execution.
+Reviewer read-only inspection verified the baseline is byte-identical to the reviewed
+redacted artifact and found no widened allowlist. Codex Luna now owns the exact validation
+and remaining ticket acceptance sequence recorded in the same handoff. It must use only
+the fixed disk-backed tool/cache/temp/artifact paths, perform no cleanup or deletion, and
+stop before Git on any changed hash, failure, or new finding.

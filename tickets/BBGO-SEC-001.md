@@ -554,3 +554,13 @@ Grok may read only the exact verified redacted artifact above as baseline input.
 not read unredacted reports or matched source values, run scanners/tests/validators,
 change Go/dependencies/other paths, install, use Git, commit, push, or change GitHub
 state. Final read-only hashes/counts are allowed.
+
+The delivered source report and exact hashes are preserved in
+`docs/handoff/GROK_BUILD_BBGO_SEC_001_GITLEAKS_01.md`. Reviewer read-only inspection
+confirmed the baseline is byte-identical to the approved redacted artifact and found no
+widened allowlist. Codex Luna may now execute the baseline/policy suites, bounded
+mutation selectors, actual validator, Actionlint, and exact pinned Gitleaks command. On
+zero new findings it resumes the remaining race, disk-backed daemon/binary adjudication,
+CycloneDX validation, and final diff sequence. All prior stop, no-secret-output,
+disk-backed-path, no-local-`/tmp`, no-cleanup, and no-Git-before-green rules remain in
+force.
