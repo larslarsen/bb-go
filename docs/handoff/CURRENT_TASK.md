@@ -2,7 +2,7 @@
 
 Ticket: BBGO-SEC-001
 
-State: CORRECTION AUTHORIZED
+State: ACCEPTED
 
 Source actor: Sr Dev — Grok Build (Grok 4.6 High)
 
@@ -103,14 +103,12 @@ selectors are now recorded in the correction handoff; no source change is author
 Luna resumes with those commands and proceeds to the workflow-policy suite only if every
 selector runs exactly one passing test.
 
-## AWAITING REVIEW
+## ACCEPTED
 
-BBGO-SEC-001 acceptance execution is complete. See [ticket](../../tickets/BBGO-SEC-001.md)
-and [integration evidence](../security/BBGO-SEC-001-EVIDENCE.md). All authorized policy,
-scanner, test, race, daemon, binary-adjudication, SBOM, and diff gates passed; the reviewed
-Govulncheck exception and expiring redacted Gitleaks baseline are documented there.
-
-Commit under review: the authorized commit `security: add daemon scanning and SBOM evidence`
-(exact hash is reported at publication). No further implementation, remediation,
-suppression, baseline change, or scope expansion is authorized. Reviewer acceptance is
-required.
+BBGO-SEC-001 is accepted at implementation commit
+`7a874921866bee1ad43039f4fd90718e1e18795b`. All local gates passed; remote Go 1.27 run
+`33291331166` and dependency-graph update `33291332767` also passed, and GitHub reports
+zero open Dependabot alerts. The manual security/SBOM workflows remain manual and were
+not dispatched for redundant remote execution. The Govulncheck exception and reviewed
+Gitleaks baseline require re-review on 2026-11-29. No further BBGO-SEC-001 work is
+authorized.

@@ -1,6 +1,6 @@
 # BBGO-SEC-001 Integration Evidence
 
-Status: AWAITING REVIEW — all authorized acceptance gates passed.
+Status: ACCEPTED — local and remote acceptance gates passed.
 
 Ticket: [BBGO-SEC-001](../../tickets/BBGO-SEC-001.md)
 Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
@@ -508,3 +508,14 @@ Reviewer disposition authorizes a fail-closed, exact redacted baseline owned by 
 Engineer/Reviewer and expiring 2026-11-29. It may cover only these 25 immutable finding
 identities. Any new finding, baseline/content/tool change, root-tree retirement, or expiry
 forces failure and re-review. No broad path, rule, regex, or commit allowlist is allowed.
+
+## Reviewer acceptance
+
+Reviewer accepted implementation commit
+`7a874921866bee1ad43039f4fd90718e1e18795b` after confirming the clean worktree and exact
+`origin/master` identity. Remote Go 1.27 run `33291331166` completed successfully in
+1m59s, and dependency-graph update `33291332767` completed successfully. GitHub reported
+zero open Dependabot alerts. Manual security/SBOM workflows were not dispatched; the
+same pinned gates and artifact validation had already passed locally, and those workflows
+remain intentionally manual-only. Both reviewed exceptions require re-review on
+2026-11-29.

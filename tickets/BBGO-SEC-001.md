@@ -1,6 +1,6 @@
 # BBGO-SEC-001 — Add Maintained-Daemon Security Gates and SBOM Evidence
 
-Status: AUTHORIZED
+Status: ACCEPTED
 
 Reviewer: Lead Engineer/Reviewer — Codex
 
@@ -596,3 +596,18 @@ zero tests because `unredacted_match` did not match the actual
 change is authorized. Luna may run only the four exact file-path selectors recorded in
 the correction handoff, require one passing test from each, and then resume at the
 workflow-policy suite.
+
+## Reviewer Acceptance — 2026-08-29
+
+Accepted implementation commit:
+`7a874921866bee1ad43039f4fd90718e1e18795b`.
+
+Reviewer inspection confirmed a clean worktree, exact local/remote commit identity,
+passing local policy/scanner/race/binary/SBOM/diff evidence, and zero open Dependabot
+alerts. Remote Go 1.27 run `33291331166` passed compilation, social runtime boundaries,
+and the maintained P2P core. Dependency-graph update `33291332767` also completed
+successfully. The manual security and SBOM workflows were not dispatched because their
+exact gates passed locally and they intentionally remain manual-only.
+
+The reviewed Govulncheck exception and reviewed inherited Gitleaks baseline both expire
+for re-review on 2026-11-29. No further BBGO-SEC-001 implementation is authorized.
