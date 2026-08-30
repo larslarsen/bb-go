@@ -43,3 +43,28 @@ dependencies, use Git, commit, push, or change GitHub state.
 When finished, stop and report every final path/hash/line count, test-source-first order,
 red reasons, exact boundary/security invariants, API/call-site changes, ambiguities, and
 confirmation of no out-of-scope action.
+
+## Delivered Source Report
+
+Execution date: 2026-08-29
+
+Grok reported test-source-first authoring and no test, Gosec, formatter, build, install,
+Git, scanner-policy, suppression, or dependency action. Only final read-only
+hashes/counts were run.
+
+| Path | Lines | SHA-256 |
+|---|---:|---|
+| `modern/direct/service_test.go` | 268 | `aafadcd22068645522116ab3bec8ee53cd288b6269ad3bbe54f48ae56a89f026` |
+| `modern/direct/service.go` | 769 | `207946dc49c71333d8095161daf7cd3b0b95cdfceee7d01fc7c82cf81d7ef2ea` |
+| `modern/network/identity_test.go` | 99 | `29f52babeafdd14dbb25c8c964ebc40f1214ffa4450b0d08435fd22ea73e8d11` |
+| `modern/network/identity.go` | 95 | `b43f6ad90149ce41526aa3b0f85329dbbf847feaaf0442529a204c637833b4fa` |
+| `modern/network/open.go` | 67 | `96bf07274832c57ef67ace9a6e0a5dc06651bc7a5b27eef7cff7f480610d4f3b` |
+
+The frame tests cover below/at/above 128 KiB, above `math.MaxUint32` without allocation,
+real big-endian round trip, and invalid prefixes. Production derives `uint32` only after
+the checked helper. Identity tests retain persistence/0600 and reject an outside-root
+symlink while proving its bytes and link remain unchanged. Production uses the fixed
+`identity.key` through `os.Root`; `network.Open` supplies only its data directory.
+
+Reviewer independently read the complete five-file diff and verified hashes, counts,
+wire-format preservation, root confinement, and scope. Execution remains required.

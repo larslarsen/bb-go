@@ -150,3 +150,30 @@ deletion, unresolved targets, or recursive commands. Leave all disk-backed tools
 caches, daemon, and SBOM in place. Stop on any finding or command failure; do not repair,
 suppress, or broaden the exception. If every command passes, complete evidence and Git
 exactly as originally authorized.
+
+## Gosec Finding Correction 1 Integration
+
+Reread the ticket and complete delivered report in
+`docs/handoff/GROK_BUILD_BBGO_SEC_001_GOSEC_01.md`. Verify all five hashes before
+execution. Do not author or repair source.
+
+Reconstruct test-first red with bounded patch edits only: temporarily restore the prior
+G115 direct conversion and prior full-path identity API/call site while leaving the new
+tests in place. Run the focused direct and network test selections; record the intended
+undefined checked-helper/direct boundary failure and root/symlink contract failure.
+Immediately restore every exact production hunk and verify the three production hashes.
+Do not use Git reset/restore, copies, worktrees, `/tmp`, cleanup, or deletion.
+
+Then run focused green:
+
+```text
+GOTOOLCHAIN=go1.27.0 go test ./direct -run '^(TestFrameLengthBounds|TestWriteReadFrameRoundTrip|TestReadFrameRejectsInvalidLengthPrefix)$' -count=1
+GOTOOLCHAIN=go1.27.0 go test ./network -run '^(TestLoadOrCreatePrivateKeyPersistsIdentity|TestLoadOrCreatePrivateKeyRejectsEscapingSymlink)$' -count=1
+```
+
+Set the exact disk-backed GOCACHE/GOTMPDIR on both commands. Falsify at least one direct
+boundary and the identity escape test through bounded temporary mechanism removal, then
+restore and hash-check again. Run pinned Gosec. Stop before later checks or Git on any
+test failure or Gosec finding; do not repair or suppress. If clean, resume the deferred
+sequence at redacted Gitleaks, then race/build/binary adjudicator/SBOM/diff/evidence/Git
+under all existing disk and safety rules.

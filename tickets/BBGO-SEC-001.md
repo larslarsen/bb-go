@@ -502,3 +502,9 @@ Grok must not run commands beyond read-only hashes/counts, change any scanner po
 add a suppression, change dependencies, edit other paths, install, use Git, commit, push,
 or change GitHub state. Luna owns red/green/falsification, Gosec rerun, broader race
 testing, evidence, and Git.
+
+Luna must reconstruct red with bounded production-hunk reversal, restore exact hashes,
+run focused direct/network green, falsify the frame boundary and identity escape
+mechanisms, restore/hash-check again, and rerun pinned Gosec. Every Go command uses the
+named disk-backed GOCACHE/GOTMPDIR. On clean Gosec, resume at redacted Gitleaks; on any
+failure/finding, stop before later checks and Git without repair or suppression.
