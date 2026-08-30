@@ -28,3 +28,9 @@ Correction Cycle 1 is preserved and ready for validation. A resumed Luna attempt
 interrupted before execution when it proposed recursive deletion through an indirect
 target. Luna may resume from green only under the explicit no-recursive/unresolved-delete
 rules in the ticket and [Codex Luna handoff](CODEX_LUNA_BBGO_SEC_001.md).
+
+A second resume was interrupted before scanning because Luna placed Go scanner binaries
+under RAM-backed `/tmp`. The completed binaries were moved intact to the exact ext4-backed
+tool directory recorded in the ticket and handoff. Luna may resume only with those fixed
+disk-backed tool, cache, temp, and artifact paths; it must not reinstall the four existing
+tools or clean the task directories.

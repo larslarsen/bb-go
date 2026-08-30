@@ -20,6 +20,10 @@ This file governs agent work in the `bb-go` repository.
   substitution, glob, symlink-derived path, or other unresolved target. An authorized
   cleanup must name an explicit reviewable path; temporary runner state may be left for
   the runner or operating system to discard.
+- Before placing build tools, caches, binaries, or large artifacts in a temporary path,
+  inspect its filesystem type. Do not use local `/tmp` for substantial build/security
+  work when it is RAM-backed; use an explicit disk-backed path under `/home/lars` and
+  record that path in the active handoff.
 
 ## Roles
 

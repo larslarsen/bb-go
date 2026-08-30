@@ -242,3 +242,28 @@ Integration may resume only under these additional constraints:
 - leave temporary state in `/tmp` or on the ephemeral runner for system cleanup; and
 - perform immutable-pin falsification with the existing in-memory unittest
   `CheckerRejectionTest.test_mutable_action_tag_is_rejected`, not a temporary file tree.
+
+## Local Resource Safety Interruption
+
+On the next resumed attempt, Codex Luna began installing pinned scanner binaries to
+`/tmp/bbgo-sec-tools-20260829`. The owner stopped the run because local `/tmp` is a tmpfs
+RAM drive and several Go tool builds could exhaust memory. The reviewer interrupted Luna.
+No scanner had run and no repository change or Git operation occurred.
+
+Four completed binaries (`actionlint`, `gitleaks`, `gosec`, and `govulncheck`; about 115
+MiB total) were moved without copying or deletion from the RAM-backed path to this exact
+ext4-backed directory:
+
+`/home/lars/OpenBazaar/.security-tools/bbgo-sec-tools-20260829`
+
+Resumed local acceptance must:
+
+- reuse those four binaries and not reinstall them;
+- install only the missing `cyclonedx-gomod@v1.12.0` into that exact tool directory;
+- set `GOCACHE=/home/lars/OpenBazaar/.security-cache/go-build-20260829` and
+  `GOTMPDIR=/home/lars/OpenBazaar/.security-tmp/go-tmp-20260829` for any remaining Go
+  install, build, test, or scan operation;
+- write the local daemon and SBOM only under
+  `/home/lars/OpenBazaar/.security-artifacts/bb-go-sec-001-20260829`; and
+- never use local `/tmp`, `mktemp`, or an unresolved directory for this ticket's tools,
+  caches, work files, binary, or SBOM. Leave all disk-backed task directories in place.

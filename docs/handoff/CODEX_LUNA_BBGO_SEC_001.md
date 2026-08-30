@@ -30,6 +30,19 @@ in-memory unittest
 `scripts.security_policy_test.CheckerRejectionTest.test_mutable_action_tag_is_rejected`;
 do not create and recursively remove a falsification directory.
 
+Local `/tmp` is a RAM-backed tmpfs and must not be used for this task. Reuse the already
+installed `actionlint`, `gitleaks`, `gosec`, and `govulncheck` binaries from the exact
+disk-backed directory
+`/home/lars/OpenBazaar/.security-tools/bbgo-sec-tools-20260829`. Install only the missing
+CycloneDX tool into that same directory. For every remaining local Go install, build,
+test, or scanner command, set the exact disk-backed paths
+`GOCACHE=/home/lars/OpenBazaar/.security-cache/go-build-20260829` and
+`GOTMPDIR=/home/lars/OpenBazaar/.security-tmp/go-tmp-20260829`. Write the local daemon
+and SBOM only to
+`/home/lars/OpenBazaar/.security-artifacts/bb-go-sec-001-20260829`. Do not use `mktemp`,
+local `/tmp`, or any unresolved tool/cache/work/artifact path, and do not clean these
+directories; leave them in place for owner-reviewed later disposition.
+
 If any scanner reports a finding, stop before Git and write only redacted triage metadata
 to `docs/security/BBGO-SEC-001-EVIDENCE.md`; do not suppress, baseline, dismiss, or repair
 it. Otherwise record every required command, version, result, SBOM metric/hash, and

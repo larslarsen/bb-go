@@ -69,3 +69,21 @@ The ticket and Luna handoff now prohibit recursive deletion and deletion through
 variables, substitutions, globs, symlinks, or other unresolved targets. Temporary state
 must be left for `/tmp` or ephemeral-runner cleanup. Integration may resume from green
 under those constraints.
+
+## Local resource safety interruption
+
+On the next resume, Luna began installing the pinned tools with
+`GOBIN=/tmp/bbgo-sec-tools-20260829`. The owner stopped the run because `/tmp` is a tmpfs
+RAM drive and the combined Go tool builds could cause memory exhaustion. The reviewer
+interrupted Luna before any scanner, build, SBOM, repository mutation, or Git operation.
+
+Read-only inspection confirmed `/tmp` is `tmpfs` and `/home/lars` is ext4. Four completed
+binaries occupied about 115 MiB: `actionlint`, `gitleaks`, `gosec`, and `govulncheck`.
+They were moved intact, without recursive deletion or copy amplification, to:
+
+`/home/lars/OpenBazaar/.security-tools/bbgo-sec-tools-20260829`
+
+The old `/tmp/bbgo-sec-tools-20260829` path is absent. Resumed integration must reuse
+those binaries, place all Go cache/temp and artifacts in the exact disk-backed paths in
+the ticket/handoff, install only the missing CycloneDX tool, and leave the directories in
+place.
