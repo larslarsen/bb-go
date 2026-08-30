@@ -582,3 +582,10 @@ ASCII identifier and reject prefix/suffix forms without emitting the mutated val
 The baseline JSON and every other path/invariant remain unchanged. Grok does not execute;
 Luna owns rerun and continuation. All prior stop and resource-safety rules remain in
 force.
+
+Grok delivered the two-path correction test-first, and reviewer read-only inspection
+accepted its explicit `[A-Za-z0-9_]` marker boundaries and non-echoing error behavior.
+The exact delivered hashes and Luna continuation are recorded in
+`docs/handoff/GROK_BUILD_BBGO_SEC_001_GITLEAKS_CORRECTION_01.md`. Luna may verify those
+hashes and resume at the complete baseline suite; no later gate or Git is authorized
+unless the corrected suite and targeted boundary selectors pass.

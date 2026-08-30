@@ -90,3 +90,9 @@ the match-redaction predicate accepted `UNREDACTED_MATCH` because `REDACTED` app
 as a substring. No later command ran. Grok is authorized only for the two-path bounded
 fix in `docs/handoff/GROK_BUILD_BBGO_SEC_001_GITLEAKS_CORRECTION_01.md`; Luna resumes the
 same gate only after that source report is preserved.
+
+Grok delivered that correction test-first: the existing failing case plus new prefix and
+suffix identifier cases are rejected by an explicit complete-marker predicate. Reviewer
+inspection accepted the two-path source report and hashes. Luna may now verify the two
+new hashes, rerun the 27-test suite and targeted boundaries, then resume the exact prior
+continuation sequence.

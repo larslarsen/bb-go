@@ -50,3 +50,27 @@ Final read-only hashes and line counts of the two authorized paths are allowed.
 When finished, report the test-source-first order, precise predicate, added rejection
 boundaries, final hashes/line counts, ambiguities, and confirmation of no out-of-scope
 action. Codex Luna owns execution and falsification.
+
+## Delivered correction report — 2026-08-29
+
+Grok preserved the existing failing `UNREDACTED_MATCH` test, added
+`PREFIX_REDACTED` and `REDACTED_SUFFIX` rejection tests, then changed only the validator.
+It did not execute tests, validators, scanners, formatters, builds, Git, or GitHub
+operations and reported no other path change.
+
+The predicate now accepts a `REDACTED` occurrence only when any immediately adjacent
+characters are outside explicit ASCII identifier set `[A-Za-z0-9_]`. Secret remains
+exact equality to `REDACTED`; errors continue to emit only the baseline entry index.
+
+Delivered source:
+
+- `scripts/gitleaks_baseline_test.py`: 499 lines,
+  `ad552aa171d8e698de63e9c5f9c5f2ef4a7cb2eec2d177abf453f0bbc0f785eb`
+- `scripts/gitleaks_baseline.py`: 363 lines,
+  `b3144ce714d9388659af23cd420a6dbf4caff2fcc91dbadf28b0142d0982febb`
+
+Reviewer read-only inspection confirmed those hashes, the bounded test-first change, no
+match-value output, and no baseline/policy widening. Codex Luna must verify both hashes,
+rerun the complete baseline suite (now 27 tests), run targeted selectors for all three
+identifier-embedded cases and committed-baseline acceptance, and then resume the exact
+continuation sequence from the prior handoff. Any failure stops before later work and Git.
