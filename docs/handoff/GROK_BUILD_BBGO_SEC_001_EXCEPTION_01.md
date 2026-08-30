@@ -49,3 +49,29 @@ When finished, stop and report every path/hash/line count, test-source-first ord
 accept/reject fixture and mutation, exact workflow invocation/ordering, exception
 metadata and expiry enforcement, ambiguities, and confirmation of no commands beyond
 read-only hashes/counts and no out-of-scope edits.
+
+## Reviewer Correction Cycle 1
+
+The delivered source is not yet accepted. Before execution, reviewer inspection found:
+
+- the SBOM step deletes the variable-resolved `"${binary}"`, contrary to standing
+  destructive-action safety; leave it unuploaded for the ephemeral runner instead; and
+- the successful adjudicator prints raw SARIF, which is approximately 220,000 lines for
+  the real source scan; print only the already validated concise summary, including all
+  note IDs/messages and exception metadata.
+
+Authorized correction paths only:
+
+- `scripts/govulncheck_policy_test.py`
+- `scripts/govulncheck_policy.py`
+- `scripts/security_policy_test.py`
+- `scripts/security_policy.py`
+- `.github/workflows/sbom.yml`
+
+Author changed tests first. Add workflow-policy coverage that rejects any SBOM command
+which deletes a target expressed through an environment/shell variable, substitution,
+glob, or symlink-derived value. Add adjudicator coverage proving successful output is a
+concise summary and does not echo the raw SARIF document. Preserve every other
+fail-closed invariant, workflow order, pin, and behavior. Do not run commands except
+read-only final hashes/counts; all original scope, no-test, no-install, no-Git, and stop
+rules remain in force. Report a new complete correction table and the exact new tests.

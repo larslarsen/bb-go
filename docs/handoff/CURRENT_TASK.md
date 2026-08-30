@@ -59,3 +59,8 @@ That correction then passed red/falsification, targeted green, and the full main
 race suite. Govulncheck still reports only reachable `GO-2024-3218` on exact DHT
 `v0.42.2`. Grok Build is now authorized only for the expiring, fail-closed SARIF policy
 drop in `docs/handoff/GROK_BUILD_BBGO_SEC_001_EXCEPTION_01.md`.
+
+Reviewer inspection returned that drop for Correction Cycle 1: remove the
+variable-target binary deletion, enforce that safety invariant, and avoid emitting the
+approximately 220,000-line raw SARIF into CI logs. Grok may edit only the five correction
+paths enumerated in the same handoff.

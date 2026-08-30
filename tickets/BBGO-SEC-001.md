@@ -15,8 +15,8 @@ Source baseline: `5289c564490a54f1adc5be1d451277d2576f7090`
 Add small, pinned, least-privilege security checks for the maintained `modern/` daemon
 and a manual CycloneDX SBOM workflow. Routine validation must not build or upload release
 binaries. The manual SBOM job may build one ephemeral Linux amd64 daemon solely for
-artifact-aware vulnerability scanning; it uploads only the SBOM and destroys the binary
-with the runner.
+artifact-aware vulnerability scanning; it uploads only the SBOM and leaves the unuploaded
+binary to the ephemeral GitHub runner's own disposal after the job.
 
 ## Scope Boundary
 
@@ -417,3 +417,22 @@ Authorized developer paths:
 
 No Go source, module, sum, other workflow, governance, evidence, command execution,
 install, Git, commit, push, or GitHub state change is authorized for Grok.
+
+### Exception Source Correction 1 — Authorized
+
+Reviewer source inspection found two acceptance defects before execution:
+
+1. `.github/workflows/sbom.yml` deletes `"${binary}"`. Although non-recursive, this is a
+   variable-resolved deletion target and violates the ticket's standing safety rule.
+   The binary is already outside the worktree, is never uploaded, and must be left for
+   the ephemeral GitHub runner to discard.
+2. Successful adjudication prints the full SARIF. The real source result is roughly
+   220,000 lines, so this would waste CI log capacity. A clear validated summary,
+   including note-level result IDs/messages and reviewed-exception metadata, is enough.
+
+Grok may correct only `scripts/govulncheck_policy_test.py`,
+`scripts/govulncheck_policy.py`, `scripts/security_policy_test.py`,
+`scripts/security_policy.py`, and `.github/workflows/sbom.yml`. Tests must be authored
+first. Policy tests must reject variable/substitution/glob/symlink-derived deletion in
+the SBOM workflow. The adjudicator must not print raw SARIF on success, while retaining
+its fail-closed validation and clear summary. No other behavior or path may change.

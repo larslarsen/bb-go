@@ -282,6 +282,13 @@ mitigation change, additional reachable finding, or expiry forces failure and re
 Grok must implement this as a fail-closed SARIF adjudicator with independent tests; no
 exception has yet been integrated or executed.
 
+Reviewer source inspection rejected the first exception-policy drop before execution:
+the SBOM workflow deletes a variable-resolved binary path, and the adjudicator would emit
+the full approximately 220,000-line SARIF document on success. Correction Cycle 1 must
+leave the unuploaded binary for the ephemeral runner, make workflow policy reject
+unresolved deletion targets, and emit only a concise validated summary. No test or
+scanner result is attributed to the rejected source.
+
 Reviewer disposition: the bind denial is a sandbox execution restriction. The exact
 targeted red/green and maintained race commands may be repeated with bounded localhost
 socket authority. They remain offline, credential-free, limited to loopback ephemeral
