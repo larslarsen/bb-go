@@ -301,3 +301,36 @@ with the same network access. No other command receives expanded network authori
 Govulncheck may contact its official vulnerability database; it must not receive secrets
 or credentials. All existing exact-path, disk-backed, no-cleanup, finding, and stop rules
 remain in force.
+
+## Reachable Finding Correction 1 — Authorized
+
+The authorized source scan reached the advisory database and reported `GO-2024-3218`
+against `github.com/libp2p/go-libp2p-kad-dht@v0.42.1`. Integration stopped before every
+later acceptance command and before Git. Reviewer triage established:
+
+- the Go vulnerability record currently marks the module from version `0` with no fixed
+  version, so a dependency-only upgrade cannot make Govulncheck green;
+- GitHub's reviewed `GHSA-mqr9-hjr8-2m9w` describes affected versions as `<=0.20.0`;
+- upstream's January 2026 maintainer disposition says this attack is mitigated by IP
+  diversity filters; and
+- the maintained BitBook `network.New` constructs a single DHT without installing
+  `NewRTPeerDiversityFilter`, so the relevant mitigation is absent. The
+  `AllowPrivateAddresses` branch also explicitly supplies a nil diversity filter.
+
+Sr Dev — Grok Build is authorized to author a test-first correction limited to:
+
+- `modern/network/node_test.go`
+- `modern/network/node.go`
+- `modern/go.mod`
+
+The correction must first add a test that fails because the routing-table IP-diversity
+filter is absent, then install the upstream DHT diversity filter using the upstream Amino
+limits in every network mode. Allowing loopback/RFC1918 addresses for local or LAN use
+must not disable routing-table diversity. Update the direct DHT requirement from
+`v0.42.1` to the current upstream release `v0.42.2`; Luna, not Grok, will regenerate
+`modern/go.sum` with the pinned Go 1.27 toolchain.
+
+Grok must not change scanner policy, suppress or allowlist the advisory, edit workflows
+or evidence, run commands, install tools, or use Git. The existing scanner finding is
+expected to remain until a separate reviewer decision accounts for the contradictory
+advisory metadata; this correction addresses the concrete missing mitigation first.

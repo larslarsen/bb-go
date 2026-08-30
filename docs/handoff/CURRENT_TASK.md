@@ -44,3 +44,8 @@ All five tools now report Go 1.27.0 and exact pinned versions. The next Govulnch
 was blocked before analysis by sandbox DNS/network policy. Luna may resume only the exact
 source and later binary Govulncheck commands with approved network access; all other
 commands retain ordinary sandbox authority.
+
+The network-enabled scan then found reachable `GO-2024-3218` in the DHT module and Luna
+stopped. Reviewer triage found that the maintained single-DHT construction omits the
+upstream IP-diversity mitigation. Sr Dev — Grok Build is now authorized only for the
+test-first source correction in `docs/handoff/GROK_BUILD_BBGO_SEC_001_FINDING_01.md`.

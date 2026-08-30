@@ -1,6 +1,6 @@
 # BBGO-SEC-001 Integration Evidence
 
-Status: BLOCKED — govulncheck advisory-fetch failure; integration stopped before Git.
+Status: BLOCKED — reachable Govulncheck vulnerability; integration stopped before Git.
 
 Ticket: [BBGO-SEC-001](../../tickets/BBGO-SEC-001.md)
 Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
@@ -175,3 +175,38 @@ Reviewer inspection originally found that `govulncheck`, `gosec`, `gitleaks`, an
 `actionlint` were built with Go 1.26.0 while `cyclonedx-gomod` used Go 1.27.0. Luna then
 rebuilt exactly those four tools and verified all five now report Go 1.27.0 and the
 ticketed versions. No source repair, version change, suppression, or cleanup occurred.
+
+## Network execution correction and blocking finding
+
+The exact source scan was rerun with the authorized external access to the official
+`vuln.go.dev` advisory database:
+
+```text
+(cd modern && govulncheck -test ./...)
+```
+
+The rebuilt pinned `golang.org/x/vuln/cmd/govulncheck@v1.7.0` completed advisory analysis
+and exited 3. Redacted finding metadata: reachable vulnerability `GO-2024-3218` affects
+`github.com/libp2p/go-libp2p-kad-dht@v0.42.1`; the scanner reported one vulnerability
+affecting code in the maintained `modern/` module. The report also noted additional
+required-module vulnerabilities that were not reachable; those are not being treated as
+the blocking result here. No secret value was recorded.
+
+Per BBGO-SEC-001, integration stopped immediately on this scanner finding. Gosec,
+Gitleaks, maintained race tests, SBOM build/binary scan/generation/validation,
+`git diff --check`, evidence completion, commit, and push were not run. No finding was
+suppressed, allowlisted, downgraded, baselined, or repaired.
+
+## Reviewer finding triage
+
+The official Go record currently declares the module affected from version `0` and has
+no fixed version. GitHub's reviewed advisory instead limits the vulnerable range to
+`<=0.20.0`; BitBook was using `v0.42.1`. The upstream DHT maintainer's January 2026
+disposition states that the attack is mitigated by routing-table IP-diversity filters.
+
+Reviewer source inspection found that BitBook's single-DHT construction does not install
+the upstream diversity filter. Its private-address development/LAN option explicitly
+passes a nil diversity filter as well. This is a concrete defense gap independent of the
+advisory-database disagreement. Reachable Finding Correction 1 therefore requires a
+test-first, all-network-mode diversity-filter correction and an update to upstream
+`v0.42.2`. No scanner exception is authorized in that correction.
