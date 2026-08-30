@@ -36,4 +36,23 @@ and confirmation that no other path, execution, install, or Git operation occurr
 
 ## Delivered Correction Report
 
-Pending Grok Build execution.
+Completed 2026-08-29.
+
+Grok changed only line 557 of `scripts/security_policy.py`:
+
+```python
+if build_step[2] is not sbom_step[2]:
+```
+
+The previous code compared the newly created wrapper tuples themselves. The correction
+compares the underlying parsed step mappings: identical only when both commands were
+found in the same actual step, while commands in distinct steps still raise the existing
+`PolicyError`.
+
+Final checker SHA-256:
+`4d80708822bf22e1e05abe56bb131db6176c217047001f68895dfdab3dc7058a`; line count: 1,010.
+
+Grok reported no other line/path change and no test, scanner, build, validator, install,
+or Git execution. Codex independently inspected the exact changed line and confirmed the
+reported hash and line count. Acceptance remains with Codex Luna's existing test oracle
+and the remaining ticket gates.
