@@ -22,6 +22,14 @@ checker/workflows, then integrate the production drop for green. Use temporary
 directories outside the repository for tool binaries, the Linux daemon, and SBOM. Never
 record a secret value.
 
+Do not run `rm -rf`, `rm -r`, `find -delete`, or equivalent recursive deletion. Do not
+delete any path expressed through a variable, substitution, glob, symlink, or other
+unresolved target. Leave temporary state under `/tmp` for operating-system cleanup; a
+GitHub runner is itself ephemeral. Run immutable-pin falsification through the existing
+in-memory unittest
+`scripts.security_policy_test.CheckerRejectionTest.test_mutable_action_tag_is_rejected`;
+do not create and recursively remove a falsification directory.
+
 If any scanner reports a finding, stop before Git and write only redacted triage metadata
 to `docs/security/BBGO-SEC-001-EVIDENCE.md`; do not suppress, baseline, dismiss, or repair
 it. Otherwise record every required command, version, result, SBOM metric/hash, and

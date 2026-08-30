@@ -141,9 +141,10 @@ Codex Luna then performs the evidence sequence:
    the required checker/workflows do not yet exist.
 2. Integrate `scripts/security_policy.py` and all three workflow changes, then run the
    same command and record green.
-3. Falsify the high-value immutable-pin check in a temporary copy by replacing one
-   40-character Action SHA with a mutable tag. Record that the policy check rejects it,
-   restore the untouched source, and prove green again.
+3. Falsify the high-value immutable-pin check with the targeted in-memory unittest
+   `scripts.security_policy_test.CheckerRejectionTest.test_mutable_action_tag_is_rejected`.
+   It replaces one 40-character Action SHA with a mutable tag in memory and must record
+   rejection without creating or deleting a temporary tree. Prove full green again.
 
 The policy tests must independently assert the seven invariants above, including that the
 routine workflow has no build/upload step and the manual workflow cannot upload a binary.
@@ -184,6 +185,10 @@ The temporary binary and SBOM are not committed.
   ticket for every proposed disposition.
 - Grok Build stops after the bounded source drop. Codex Luna stops after publishing the
   evidence and Git change for reviewer inspection. Only the reviewer may accept it.
+- No actor may use `rm -rf` or another recursive deletion command with a variable,
+  substitution, glob, symlink-derived path, or unresolved target. Local tool, binary,
+  SBOM, and falsification files may remain under `/tmp` for operating-system cleanup;
+  GitHub runner state is discarded with the ephemeral runner.
 
 ## Acceptance Criteria
 
@@ -221,3 +226,19 @@ compares the underlying step objects (or an equivalently exact same-step propert
 the wrapper tuples. No test change, workflow change, broader refactor, execution, install,
 or Git operation is authorized. Durable correction prompt:
 `docs/handoff/GROK_BUILD_BBGO_SEC_001_CORRECTION_01.md`.
+
+## Integration Safety Interruption
+
+During resumed integration, Codex Luna proposed a recursive removal whose target was
+expressed indirectly. The owner rejected it because the destructive target was not
+human-reviewable. The reviewer interrupted Luna before execution. The worktree and
+evidence were unchanged.
+
+Integration may resume only under these additional constraints:
+
+- do not run `rm -rf`, `rm -r`, `find -delete`, or an equivalent recursive deletion;
+- do not delete a path expressed through a variable, substitution, glob, or symlink;
+- do not clean temporary scanner, binary, SBOM, or falsification state recursively;
+- leave temporary state in `/tmp` or on the ephemeral runner for system cleanup; and
+- perform immutable-pin falsification with the existing in-memory unittest
+  `CheckerRejectionTest.test_mutable_action_tag_is_rejected`, not a temporary file tree.

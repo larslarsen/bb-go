@@ -56,3 +56,16 @@ race tests, SBOM build/generation/validation, `git diff --check`, evidence compl
 commit, or push. No secret value was recorded. No binary or SBOM was generated.
 
 Reviewer disposition is required before any correction or further acceptance work.
+
+## Integration safety interruption
+
+After Grok correction cycle 1, Codex Luna was resumed. Before it changed repository state
+or updated this evidence, it proposed a recursive deletion whose target was expressed
+indirectly. The owner rejected the command as not safely reviewable, and the reviewer
+interrupted Luna. No deletion, scanner, build, Git operation, or evidence mutation from
+that resumed attempt occurred.
+
+The ticket and Luna handoff now prohibit recursive deletion and deletion through
+variables, substitutions, globs, symlinks, or other unresolved targets. Temporary state
+must be left for `/tmp` or ephemeral-runner cleanup. Integration may resume from green
+under those constraints.

@@ -16,6 +16,10 @@ This file governs agent work in the `bb-go` repository.
   optional observer or tool, but must never become required for normal network use.
 - Never commit secrets, private keys, user data, local absolute paths, or generated node
   state.
+- Never run recursive deletion through an environment variable, shell variable, command
+  substitution, glob, symlink-derived path, or other unresolved target. An authorized
+  cleanup must name an explicit reviewable path; temporary runner state may be left for
+  the runner or operating system to discard.
 
 ## Roles
 

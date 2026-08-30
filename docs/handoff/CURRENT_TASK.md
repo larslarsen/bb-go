@@ -23,3 +23,8 @@ running scanners or Git. The failure is recorded in
 [BBGO-SEC-001-EVIDENCE.md](../security/BBGO-SEC-001-EVIDENCE.md). Grok Build may perform
 only [Correction Cycle 1](GROK_BUILD_BBGO_SEC_001_CORRECTION_01.md); Codex Luna resumes
 integration only after that bounded correction report is preserved.
+
+Correction Cycle 1 is preserved and ready for validation. A resumed Luna attempt was
+interrupted before execution when it proposed recursive deletion through an indirect
+target. Luna may resume from green only under the explicit no-recursive/unresolved-delete
+rules in the ticket and [Codex Luna handoff](CODEX_LUNA_BBGO_SEC_001.md).
