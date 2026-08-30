@@ -436,3 +436,13 @@ Grok may correct only `scripts/govulncheck_policy_test.py`,
 first. Policy tests must reject variable/substitution/glob/symlink-derived deletion in
 the SBOM workflow. The adjudicator must not print raw SARIF on success, while retaining
 its fail-closed validation and clear summary. No other behavior or path may change.
+
+After a conforming correction, Luna must run both complete policy suites (42 workflow
+policy tests and 40 Govulncheck-policy tests), targeted rejection falsification,
+Actionlint, the real source adjudicator, Gosec, redacted Gitleaks, the maintained race
+suite, disk-backed daemon build and binary adjudicator, CycloneDX generation/validation,
+and `git diff --check`, in that order. The actual source and binary adjudicators may use
+official advisory network access. Every local Go command and artifact retains the exact
+disk-backed paths already authorized. No local `/tmp`, cleanup, deletion, or unresolved
+target is allowed. Any non-reviewed reachable error or other command failure stops
+before Git.

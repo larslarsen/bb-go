@@ -75,3 +75,28 @@ concise summary and does not echo the raw SARIF document. Preserve every other
 fail-closed invariant, workflow order, pin, and behavior. Do not run commands except
 read-only final hashes/counts; all original scope, no-test, no-install, no-Git, and stop
 rules remain in force. Report a new complete correction table and the exact new tests.
+
+### Correction Cycle 1 Delivered Report
+
+Execution date: 2026-08-29
+
+Grok reported test-source-first correction and no test, scanner, formatter, build,
+validator, install, or Git execution. Only read-only hashes/counts were run.
+
+| Path | Lines | SHA-256 |
+|---|---:|---|
+| `scripts/govulncheck_policy_test.py` | 699 | `8c278f1830245992d86f8a777852588979049cc70f2f4f39a864df7206e8020d` |
+| `scripts/security_policy_test.py` | 721 | `19fb7ab17b06556e526d7baa75089b5471a2351c09170658dffcd04ac1cd4d54` |
+| `scripts/govulncheck_policy.py` | 356 | `709cb00d44c62ef6e2d394f457407183d6fb90bc98958c80db0261607bc3c77c` |
+| `scripts/security_policy.py` | 1,172 | `36f866c0fc19cdbac373afce6edf7b2342b1be9af419ff12fa789b228890f671` |
+| `.github/workflows/sbom.yml` | 58 | `7f782b60c33d565120ea0bf9605421da989b01b26e42c68d7f089bbd2864300b` |
+
+The correction adds three successful-CLI tests proving source, exception, and binary
+results emit only the concise validated summary; the exception case must retain every
+note ID/message plus owner and expiry. Four workflow mutations cover variable,
+substitution, glob, and syntactically symlink-derived deletion targets. The committed
+SBOM workflow contains no deletion command and leaves its unuploaded binary for runner
+disposal. All original SARIF accept/reject fixtures and workflow invariants remain.
+
+Reviewer independently verified these hashes/counts and inspected the corrected main
+output path, deletion detector/tests, and SBOM workflow. Execution is still required.

@@ -113,3 +113,35 @@ socket execution outside that restriction. The maintained race suite may use the
 bounded localhost authority. Do not contact public peers; these tests must remain
 offline and in-process. Then continue only to the already authorized source Govulncheck
 rerun and expected stop.
+
+## Reviewed Govulncheck Exception 1 Integration
+
+Reread the reviewed-exception section and the complete delivered/correction report in
+`docs/handoff/GROK_BUILD_BBGO_SEC_001_EXCEPTION_01.md`. Verify every final recorded hash
+before execution. Do not author or repair source.
+
+Run both complete standard-library suites:
+
+```text
+python3 -m unittest scripts/security_policy_test.py
+python3 -m unittest scripts/govulncheck_policy_test.py
+```
+
+Record 42 and 40 passing tests respectively. Falsify the highest-value exception and
+safety checks by separately running the additional-error, wrong-DHT-version,
+expiry-date, variable-deletion, and mutable-Action rejection tests; each must pass by
+proving the mutated input is rejected. Run Actionlint on all three workflows.
+
+Then run the actual source adjudicator with the exact disk-backed tool directory on
+`PATH`, GOCACHE, and GOTMPDIR. It may use the previously authorized official advisory
+network access. Its concise output must accept only Reviewed Govulncheck Exception 1,
+identify exact DHT `v0.42.2`, owner and expiry, and report both non-reachable notes. Any
+other result or failure stops integration.
+
+If it passes, continue the previously deferred Gosec, redacted Gitleaks, maintained race
+suite, exact disk-backed daemon build, binary adjudicator, CycloneDX generation and
+structural validation, and `git diff --check`. Do not use local `/tmp`, `mktemp`, cleanup,
+deletion, unresolved targets, or recursive commands. Leave all disk-backed tools,
+caches, daemon, and SBOM in place. Stop on any finding or command failure; do not repair,
+suppress, or broaden the exception. If every command passes, complete evidence and Git
+exactly as originally authorized.
