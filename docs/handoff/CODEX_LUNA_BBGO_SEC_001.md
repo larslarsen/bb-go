@@ -51,6 +51,13 @@ and GOTMPDIR paths above. Do not rebuild the existing Go-1.27 CycloneDX binary. 
 all five binaries with `go version -m`; each must report Go 1.27.0 before scanner
 execution resumes.
 
+All five tool binaries now meet that requirement. The next source Govulncheck attempt
+was blocked only by sandbox DNS/network policy before analysis. Rerun the exact source
+Govulncheck command with approved external network access to `vuln.go.dev`. If it passes,
+continue the normal sequence; the later exact binary-mode Govulncheck command may use the
+same network authority. Do not grant network authority to other acceptance commands and
+do not provide any scanner with secrets or credentials.
+
 If any scanner reports a finding, stop before Git and write only redacted triage metadata
 to `docs/security/BBGO-SEC-001-EVIDENCE.md`; do not suppress, baseline, dismiss, or repair
 it. Otherwise record every required command, version, result, SBOM metric/hash, and

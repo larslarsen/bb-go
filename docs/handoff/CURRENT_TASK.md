@@ -39,3 +39,8 @@ Policy, falsification, and Actionlint subsequently passed. Govulncheck stopped b
 analysis because its executable was built with Go 1.26 and could not load the Go 1.27
 module. Luna may perform only the exact Local Toolchain Correction 1 in the ticket,
 verify all embedded tool build versions, and resume from Govulncheck.
+
+All five tools now report Go 1.27.0 and exact pinned versions. The next Govulncheck attempt
+was blocked before analysis by sandbox DNS/network policy. Luna may resume only the exact
+source and later binary Govulncheck commands with approved network access; all other
+commands retain ordinary sandbox authority.

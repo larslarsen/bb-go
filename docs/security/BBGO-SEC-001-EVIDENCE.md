@@ -1,6 +1,6 @@
 # BBGO-SEC-001 Integration Evidence
 
-Status: BLOCKED — govulncheck toolchain failure; integration stopped before Git.
+Status: BLOCKED — govulncheck advisory-fetch failure; integration stopped before Git.
 
 Ticket: [BBGO-SEC-001](../../tickets/BBGO-SEC-001.md)
 Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
@@ -141,11 +141,37 @@ completion, commit, and push were not run. No finding was suppressed or baseline
 no secret value was recorded. The approved disk-backed tool/cache/temp/artifact
 directories are intentionally left in place.
 
+## Local Toolchain Correction 1
+
+Per the authorized correction, exactly `govulncheck@v1.7.0`, `gosec@v2.29.0`,
+`gitleaks@v8.30.1`, and `actionlint@v1.7.12` were rebuilt with `GOTOOLCHAIN=go1.27.0`
+using the approved disk-backed tool, cache, and temp paths. `cyclonedx-gomod@v1.12.0`
+was not rebuilt. `go version -m` verified all five binaries report `go1.27.0` and the
+ticketed module versions.
+
+## Blocking resumed scanner failure
+
+Command:
+
+```text
+(cd modern && govulncheck -test ./...)
+```
+
+Tool: `golang.org/x/vuln/cmd/govulncheck@v1.7.0`, now rebuilt with Go 1.27.0. Result:
+exit code 1 before package analysis because the sandbox blocked DNS/network access while
+fetching the vulnerability database from `vuln.go.dev`. No vulnerability result was
+produced and no secret value was recorded. Per the ticket stop condition, gosec, Gitleaks,
+maintained race tests, SBOM build/binary scan/generation/validation, `git diff --check`,
+evidence completion, commit, and push were not run.
+
+Reviewer disposition: this is an execution-environment restriction, not a source or
+vulnerability finding. The ticket now authorizes only the exact source and binary
+Govulncheck invocations to use external network access for the official `vuln.go.dev`
+database. No credentials or broader command receives that authority.
+
 ## Local toolchain disposition
 
-Reviewer inspection with `go version -m` confirmed that `govulncheck`, `gosec`,
-`gitleaks`, and `actionlint` were built with Go 1.26.0. `cyclonedx-gomod` was built with
-Go 1.27.0. To match the ticketed local/CI toolchain and avoid repeated package-loading
-failures, Luna is authorized to rebuild only those four exact pinned tools with Go 1.27.0
-at the same disk-backed paths, verify all five embedded build versions, and then resume
-from Govulncheck. No source repair, version change, suppression, or cleanup is authorized.
+Reviewer inspection originally found that `govulncheck`, `gosec`, `gitleaks`, and
+`actionlint` were built with Go 1.26.0 while `cyclonedx-gomod` used Go 1.27.0. Luna then
+rebuilt exactly those four tools and verified all five now report Go 1.27.0 and the
+ticketed versions. No source repair, version change, suppression, or cleanup occurred.

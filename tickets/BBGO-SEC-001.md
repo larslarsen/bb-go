@@ -287,3 +287,17 @@ Codex Luna may rebuild exactly these four existing pinned binaries with
 Do not rebuild CycloneDX or change a version. Before resuming scanners, verify with
 `go version -m` that all five tool binaries report Go 1.27.0. All destructive-action,
 tmpfs, exact-path, no-cleanup, finding, and stop rules remain in force.
+
+## Govulncheck Network Execution Correction 1 — Authorized
+
+After all five binaries were verified at Go 1.27.0 and exact pinned versions, the resumed
+`govulncheck -test ./...` attempt stopped before analysis because sandbox DNS/network
+access to `vuln.go.dev` was blocked. This was not a vulnerability result.
+
+Codex Luna may rerun the exact source Govulncheck command with network access outside the
+network-restricted sandbox. If it passes without a finding, Luna may later run the exact
+ticketed `govulncheck -mode binary` command against the explicit disk-backed daemon path
+with the same network access. No other command receives expanded network authority.
+Govulncheck may contact its official vulnerability database; it must not receive secrets
+or credentials. All existing exact-path, disk-backed, no-cleanup, finding, and stop rules
+remain in force.
