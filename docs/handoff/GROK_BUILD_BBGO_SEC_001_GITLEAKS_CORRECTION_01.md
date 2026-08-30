@@ -74,3 +74,20 @@ match-value output, and no baseline/policy widening. Codex Luna must verify both
 rerun the complete baseline suite (now 27 tests), run targeted selectors for all three
 identifier-embedded cases and committed-baseline acceptance, and then resume the exact
 continuation sequence from the prior handoff. Any failure stops before later work and Git.
+
+## Targeted selector addressing correction — 2026-08-29
+
+The complete corrected suite passed 27/27. Luna's first targeted selector used
+`-k unredacted_match`, which matched no test because the actual method contains
+`non_redacted_match`. This is an invocation-addressing failure, not a source result.
+Resume with exactly these file-path selectors from the repository root:
+
+```text
+python3 -m unittest -k non_redacted_match scripts/gitleaks_baseline_test.py
+python3 -m unittest -k prefix_identifier_redacted_match scripts/gitleaks_baseline_test.py
+python3 -m unittest -k suffix_identifier_redacted_match scripts/gitleaks_baseline_test.py
+python3 -m unittest -k committed_baseline_is_accepted_before_expiry scripts/gitleaks_baseline_test.py
+```
+
+Each command must run exactly one test and pass. No source change is authorized. After
+all four pass, resume at the complete workflow-policy suite.

@@ -96,3 +96,9 @@ suffix identifier cases are rejected by an explicit complete-marker predicate. R
 inspection accepted the two-path source report and hashes. Luna may now verify the two
 new hashes, rerun the 27-test suite and targeted boundaries, then resume the exact prior
 continuation sequence.
+
+The corrected suite passed 27/27. Luna's first targeted selector used the wrong method
+fragment and selected zero tests. No later command ran. The exact four file-path
+selectors are now recorded in the correction handoff; no source change is authorized.
+Luna resumes with those commands and proceeds to the workflow-policy suite only if every
+selector runs exactly one passing test.

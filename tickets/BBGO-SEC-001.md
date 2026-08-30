@@ -589,3 +589,10 @@ The exact delivered hashes and Luna continuation are recorded in
 `docs/handoff/GROK_BUILD_BBGO_SEC_001_GITLEAKS_CORRECTION_01.md`. Luna may verify those
 hashes and resume at the complete baseline suite; no later gate or Git is authorized
 unless the corrected suite and targeted boundary selectors pass.
+
+The complete corrected suite passed 27/27. The first targeted selector then selected
+zero tests because `unredacted_match` did not match the actual
+`non_redacted_match` method name. This is an invocation-addressing failure. No source
+change is authorized. Luna may run only the four exact file-path selectors recorded in
+the correction handoff, require one passing test from each, and then resume at the
+workflow-policy suite.

@@ -429,6 +429,35 @@ workflow-policy suite, targeted selectors, validator, Actionlint, Gitleaks scan,
 tests, daemon/binary/SBOM validation, `git diff --check`, commit, and push were not run.
 No source, test, baseline, or policy repair was made.
 
+## Reviewed Gitleaks Baseline Correction 1 resume stop
+
+The corrected baseline source hashes were verified before execution:
+
+```text
+scripts/gitleaks_baseline_test.py  499 lines  SHA-256 ad552aa171d8e698de63e9c5f9c5f2ef4a7cb2eec2d177abf453f0bbc0f785eb
+scripts/gitleaks_baseline.py       363 lines  SHA-256 b3144ce714d9388659af23cd420a6dbf4caff2fcc91dbadf28b0142d0982febb
+```
+
+The complete corrected baseline suite passed:
+
+```text
+python3 -m unittest scripts/gitleaks_baseline_test.py
+Ran 27 tests; OK; exit code 0
+```
+
+The first targeted boundary selector was then attempted:
+
+```text
+python3 -m unittest -k unredacted_match scripts/gitleaks_baseline_test.py
+Ran 0 tests; exit code 5 (NO TESTS RAN)
+```
+
+No mutation test ran because the selector matched no existing test. Per the stop
+condition, remaining targeted selectors, workflow-policy suite, validator, Actionlint,
+baseline Gitleaks scan, race/build/binary/SBOM validation, `git diff --check`, evidence
+completion, commit, and push were not run. No source, test, baseline, or policy repair
+was made; no secret or match value was recorded.
+
 ## Reviewer Gitleaks triage
 
 A second `--redact=100` history report was written only to the exact disk-backed artifact
