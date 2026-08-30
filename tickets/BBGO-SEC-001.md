@@ -1,21 +1,14 @@
 # BBGO-SEC-001 — Add Maintained-Daemon Security Gates and SBOM Evidence
 
-Status: DRAFT — NOT AUTHORIZED
+Status: AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex
 
-Proposed source actor: Implementation Dev — Codex Spark
+Source actor: Sr Dev — Grok Build (Grok 4.6 High)
 
-Proposed integration actor: Jr Dev — Codex Luna
+Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
 
-Source baseline: `6088b79dd2523c710b7df0eaa18cd299f23b11a0`
-
-## Stop Notice
-
-This ticket is a reviewed design draft, not an implementation authorization. Do not edit
-its implementation paths, install tools, execute scanners, create artifacts, use Git, or
-consume CI for this ticket until the reviewer changes the status and updates
-`docs/handoff/CURRENT_TASK.md`.
+Source baseline: `5289c564490a54f1adc5be1d451277d2576f7090`
 
 ## Objective
 
@@ -48,11 +41,14 @@ with the runner.
 5. No finding is suppressed, allowlisted, downgraded, or converted to non-blocking by
    this ticket.
 6. Secret values are redacted and no secret-finding report is uploaded as an artifact.
+7. The existing Go workflow uses immutable Action pins and does not spend a full Go run
+   on documentation-only changes.
 
 ## Authorized Source Paths
 
-Codex Spark may author only:
+Grok Build may author only:
 
+- `.github/workflows/go.yml`
 - `.github/workflows/security.yml`
 - `.github/workflows/sbom.yml`
 - `scripts/security_policy.py`
@@ -61,6 +57,7 @@ Codex Spark may author only:
 Codex Luna may integrate those paths and author only this evidence record:
 
 - `docs/security/BBGO-SEC-001-EVIDENCE.md`
+- `docs/handoff/CURRENT_TASK.md`
 
 No other path is authorized.
 
@@ -88,8 +85,8 @@ in-ticket substitution.
 
 ### `.github/workflows/security.yml`
 
-- Trigger on `pull_request` changes to `modern/**`, either security workflow, or either
-  policy script; also permit `workflow_dispatch`.
+- Trigger on `pull_request` changes to `modern/**`, any workflow, or either policy script;
+  also permit `workflow_dispatch`.
 - Declare top-level `permissions: contents: read` and a cancel-in-progress concurrency
   group.
 - Check out complete history with `fetch-depth: 0` for Gitleaks.
@@ -97,8 +94,8 @@ in-ticket substitution.
   tool directory at the exact versions above.
 - From `modern/`, run `govulncheck -test ./...` and `gosec ./...`.
 - From the repository root, run `gitleaks git --redact --no-banner .`.
-- Run `python3 -m unittest scripts/security_policy_test.py` and Actionlint against both
-  workflow files.
+- Run `python3 -m unittest scripts/security_policy_test.py` and Actionlint against all
+  three workflow files.
 - Do not build a daemon, create an SBOM, upload artifacts, add write permissions, or use
   `continue-on-error`.
 
@@ -121,9 +118,19 @@ in-ticket substitution.
 - Upload only the `.cdx.json` document with `retention-days: 7`. Do not upload the daemon,
   publish a release, or request write permission.
 
+### `.github/workflows/go.yml`
+
+- Preserve its existing compile, social-boundary, and maintained-P2P commands.
+- Replace mutable Action tags with the exact immutable checkout/setup-go pins in this
+  ticket.
+- Retain `push` and `pull_request`, but restrict both to Go source, Go module/sum files,
+  `vendor/**`, `gx/**`, `scripts/go.sh`, and this workflow. Documentation-only changes
+  must not trigger the Go job.
+- Retain `permissions: contents: read`, Go 1.27.0, and disabled setup-go caching.
+
 ## Test-First Integration Contract
 
-Codex Spark authors `scripts/security_policy_test.py` before the checker or workflows
+Grok Build authors `scripts/security_policy_test.py` before the checker or workflows
 and reports the files as separate test-source and production-source sections. It does
 not execute them.
 
@@ -132,27 +139,27 @@ Codex Luna then performs the evidence sequence:
 1. Integrate only `scripts/security_policy_test.py` and run
    `python3 -m unittest scripts/security_policy_test.py`. Record the expected red result:
    the required checker/workflows do not yet exist.
-2. Integrate `scripts/security_policy.py` and both workflows, then run the same command
-   and record green.
+2. Integrate `scripts/security_policy.py` and all three workflow changes, then run the
+   same command and record green.
 3. Falsify the high-value immutable-pin check in a temporary copy by replacing one
    40-character Action SHA with a mutable tag. Record that the policy check rejects it,
    restore the untouched source, and prove green again.
 
-The policy tests must independently assert the six invariants above, including that the
+The policy tests must independently assert the seven invariants above, including that the
 routine workflow has no build/upload step and the manual workflow cannot upload a binary.
 The checker and tests must use only Python's standard library; no project or CI dependency
-may be added. Tests that merely search for a success string emitted by the workflow are
-rejected.
+may be added. They must also assert immutable pins and documentation-only path filtering
+for the existing Go workflow. Tests that merely search for a success string emitted by
+the workflow are rejected.
 
-## Proposed Codex Luna Acceptance Commands
+## Codex Luna Acceptance Commands
 
-These commands are not authorized while the ticket remains a draft. Once authorized,
 Codex Luna records exact versions, commands, exit codes, and summarized counts without
 publishing secret material:
 
 ```text
 python3 -m unittest scripts/security_policy_test.py
-actionlint .github/workflows/security.yml .github/workflows/sbom.yml
+actionlint .github/workflows/go.yml .github/workflows/security.yml .github/workflows/sbom.yml
 (cd modern && govulncheck -test ./...)
 (cd modern && gosec ./...)
 gitleaks git --redact --no-banner .
@@ -175,13 +182,13 @@ The temporary binary and SBOM are not committed.
 - No baseline, ignore rule, inline suppression, `continue-on-error`, or altered exit code
   may be added. The reviewer must issue a separate remediation or time-bounded exception
   ticket for every proposed disposition.
-- Codex Spark stops after the bounded source drop. Codex Luna stops after publishing the
+- Grok Build stops after the bounded source drop. Codex Luna stops after publishing the
   evidence and Git change for reviewer inspection. Only the reviewer may accept it.
 
 ## Acceptance Criteria
 
 - The red, green, and immutable-pin falsification evidence is complete and non-vacuous.
-- All proposed Hermes acceptance commands pass with no suppressed finding.
+- All Codex Luna acceptance commands pass with no suppressed finding.
 - CI triggers and path filters avoid duplicate or irrelevant runs.
 - Routine CI neither builds nor uploads binaries; manual SBOM CI uploads only CycloneDX
   JSON.
@@ -190,4 +197,9 @@ The temporary binary and SBOM are not committed.
 
 ## Reviewer Decision
 
-Pending. Draft publication does not authorize Codex Spark, Hermes, or CI activity.
+Authorized on 2026-08-29. Complete durable prompts:
+
+- `docs/handoff/GROK_BUILD_BBGO_SEC_001.md`
+- `docs/handoff/CODEX_LUNA_BBGO_SEC_001.md`
+
+Reviewer acceptance remains pending.

@@ -1,6 +1,6 @@
 # BBGO-SEC-002 — Retire Inherited Marketplace QA and Resolve Requests Alerts
 
-Status: AUTHORIZED
+Status: ACCEPTED
 
 Reviewer: Lead Engineer/Reviewer — Codex
 
@@ -107,4 +107,13 @@ regression. Do not fix or suppress an unrelated finding under this ticket.
 
 ## Reviewer Acceptance
 
-Pending.
+Accepted by Lead Engineer/Reviewer — Codex on 2026-08-29.
+
+- Codex Luna recorded valid red, green, and falsification evidence.
+- All local compatibility, social-boundary, maintained race, and diff checks passed.
+- Remote Go workflow run `33283908394` passed.
+- Remote dependency-graph run `33283910919` passed and GitHub subsequently reported zero
+  open Dependabot alerts.
+- The accepted implementation is source commit `ce3cb4d2` with final evidence metadata
+  commit `5289c564490a54f1adc5be1d451277d2576f7090`.
+- No alert was dismissed and no replacement dependency or out-of-scope deletion landed.

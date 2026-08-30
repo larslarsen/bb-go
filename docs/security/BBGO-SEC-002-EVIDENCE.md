@@ -53,3 +53,11 @@ Deleted tracked-file count: 90. Deleted content size: 552,042 bytes. Git diff su
 90 files changed, 12,462 deletions.
 
 Commit under review: `ce3cb4d2` (to be amended only to record this final hash).
+
+## Reviewer and Remote Evidence
+
+Accepted by Lead Engineer/Reviewer — Codex on 2026-08-29. Remote Go workflow run
+`33283908394` completed successfully. Dependency-graph run `33283910919` completed
+successfully, after which GitHub's Dependabot API returned zero open alerts. No alert was
+dismissed. Final evidence metadata commit:
+`5289c564490a54f1adc5be1d451277d2576f7090`.

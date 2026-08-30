@@ -45,3 +45,9 @@ for source, dependency, secret, and SBOM evidence for `modern/` after this alert
 
 Alert metadata was read from GitHub's Dependabot alerts API on 2026-08-29. No alert was
 dismissed, mutated, or marked fixed during triage.
+
+## Resolution
+
+`BBGO-SEC-002` removed the obsolete manifest and complete inherited marketplace QA tree.
+GitHub dependency-graph run `33283910919` succeeded and the Dependabot API then reported
+zero open alerts. The alerts closed from repository state; none was dismissed.
