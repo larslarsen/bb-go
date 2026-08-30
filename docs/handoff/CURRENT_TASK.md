@@ -2,7 +2,7 @@
 
 Ticket: BBGO-SEC-002
 
-State: AUTHORIZED
+State: AWAITING REVIEW
 
 Source actor: Sr Dev — Grok Build (Grok 4.6 High)
 
@@ -14,3 +14,8 @@ source and integration prompts are preserved in
 [GROK_BUILD_BBGO_SEC_002.md](GROK_BUILD_BBGO_SEC_002.md) and
 [CODEX_LUNA_BBGO_SEC_002.md](CODEX_LUNA_BBGO_SEC_002.md). No other implementation ticket is
 authorized; `BBGO-SEC-001` remains a draft.
+
+Codex Luna completed the authorized integration and acceptance sequence. Evidence is
+recorded in [BBGO-SEC-002-EVIDENCE.md](../security/BBGO-SEC-002-EVIDENCE.md). Commit
+under review: to be recorded after publication. No further implementation is
+authorized. The reviewer alone accepts or rejects this result.
