@@ -52,4 +52,4 @@ falsification content remains in the worktree.
 Deleted tracked-file count: 90. Deleted content size: 552,042 bytes. Git diff summary:
 90 files changed, 12,462 deletions.
 
-Commit under review: to be recorded after publication.
+Commit under review: `ce3cb4d2` (to be amended only to record this final hash).

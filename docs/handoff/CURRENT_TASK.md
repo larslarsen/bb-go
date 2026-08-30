@@ -17,5 +17,5 @@ authorized; `BBGO-SEC-001` remains a draft.
 
 Codex Luna completed the authorized integration and acceptance sequence. Evidence is
 recorded in [BBGO-SEC-002-EVIDENCE.md](../security/BBGO-SEC-002-EVIDENCE.md). Commit
-under review: to be recorded after publication. No further implementation is
+under review: `ce3cb4d2` (final hash will be recorded after this metadata amendment). No further implementation is
 authorized. The reviewer alone accepts or rejects this result.
