@@ -466,3 +466,39 @@ python3 -m unittest -k mutable_action_tag scripts/security_policy_test.py
 
 Each must load and pass exactly one rejection test. On success, resume at Actionlint.
 No source/test edit, package initializer, alternate selector, or Git action is authorized.
+
+## Gosec Finding Correction 1 — Authorized
+
+After policy and source-adjudicator success, pinned Gosec v2.29.0 stopped integration on
+two maintained-source findings:
+
+- G115, high/medium, `modern/direct/service.go:716`: `int` frame length converted to
+  `uint32`; and
+- G304, medium/high, `modern/network/identity.go:17`: identity key read through a
+  caller-supplied path.
+
+No suppression or baseline is authorized. Sr Dev — Grok Build must author tests first
+and then correct only:
+
+- `modern/direct/service_test.go`
+- `modern/direct/service.go`
+- `modern/network/identity_test.go`
+- `modern/network/identity.go`
+- `modern/network/open.go`
+
+Direct framing must derive the encoded `uint32` only after a testable checked bound that
+proves the size fits both the protocol's `maxFrameBytes` and `uint32`; boundary tests
+must cover immediately below, at, and above the protocol limit plus a value above
+`math.MaxUint32` without allocating that payload. Existing wire format must not change.
+
+Identity storage must replace arbitrary full-path reading with a root-scoped API using
+Go 1.27 `os.Root` and the fixed `identity.key` name beneath the supplied data directory.
+All reads, writes, and final rename must remain confined to that opened root. Tests must
+retain persistence/0600 coverage and prove that an `identity.key` symlink escaping the
+root is rejected without reading or altering the outside file. `network.Open` must use
+the new root-scoped contract.
+
+Grok must not run commands beyond read-only hashes/counts, change any scanner policy,
+add a suppression, change dependencies, edit other paths, install, use Git, commit, push,
+or change GitHub state. Luna owns red/green/falsification, Gosec rerun, broader race
+testing, evidence, and Git.

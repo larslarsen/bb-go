@@ -331,6 +331,50 @@ adjudicator, Gosec, Gitleaks, race suite, binary build/adjudicator, CycloneDX va
 `git diff --check`, commit, and push were not run. No source/test repair, suppression,
 allowlist, cleanup, or Git operation occurred.
 
+## Reviewed Govulncheck Exception 1 execution
+
+The five corrected targeted rejection selectors each loaded and passed exactly one test:
+
+```text
+python3 -m unittest -k additional_error scripts/govulncheck_policy_test.py       1/1 OK
+python3 -m unittest -k wrong_dht_version scripts/govulncheck_policy_test.py      1/1 OK
+python3 -m unittest -k exception_on_expiry_date scripts/govulncheck_policy_test.py 1/1 OK
+python3 -m unittest -k sbom_variable_deletion scripts/security_policy_test.py     1/1 OK
+python3 -m unittest -k mutable_action_tag scripts/security_policy_test.py         1/1 OK
+```
+
+Actionlint v1.7.12 passed all three workflows with exit code 0. The source adjudicator,
+using the exact pinned Govulncheck tool and official advisory database, accepted only the
+reviewed exception `GO-2024-3218` on DHT v0.42.2, identified the reviewer owner and expiry
+2026-11-29, and reported the two non-reachable note results. It exited 0 with concise
+validated output.
+
+## Blocking Gosec findings
+
+Command:
+
+```text
+(cd modern && gosec ./...)
+```
+
+Pinned Gosec v2.29.0 exited 1 and reported two unsuppressed findings in maintained
+`modern/`: G115 (CWE-190), high severity/medium confidence, an integer-overflow conversion
+in `direct/service.go`; and G304 (CWE-22), medium severity/high confidence, potential file
+inclusion via a variable in `network/identity.go`. No finding was suppressed, baselined,
+downgraded, or repaired; no secret value was recorded.
+
+Per BBGO-SEC-001, integration stops here. Gitleaks, maintained race tests, daemon build,
+binary adjudicator, CycloneDX generation/validation, `git diff --check`, evidence
+completion, commit, and push were not run.
+
+Reviewer triage confirms both are source-hardening work, not suppression candidates.
+G115 already has a 128 KiB protocol limit but performs the narrowing conversion directly;
+the correction requires a separately testable checked conversion with explicit integer
+boundaries. G304's full-path identity API is only called with the daemon data directory
+today, but it unnecessarily permits arbitrary path selection; the correction requires a
+fixed identity filename within Go 1.27 `os.Root`, including an escape-symlink regression
+test. No remediation has yet been executed.
+
 Reviewer disposition: this is a unittest selector-addressing failure after both complete
 suites passed, not a source/test failure. Five exact repository-root file-path `-k`
 selectors are authorized to prove the required rejection cases individually; no package

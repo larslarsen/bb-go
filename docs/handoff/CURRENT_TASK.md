@@ -68,3 +68,7 @@ paths enumerated in the same handoff.
 The corrected full policy suites passed 42/42 and 49/49. A redundant targeted
 dotted-module selector failed before loading. Luna may run only Targeted Unittest
 Selector Correction 1's five file-path selectors, then resume from Actionlint.
+
+Those selectors, Actionlint, and source adjudication passed. Gosec then found G115 in
+direct frame sizing and G304 in identity path loading. Grok Build is authorized only for
+the test-first correction in `docs/handoff/GROK_BUILD_BBGO_SEC_001_GOSEC_01.md`.
