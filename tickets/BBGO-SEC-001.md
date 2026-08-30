@@ -362,3 +362,58 @@ the in-process nodes can bind loopback ephemeral ports. No public peer, credenti
 privileged port, or other expanded authority is authorized. All commands must retain the
 exact disk-backed GOCACHE and GOTMPDIR. The same bounded patch removal, exact restoration,
 hash verification, stop-on-failure, no-cleanup, and no-Git rules remain in force.
+
+## Reviewed Govulncheck Exception 1 — Authorized
+
+Reachable Finding Correction 1 proved the mitigation test red in both modes without the
+filter, green with it, and passed the maintained race suite. Govulncheck still reports
+`GO-2024-3218` on DHT `v0.42.2` because its Go record has no fixed version. This reviewed
+exception is narrower than the scanner record and must not make any other finding
+non-blocking.
+
+Exception owner: Lead Engineer/Reviewer — Codex.
+
+Affected dependency and source boundary: exactly
+`github.com/libp2p/go-libp2p-kad-dht@v0.42.2`, reached from the maintained networking
+paths including `modern/network/node.go` and `modern/direct/service.go`.
+
+Rationale: GitHub's reviewed `GHSA-mqr9-hjr8-2m9w` limits affected versions to
+`<=0.20.0`, while the Go record marks all versions with no fix. Upstream's maintainer
+states that the attack is mitigated by routing-table IP-diversity filters. BitBook now
+installs that upstream filter with Amino limits in every mode, and a real multi-node
+regression test proves the defense is present and enforcing both table and CPL limits.
+
+Expiry: 2026-11-29. Removal/re-review is required on that date, on any DHT dependency
+version change, when the Go advisory gains corrected version metadata, when upstream
+publishes a distinct patched mechanism/version, or if the mitigation test or filter
+configuration changes—whichever occurs first.
+
+Sr Dev — Grok Build is authorized to implement a test-first SARIF adjudicator and wire
+it into source and binary Govulncheck execution. It must:
+
+- invoke pinned Govulncheck without `continue-on-error` and distinguish scanner exit 0,
+  reachable-finding exit 3, and every execution failure;
+- accept exit 3 only when SARIF is valid Govulncheck v1.7.0 output from official
+  `https://vuln.go.dev`, the only `error` result is `GO-2024-3218`, every vulnerable DHT
+  trace identifies exactly `github.com/libp2p/go-libp2p-kad-dht@v0.42.2`, and the
+  exception is not expired;
+- reject any additional error, wrong/missing module version, malformed/empty output,
+  wrong scanner/database/mode, invocation failure, or expired exception;
+- keep note-level non-reachable module results visible without treating them as a
+  reachable finding;
+- run the focused IP-diversity regression test immediately before source adjudication;
+  and
+- preserve normal hard-failure behavior for Gosec, Gitleaks, Actionlint, policy tests,
+  SBOM generation/validation, and all other checks.
+
+Authorized developer paths:
+
+- `scripts/govulncheck_policy_test.py`
+- `scripts/govulncheck_policy.py`
+- `scripts/security_policy_test.py`
+- `scripts/security_policy.py`
+- `.github/workflows/security.yml`
+- `.github/workflows/sbom.yml`
+
+No Go source, module, sum, other workflow, governance, evidence, command execution,
+install, Git, commit, push, or GitHub state change is authorized for Grok.

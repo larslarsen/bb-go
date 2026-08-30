@@ -54,3 +54,8 @@ The first correction red run was blocked before its assertion by sandbox denial 
 loopback ephemeral-port bind. Luna restored the exact source hash. Localhost Socket
 Execution Correction 1 now authorizes only the targeted red/green and maintained race
 commands outside that socket restriction, still using the named disk-backed paths.
+
+That correction then passed red/falsification, targeted green, and the full maintained
+race suite. Govulncheck still reports only reachable `GO-2024-3218` on exact DHT
+`v0.42.2`. Grok Build is now authorized only for the expiring, fail-closed SARIF policy
+drop in `docs/handoff/GROK_BUILD_BBGO_SEC_001_EXCEPTION_01.md`.

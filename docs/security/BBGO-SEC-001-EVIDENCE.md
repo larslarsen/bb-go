@@ -228,6 +228,60 @@ network-authorized source Govulncheck rerun were not run. The known advisory the
 was not re-evaluated. No source/test repair, suppression, allowlist, cleanup, or Git
 operation occurred.
 
+## Localhost Socket Execution Correction 1
+
+With the authorized loopback ephemeral-port execution, the bounded red/falsification
+was rerun after removing only the Amino import and diversity-filter option and restoring
+the prior private-mode nil option:
+
+```text
+GOTOOLCHAIN=go1.27.0 GOCACHE=/home/lars/OpenBazaar/.security-cache/go-build-20260829 GOTMPDIR=/home/lars/OpenBazaar/.security-tmp/go-tmp-20260829 go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$' -count=1
+```
+
+Result: exit code 1 as intended. Both subtests rejected the baseline with
+`constructed BitBook DHT has no routing-table IP-diversity filter`. The production hunks
+were restored immediately, and hash verification confirmed `modern/network/node.go`
+`5add3a890d232af2ed8f53fcb9bd062660b69608937fdb0ea0fa6e0d86e057d9` and
+`modern/network/node_test.go`
+`2c791449967c412bc35756400dc832b3ec31557f0d9d868882e5103a4ea4ba74`.
+
+Targeted green then passed:
+
+```text
+GOTOOLCHAIN=go1.27.0 GOCACHE=/home/lars/OpenBazaar/.security-cache/go-build-20260829 GOTMPDIR=/home/lars/OpenBazaar/.security-tmp/go-tmp-20260829 go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$' -count=1
+ok; exit code 0
+```
+
+The maintained race suite passed all five packages (`api`, `direct`, `network`,
+`social`, and `cmd` with no test files):
+
+```text
+GOTOOLCHAIN=go1.27.0 GOCACHE=/home/lars/OpenBazaar/.security-cache/go-build-20260829 GOTMPDIR=/home/lars/OpenBazaar/.security-tmp/go-tmp-20260829 go test -race ./... -count=1
+exit code 0
+```
+
+The network-authorized source Govulncheck rerun was then performed. It exited 3 with one
+reachable vulnerability, `GO-2024-3218`, still affecting
+`github.com/libp2p/go-libp2p-kad-dht@v0.42.2`; the advisory reports no fixed version.
+The scanner also reported two non-reachable required-module vulnerabilities. This
+reachable advisory remains the sole blocking reachable result. No finding was
+suppressed, allowlisted, downgraded, baselined, or repaired. Gosec, Gitleaks, later
+binary/SBOM checks, `git diff --check`, commit, and push were not run.
+
+## Reviewer exception disposition
+
+The concrete missing mitigation is now implemented and independently falsified: both
+normal and private-address modes fail the focused test without the filter, pass with it,
+and the complete maintained race suite passes. The remaining scanner result conflicts
+with GitHub's reviewed affected range and upstream's mitigation disposition.
+
+Reviewed Govulncheck Exception 1 is therefore authorized only for
+`GO-2024-3218` on exact DHT `v0.42.2`, owned by the Lead Engineer/Reviewer and expiring
+2026-11-29. Any dependency change, advisory correction, upstream patched mechanism,
+mitigation change, additional reachable finding, or expiry forces failure and re-review.
+Grok must implement this as a fail-closed SARIF adjudicator with independent tests; no
+exception has yet been integrated or executed.
+
 Reviewer disposition: the bind denial is a sandbox execution restriction. The exact
 targeted red/green and maintained race commands may be repeated with bounded localhost
 socket authority. They remain offline, credential-free, limited to loopback ephemeral
