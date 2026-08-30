@@ -127,10 +127,15 @@ python3 -m unittest scripts/security_policy_test.py
 python3 -m unittest scripts/govulncheck_policy_test.py
 ```
 
-Record 42 and 40 passing tests respectively. Falsify the highest-value exception and
+Record 42 and 49 passing tests respectively. Falsify the highest-value exception and
 safety checks by separately running the additional-error, wrong-DHT-version,
 expiry-date, variable-deletion, and mutable-Action rejection tests; each must pass by
 proving the mutated input is rejected. Run Actionlint on all three workflows.
+
+The first targeted dotted-module selector
+failed before loading. Rerun only the five exact repository-root file-path `-k` commands
+in Targeted Unittest Selector Correction 1. Each must load and pass one test. Resume at
+Actionlint only after all five pass.
 
 Then run the actual source adjudicator with the exact disk-backed tool directory on
 `PATH`, GOCACHE, and GOTMPDIR. It may use the previously authorized official advisory

@@ -64,3 +64,7 @@ Reviewer inspection returned that drop for Correction Cycle 1: remove the
 variable-target binary deletion, enforce that safety invariant, and avoid emitting the
 approximately 220,000-line raw SARIF into CI logs. Grok may edit only the five correction
 paths enumerated in the same handoff.
+
+The corrected full policy suites passed 42/42 and 49/49. A redundant targeted
+dotted-module selector failed before loading. Luna may run only Targeted Unittest
+Selector Correction 1's five file-path selectors, then resume from Actionlint.

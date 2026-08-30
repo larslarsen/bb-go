@@ -308,3 +308,30 @@ passes a nil diversity filter as well. This is a concrete defense gap independen
 advisory-database disagreement. Reachable Finding Correction 1 therefore requires a
 test-first, all-network-mode diversity-filter correction and an update to upstream
 `v0.42.2`. No scanner exception is authorized in that correction.
+
+## Reviewed Govulncheck Exception 1 integration stop
+
+Final source-drop hashes were verified before execution. The complete policy suites
+passed:
+
+```text
+python3 -m unittest scripts/security_policy_test.py
+Ran 42 tests; OK; exit code 0
+
+python3 -m unittest scripts/govulncheck_policy_test.py
+Ran 49 tests; OK; exit code 0
+```
+
+The required targeted rejection falsification command was then attempted for additional
+error, wrong DHT version, expiry date, variable deletion, and mutable Action pin cases.
+It failed before test loading (exit code 1) because dotted module names such as
+`scripts.govulncheck_policy_test` are not importable in this repository: `scripts` has no
+package initializer. No falsification test ran. Per the stop rule, Actionlint, the source
+adjudicator, Gosec, Gitleaks, race suite, binary build/adjudicator, CycloneDX validation,
+`git diff --check`, commit, and push were not run. No source/test repair, suppression,
+allowlist, cleanup, or Git operation occurred.
+
+Reviewer disposition: this is a unittest selector-addressing failure after both complete
+suites passed, not a source/test failure. Five exact repository-root file-path `-k`
+selectors are authorized to prove the required rejection cases individually; no package
+initializer or test edit is needed.

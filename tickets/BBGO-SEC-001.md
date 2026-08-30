@@ -438,7 +438,7 @@ the SBOM workflow. The adjudicator must not print raw SARIF on success, while re
 its fail-closed validation and clear summary. No other behavior or path may change.
 
 After a conforming correction, Luna must run both complete policy suites (42 workflow
-policy tests and 40 Govulncheck-policy tests), targeted rejection falsification,
+policy tests and 49 Govulncheck-policy tests), targeted rejection falsification,
 Actionlint, the real source adjudicator, Gosec, redacted Gitleaks, the maintained race
 suite, disk-backed daemon build and binary adjudicator, CycloneDX generation/validation,
 and `git diff --check`, in that order. The actual source and binary adjudicators may use
@@ -446,3 +446,23 @@ official advisory network access. Every local Go command and artifact retains th
 disk-backed paths already authorized. No local `/tmp`, cleanup, deletion, or unresolved
 target is allowed. Any non-reviewed reachable error or other command failure stops
 before Git.
+
+### Targeted Unittest Selector Correction 1 — Authorized
+
+Both complete suites passed (42 and 49 tests), proving every rejection fixture green.
+The additional targeted selector failed before loading because its dotted `scripts.*`
+module form is not importable in this repository. This is an invocation-addressing
+failure, not a test result or source defect.
+
+Luna may rerun exactly these file-path selectors from the repository root:
+
+```text
+python3 -m unittest -k additional_error scripts/govulncheck_policy_test.py
+python3 -m unittest -k wrong_dht_version scripts/govulncheck_policy_test.py
+python3 -m unittest -k exception_on_expiry_date scripts/govulncheck_policy_test.py
+python3 -m unittest -k sbom_variable_deletion scripts/security_policy_test.py
+python3 -m unittest -k mutable_action_tag scripts/security_policy_test.py
+```
+
+Each must load and pass exactly one rejection test. On success, resume at Actionlint.
+No source/test edit, package initializer, alternate selector, or Git action is authorized.

@@ -100,3 +100,6 @@ disposal. All original SARIF accept/reject fixtures and workflow invariants rema
 
 Reviewer independently verified these hashes/counts and inspected the corrected main
 output path, deletion detector/tests, and SBOM workflow. Execution is still required.
+
+Integration count correction: the executed Govulncheck policy file contains 49 tests,
+not the developer report's stated 40; all 49 passed. The source hash is unchanged.
