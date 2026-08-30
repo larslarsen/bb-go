@@ -1,6 +1,6 @@
 # BBGO-SEC-001 Integration Evidence
 
-Status: BLOCKED — correction test environment failure; integration stopped before Git.
+Status: BLOCKED — Gitleaks finding; integration stopped before Git.
 
 Ticket: [BBGO-SEC-001](../../tickets/BBGO-SEC-001.md)
 Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
@@ -379,3 +379,49 @@ Reviewer disposition: this is a unittest selector-addressing failure after both 
 suites passed, not a source/test failure. Five exact repository-root file-path `-k`
 selectors are authorized to prove the required rejection cases individually; no package
 initializer or test edit is needed.
+
+## Gosec Finding Correction 1 integration
+
+The five-path Grok production drop was verified against its delivered hashes. Bounded red
+reversal produced the intended direct framing failure (`frameLength` undefined); bounded
+identity reversal caused the escape-symlink test to accept the outside identity. Both
+mechanisms were restored with bounded patches and the three production hashes matched the
+delivered report.
+
+Focused direct and network green selections passed with Go 1.27.0 and the exact
+disk-backed cache/temp paths. Pinned Gosec v2.29.0 then passed `modern/` with zero issues
+(`Nosec: 0`, `Issues: 0`, exit code 0).
+
+## Blocking Gitleaks finding
+
+Command:
+
+```text
+gitleaks git --redact --no-banner .
+```
+
+Pinned Gitleaks v8.30.1 scanned 3,379 commits and approximately 313.41 MB, reported 25
+leaks, and exited 1. Secret values and matched content were not recorded. The scanner
+also warned that exhaustive rename detection was skipped because the repository exceeded
+its rename limit; this warning does not alter the blocking leak result.
+
+Per BBGO-SEC-001, integration stops here. The maintained race suite, daemon build, binary
+adjudicator, CycloneDX generation/validation, `git diff --check`, evidence completion,
+commit, and push were not run. No finding was suppressed, allowlisted, baselined,
+downgraded, or repaired.
+
+## Reviewer Gitleaks triage
+
+A second `--redact=100` history report was written only to the exact disk-backed artifact
+path and verified to contain 25 literal `REDACTED` secret fields. It has SHA-256
+`ac71e27a9f2954f7d148b8dd9d630c587abbb92b2a183f53b267e7739f418e00` and size 21,758
+bytes. The 24 generic-rule matches are all redacted dummy/test/documentation/example
+contexts in the inherited root tree/history. The only private-key-rule blob is
+`.travis/sign.key.gpg`; content-safe type inspection identifies it as a 6,835-byte PGP
+public-key block. No finding is under `modern/`, and no credential requiring rotation was
+identified. No unredacted value was displayed or recorded.
+
+Reviewer disposition authorizes a fail-closed, exact redacted baseline owned by the Lead
+Engineer/Reviewer and expiring 2026-11-29. It may cover only these 25 immutable finding
+identities. Any new finding, baseline/content/tool change, root-tree retirement, or expiry
+forces failure and re-review. No broad path, rule, regex, or commit allowlist is allowed.

@@ -508,3 +508,49 @@ run focused direct/network green, falsify the frame boundary and identity escape
 mechanisms, restore/hash-check again, and rerun pinned Gosec. Every Go command uses the
 named disk-backed GOCACHE/GOTMPDIR. On clean Gosec, resume at redacted Gitleaks; on any
 failure/finding, stop before later checks and Git without repair or suppression.
+
+## Reviewed Gitleaks Baseline 1 — Authorized
+
+Pinned Gitleaks scanned 3,379 inherited commits and stopped on 25 redacted findings across
+24 immutable commits. Reviewer triage used only `--redact=100` reports stored at the
+explicit disk-backed artifact path. All 24 `generic-api-key` results are identified by
+their redacted match context as dummy keys, test identity/private-key fixtures,
+documentation/example cookies/passwords/rating keys, or a vendored CLI `--key` example.
+The single `private-key` result is `.travis/sign.key.gpg`; content-safe file-type analysis
+identifies its 6,835-byte blob as a PGP **public** key block. None of the 25 findings is in
+the maintained `modern/` module, and no credential requiring rotation was identified.
+
+The reviewed source report is exactly:
+
+`/home/lars/OpenBazaar/.security-artifacts/bb-go-sec-001-20260829/gitleaks-redacted.json`
+
+SHA-256: `ac71e27a9f2954f7d148b8dd9d630c587abbb92b2a183f53b267e7739f418e00`
+Size: 21,758 bytes. Count: 25. Every `Secret` field is exactly `REDACTED`.
+
+Baseline owner: Lead Engineer/Reviewer — Codex. Expiry/re-review date: 2026-11-29.
+Removal/re-review occurs on expiry, Gitleaks version/rule change, baseline format change,
+root-tree retirement/history rewrite, any baseline-entry change, or evidence that an
+entry is a live credential—whichever comes first.
+
+Sr Dev — Grok Build is authorized to author a test-first exact redacted baseline and
+fail-closed validator limited to:
+
+- `security/gitleaks-baseline.json`
+- `scripts/gitleaks_baseline_test.py`
+- `scripts/gitleaks_baseline.py`
+- `scripts/security_policy_test.py`
+- `scripts/security_policy.py`
+- `.github/workflows/security.yml`
+
+The validator must require exact reviewed SHA/content, 25 unique entries, only the exact
+reviewed rule/file/commit/line identities, literal redaction in every secret/match,
+zero `modern/` entries, owner/expiry constants, and failure on the review date or later.
+Workflow policy must require baseline validation immediately before one Gitleaks command
+using `--redact=100` and `--baseline-path security/gitleaks-baseline.json`; it must reject
+any other baseline, broad path/regex/commit allowlist, missing validation/redaction,
+report upload, or non-blocking exit behavior. New findings remain blocking.
+
+Grok may read only the exact verified redacted artifact above as baseline input. It must
+not read unredacted reports or matched source values, run scanners/tests/validators,
+change Go/dependencies/other paths, install, use Git, commit, push, or change GitHub
+state. Final read-only hashes/counts are allowed.
