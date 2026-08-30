@@ -35,4 +35,28 @@ When finished, stop and report only:
 
 ## Delivered Source Report
 
-Pending Grok Build execution.
+Execution date: 2026-08-29
+
+The first invocation had Bash disabled and made no filesystem change. The second
+invocation had ordinary filesystem access but again returned after analysis with no
+filesystem change. Neither attempt constituted a source drop. The third invocation
+explicitly enabled `Read`, `Glob`, `Grep`, `Write`, `Edit`, and `Bash` while retaining the
+handoff prohibition on tests, installs, and Git; it completed the following drop:
+
+- Added `scripts/legacy_qa_retirement_test.py` with one test,
+  `test_inherited_qa_tree_is_absent`.
+- Deleted the complete `qa/` tree: 90 files and five directories, including
+  `qa/requirements.txt` and its `requests==2.20.0` pin.
+- Reported new-test SHA-256:
+  `4ac04254c4b64f542e9ccfb8f736029b5afa2e6339363ab8a7061520a57be183`.
+- Reported new-test size: 26 lines and 862 bytes.
+- Reported deleted file-content size: 552,042 bytes. A Git diff byte summary was not
+  available because the source actor correctly did not use Git.
+
+Grok described the test as repository-root-aware and non-vacuous: it enumerates the real
+`qa/` path with `pathlib`, fails if the directory or any descendant remains, and names
+the residual paths.
+
+Grok confirmed that it ran no test or acceptance command, installed no dependency, used
+no Git operation, edited no out-of-scope path, added no Requests replacement, preserved
+no marketplace fixture, and deleted no other legacy tree.
