@@ -1,0 +1,58 @@
+name: Manual CycloneDX SBOM
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    env:
+      GOOS: linux
+      GOARCH: amd64
+      CGO_ENABLED: "0"
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: 1.27.0
+          cache: false
+
+      - name: Install pinned SBOM tools
+        env:
+          GOBIN: ${{ runner.temp }}/sbom-tools
+        run: |
+          set -euo pipefail
+          mkdir -p "${GOBIN}"
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.12.0
+          echo "${GOBIN}" >> "${GITHUB_PATH}"
+
+      - name: Build ephemeral daemon, scan, generate, and validate SBOM
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP}/bb-go-sbom"
+          mkdir -p "${work}"
+          binary="${work}/bitbookd"
+          sbom="${work}/bitbookd.cdx.json"
+          (cd modern && go build -o "${binary}" ./cmd/bitbookd)
+          python3 scripts/govulncheck_policy.py binary "${binary}"
+          (cd modern && cyclonedx-gomod app -json -packages -licenses -main cmd/bitbookd -output "${sbom}" .)
+          python3 -c 'import sys; from pathlib import Path; sys.path.insert(0, "scripts"); import security_policy; security_policy.validate_cyclonedx_file(Path(sys.argv[1]))' "${sbom}"
+
+      - name: Upload CycloneDX document
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bitbookd-modern-cdx
+          path: ${{ runner.temp }}/bb-go-sbom/bitbookd.cdx.json
+          retention-days: 7
+          if-no-files-found: error

@@ -20,6 +20,7 @@ import (
 	dsync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p-kad-dht/amino"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -109,6 +110,7 @@ func New(parent context.Context, cfg Config) (_ *Node, err error) {
 		dht.Datastore(cfg.Datastore),
 		dht.Mode(cfg.DHTMode),
 		dht.ProtocolPrefix(DHTProtocolPrefix),
+		dht.RoutingTablePeerDiversityFilter(dht.NewRTPeerDiversityFilter(h, amino.DefaultMaxPeersPerIPGroupPerCpl, amino.DefaultMaxPeersPerIPGroup)),
 	}
 	if len(cfg.BootstrapPeers) > 0 {
 		dhtOptions = append(dhtOptions, dht.BootstrapPeers(cfg.BootstrapPeers...))
@@ -118,7 +120,6 @@ func New(parent context.Context, cfg Config) (_ *Node, err error) {
 			dht.AddressFilter(nil),
 			dht.QueryFilter(func(_ any, _ peer.AddrInfo) bool { return true }),
 			dht.RoutingTableFilter(func(_ any, _ peer.ID) bool { return true }),
-			dht.RoutingTablePeerDiversityFilter(nil),
 		)
 	}
 

@@ -1,0 +1,78 @@
+name: Maintained daemon security
+
+on:
+  pull_request:
+    paths:
+      - "modern/**"
+      - ".github/workflows/**"
+      - "scripts/security_policy.py"
+      - "scripts/security_policy_test.py"
+      - "scripts/govulncheck_policy.py"
+      - "scripts/govulncheck_policy_test.py"
+      - "scripts/gitleaks_baseline.py"
+      - "scripts/gitleaks_baseline_test.py"
+      - "security/gitleaks-baseline.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: 1.27.0
+          cache: false
+
+      - name: Install pinned scanners
+        env:
+          GOBIN: ${{ runner.temp }}/security-tools
+        run: |
+          set -euo pipefail
+          mkdir -p "${GOBIN}"
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          echo "${GOBIN}" >> "${GITHUB_PATH}"
+
+      - name: Prove DHT routing-table IP diversity
+        working-directory: modern
+        run: go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$' -count=1
+
+      - name: Run govulncheck
+        run: python3 scripts/govulncheck_policy.py source
+
+      - name: Run gosec
+        working-directory: modern
+        run: gosec ./...
+
+      - name: Validate Gitleaks baseline
+        run: python3 scripts/gitleaks_baseline.py
+
+      - name: Run gitleaks
+        run: gitleaks git --redact=100 --no-banner --baseline-path security/gitleaks-baseline.json .
+
+      - name: Run security policy tests
+        run: python3 -m unittest scripts/security_policy_test.py
+
+      - name: Run govulncheck policy tests
+        run: python3 -m unittest scripts/govulncheck_policy_test.py
+
+      - name: Run gitleaks baseline tests
+        run: python3 -m unittest scripts/gitleaks_baseline_test.py
+
+      - name: Run actionlint
+        run: actionlint .github/workflows/go.yml .github/workflows/security.yml .github/workflows/sbom.yml

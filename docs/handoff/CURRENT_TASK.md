@@ -102,3 +102,15 @@ fragment and selected zero tests. No later command ran. The exact four file-path
 selectors are now recorded in the correction handoff; no source change is authorized.
 Luna resumes with those commands and proceeds to the workflow-policy suite only if every
 selector runs exactly one passing test.
+
+## AWAITING REVIEW
+
+BBGO-SEC-001 acceptance execution is complete. See [ticket](../../tickets/BBGO-SEC-001.md)
+and [integration evidence](../security/BBGO-SEC-001-EVIDENCE.md). All authorized policy,
+scanner, test, race, daemon, binary-adjudication, SBOM, and diff gates passed; the reviewed
+Govulncheck exception and expiring redacted Gitleaks baseline are documented there.
+
+Commit under review: the authorized commit `security: add daemon scanning and SBOM evidence`
+(exact hash is reported at publication). No further implementation, remediation,
+suppression, baseline change, or scope expansion is authorized. Reviewer acceptance is
+required.

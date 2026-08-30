@@ -11,10 +11,7 @@ import (
 	leveldb "github.com/ipfs/go-ds-leveldb"
 )
 
-const (
-	identityKeyFilename = "identity.key"
-	datastoreDirectory  = "datastore"
-)
+const datastoreDirectory = "datastore"
 
 // PersistentNode owns the disk-backed datastore in addition to its network
 // services. Use Open for daemon processes and New for injected/test stores.
@@ -39,7 +36,7 @@ func Open(ctx context.Context, dataDir string, cfg Config) (*PersistentNode, err
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
 
-	key, err := LoadOrCreatePrivateKey(filepath.Join(dataDir, identityKeyFilename))
+	key, err := LoadOrCreatePrivateKey(dataDir)
 	if err != nil {
 		return nil, err
 	}

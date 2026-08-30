@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -704,17 +705,31 @@ func (s *Service) emit(value any) {
 	}
 }
 
+func frameLength(size int) (uint32, error) {
+	if size < 1 {
+		return 0, fmt.Errorf("invalid direct frame size %d", size)
+	}
+	if size > math.MaxUint32 {
+		return 0, fmt.Errorf("direct frame exceeds %d bytes", maxFrameBytes)
+	}
+	if size > maxFrameBytes {
+		return 0, fmt.Errorf("direct frame exceeds %d bytes", maxFrameBytes)
+	}
+	return uint32(size), nil
+}
+
 func writeFrame(writer io.Writer, value any) error {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	if len(raw) > maxFrameBytes {
-		return fmt.Errorf("direct frame exceeds %d bytes", maxFrameBytes)
+	length, err := frameLength(len(raw))
+	if err != nil {
+		return err
 	}
-	var length [4]byte
-	binary.BigEndian.PutUint32(length[:], uint32(len(raw)))
-	if err := writeAll(writer, length[:]); err != nil {
+	var prefix [4]byte
+	binary.BigEndian.PutUint32(prefix[:], length)
+	if err := writeAll(writer, prefix[:]); err != nil {
 		return err
 	}
 	return writeAll(writer, raw)

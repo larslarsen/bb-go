@@ -1,9 +1,12 @@
 package direct
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
+	"math"
 	"testing"
 	"time"
 
@@ -147,6 +150,71 @@ func TestEnvelopeSignatureRejectsTampering(t *testing.T) {
 	envelope.Message = "tampered"
 	if err := receiver.verify(senderNode.ID(), envelope); err == nil {
 		t.Fatal("tampered direct envelope passed signature verification")
+	}
+}
+
+func TestFrameLengthBounds(t *testing.T) {
+	cases := []struct {
+		name    string
+		size    int
+		want    uint32
+		wantErr bool
+	}{
+		{name: "immediatelyBelowProtocolLimit", size: maxFrameBytes - 1, want: uint32(maxFrameBytes - 1)},
+		{name: "atProtocolLimit", size: maxFrameBytes, want: uint32(maxFrameBytes)},
+		{name: "immediatelyAboveProtocolLimit", size: maxFrameBytes + 1, wantErr: true},
+		{name: "aboveUint32", size: int(math.MaxUint32) + 1, wantErr: true},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := frameLength(test.size)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("frameLength(%d) = %d, want error", test.size, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("frameLength(%d): %v", test.size, err)
+			}
+			if got != test.want {
+				t.Fatalf("frameLength(%d) = %d, want %d", test.size, got, test.want)
+			}
+		})
+	}
+}
+
+func TestWriteReadFrameRoundTrip(t *testing.T) {
+	original := acknowledgement{ID: "frame-1", Accepted: true}
+	var buf bytes.Buffer
+	if err := writeFrame(&buf, original); err != nil {
+		t.Fatal(err)
+	}
+	framed := buf.Bytes()
+	if len(framed) < 4 {
+		t.Fatal("frame is missing the 4-byte length prefix")
+	}
+	size := binary.BigEndian.Uint32(framed[:4])
+	if int(size) != len(framed[4:]) {
+		t.Fatalf("big-endian length %d does not match payload %d", size, len(framed[4:]))
+	}
+	var got acknowledgement
+	if err := readFrame(bytes.NewReader(framed), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got != original {
+		t.Fatalf("round trip = %+v, want %+v", got, original)
+	}
+}
+
+func TestReadFrameRejectsInvalidLengthPrefix(t *testing.T) {
+	for _, size := range []uint32{0, maxFrameBytes + 1} {
+		var prefix [4]byte
+		binary.BigEndian.PutUint32(prefix[:], size)
+		err := readFrame(bytes.NewReader(prefix[:]), &acknowledgement{})
+		if err == nil {
+			t.Fatalf("frame size %d was accepted", size)
+		}
 	}
 }
 

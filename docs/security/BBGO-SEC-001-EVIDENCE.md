@@ -1,6 +1,6 @@
 # BBGO-SEC-001 Integration Evidence
 
-Status: BLOCKED — Gitleaks finding; integration stopped before Git.
+Status: AWAITING REVIEW — all authorized acceptance gates passed.
 
 Ticket: [BBGO-SEC-001](../../tickets/BBGO-SEC-001.md)
 Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
@@ -409,6 +409,41 @@ Per BBGO-SEC-001, integration stops here. The maintained race suite, daemon buil
 adjudicator, CycloneDX generation/validation, `git diff --check`, evidence completion,
 commit, and push were not run. No finding was suppressed, allowlisted, baselined,
 downgraded, or repaired.
+
+## Reviewed Gitleaks Baseline Correction 1 completion
+
+The corrected baseline suite passed `27/27`, and the four exact file-path boundary
+selectors each loaded and passed one test: `non_redacted_match`,
+`prefix_identifier_redacted_match`, `suffix_identifier_redacted_match`, and
+`committed_baseline_is_accepted_before_expiry`.
+
+The complete workflow-policy suite passed `51/51`. The baseline validator accepted the
+reviewed 25-entry baseline (owner Lead Engineer/Reviewer — Codex, expiry 2026-11-29,
+SHA-256 `ac71e27a9f2954f7d148b8dd9d630c587abbb92b2a183f53b267e7739f418e00`). Actionlint
+v1.7.12 passed all three workflows.
+
+The exact pinned Gitleaks v8.30.1 baseline scan passed with exit code 0: 3,384 commits
+scanned, approximately 313.43 MB scanned, and no leaks found. The scanner emitted only
+the known rename-detection warning; no secret or match value was recorded.
+
+The maintained race suite passed with Go 1.27.0 (`api`, `direct`, `network`, `social`,
+and `cmd` with no test files), exit code 0. The ephemeral Linux amd64 daemon was built
+with `CGO_ENABLED=0` only at the approved disk-backed artifact path. Binary Govulncheck
+adjudication accepted the exact reviewed exception `GO-2024-3218` on DHT v0.42.2, with
+the reviewer owner, expiry 2026-11-29, and both non-reachable notes; it exited 0.
+
+CycloneDX generation completed with the pinned v1.12.0 tool. Structural validation
+passed and reported a JSON CycloneDX 1.6 document with 119 components and 120
+dependencies. The document is 277,090 bytes with SHA-256
+`345f7b08afe6ca464732edbdfb134dbcd5016a508c557b41aa9cf9131fd078e6`. The generator's
+two “no licenses detected” warnings for the application module were informational; the
+required document structure remained valid.
+
+`git diff --check` passed with exit code 0. The daemon and SBOM remain in the explicit
+disk-backed artifact directory for owner-reviewed disposition; no cleanup or deletion
+was performed. All required acceptance commands now pass, with the reviewed exception
+and inherited redacted Gitleaks baseline as the only documented dispositions. Evidence
+and current-task handoff are ready for reviewer inspection and authorized Git publication.
 
 ## Reviewed Gitleaks Baseline 1 continuation stop
 
