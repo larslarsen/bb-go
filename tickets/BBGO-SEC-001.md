@@ -203,3 +203,21 @@ Authorized on 2026-08-29. Complete durable prompts:
 - `docs/handoff/CODEX_LUNA_BBGO_SEC_001.md`
 
 Reviewer acceptance remains pending.
+
+## Correction Cycle 1 — Authorized
+
+Codex Luna's first green attempt ran 32 policy tests: 31 passed and
+`RequiredCommandsTest.test_committed_workflows_satisfy_the_checker` errored with
+`sbom.yml must build the daemon and SBOM in the same environment`. Integration stopped
+before validators, scanners, builds, Git, or push, as required.
+
+Reviewer inspection found that `check_sbom_workflow` compares the two result tuples
+returned by `_find_step_containing` with `is`. Each lookup creates a different tuple even
+when both tuples contain the same parsed workflow step. The existing test correctly
+caught this wrong rejection.
+
+Grok Build is authorized to correct only `scripts/security_policy.py` so the checker
+compares the underlying step objects (or an equivalently exact same-step property), not
+the wrapper tuples. No test change, workflow change, broader refactor, execution, install,
+or Git operation is authorized. Durable correction prompt:
+`docs/handoff/GROK_BUILD_BBGO_SEC_001_CORRECTION_01.md`.

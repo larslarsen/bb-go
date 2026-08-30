@@ -2,7 +2,7 @@
 
 Ticket: BBGO-SEC-001
 
-State: AUTHORIZED
+State: CORRECTION AUTHORIZED
 
 Source actor: Sr Dev — Grok Build (Grok 4.6 High)
 
@@ -17,3 +17,9 @@ filtering, and manual-only SBOM evidence. Its complete prompts are preserved in
 [GROK_BUILD_BBGO_SEC_001.md](GROK_BUILD_BBGO_SEC_001.md) and
 [CODEX_LUNA_BBGO_SEC_001.md](CODEX_LUNA_BBGO_SEC_001.md). No other implementation is
 authorized.
+
+Codex Luna reproduced red, then stopped on a 31-pass/1-error green policy result before
+running scanners or Git. The failure is recorded in
+[BBGO-SEC-001-EVIDENCE.md](../security/BBGO-SEC-001-EVIDENCE.md). Grok Build may perform
+only [Correction Cycle 1](GROK_BUILD_BBGO_SEC_001_CORRECTION_01.md); Codex Luna resumes
+integration only after that bounded correction report is preserved.
