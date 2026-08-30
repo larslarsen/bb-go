@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/ipfs/boxo/bitswap"
 	bsnet "github.com/ipfs/boxo/bitswap/network/bsnet"
@@ -30,6 +31,8 @@ var defaultListenAddrs = []string{
 	"/ip4/0.0.0.0/tcp/4001",
 	"/ip4/0.0.0.0/udp/4001/quic-v1",
 }
+
+const ipnsRecordLifetime = 7 * 24 * time.Hour
 
 // Config contains the network-owned settings needed to construct a BitBook
 // peer. Application and marketplace settings deliberately do not belong here.
@@ -216,7 +219,7 @@ func (n *Node) PublishRoot(ctx context.Context, root cid.Cid) error {
 	if err := n.DHT.Provide(ctx, root, true); err != nil {
 		return fmt.Errorf("announcing BitBook root provider: %w", err)
 	}
-	if err := n.Publisher.Publish(ctx, n.PrivateKey, boxopath.FromCid(root)); err != nil {
+	if err := n.Publisher.Publish(ctx, n.PrivateKey, boxopath.FromCid(root), namesys.PublishWithEOL(time.Now().Add(ipnsRecordLifetime))); err != nil {
 		return fmt.Errorf("publishing BitBook root: %w", err)
 	}
 	return nil

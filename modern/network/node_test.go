@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/boxo/ipns"
+	"github.com/ipfs/boxo/namesys"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -163,6 +165,104 @@ func TestTwoNodesPublishAndResolveBitBookRoot(t *testing.T) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatalf("wrong resolved content: got %q want %q", got, want)
+	}
+}
+
+func TestPublishedIPNSRecordLifetime(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	config := Config{
+		ListenAddrs:           []string{"/ip4/127.0.0.1/tcp/0"},
+		DHTMode:               dht.ModeServer,
+		AllowPrivateAddresses: true,
+	}
+	author, err := New(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer author.Close()
+	neighbor, err := New(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer neighbor.Close()
+
+	authorInfo := peer.AddrInfo{ID: author.ID(), Addrs: author.Host.Addrs()}
+	neighborInfo := peer.AddrInfo{ID: neighbor.ID(), Addrs: neighbor.Host.Addrs()}
+	if err := neighbor.Connect(ctx, authorInfo); err != nil {
+		t.Fatal(err)
+	}
+	if err := author.Connect(ctx, neighborInfo); err != nil {
+		t.Fatal(err)
+	}
+	if err := author.DHT.Bootstrap(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := neighbor.DHT.Bootstrap(ctx); err != nil {
+		t.Fatal(err)
+	}
+	waitForRoutingPeer(t, ctx, author)
+	waitForRoutingPeer(t, ctx, neighbor)
+
+	root, err := author.Put(ctx, []byte("BitBook IPNS lifetime root"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const wantLifetime = 7 * 24 * time.Hour
+	started := time.Now()
+	if err := author.PublishRoot(ctx, root); err != nil {
+		t.Fatal(err)
+	}
+	finished := time.Now()
+
+	raw, err := author.Datastore.Get(ctx, namesys.IpnsDsKey(ipns.NameFromPeer(author.ID())))
+	if err != nil {
+		t.Fatalf("reading stored IPNS record: %v", err)
+	}
+	rec, err := ipns.UnmarshalRecord(raw)
+	if err != nil {
+		t.Fatalf("decoding stored IPNS record: %v", err)
+	}
+	if err := ipns.ValidateWithName(rec, ipns.NameFromPeer(author.ID())); err != nil {
+		t.Fatalf("stored IPNS record is not valid for author %s: %v", author.ID(), err)
+	}
+
+	validityType, err := rec.ValidityType()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validityType != ipns.ValidityEOL {
+		t.Fatalf("validity type is %d, want EOL", validityType)
+	}
+
+	eol, err := rec.Validity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	minEOL := started.Add(wantLifetime)
+	maxEOL := finished.Add(wantLifetime)
+	if eol.Before(minEOL) || eol.After(maxEOL) {
+		t.Fatalf("published IPNS EOL is %s from start (observed %s); want [%s, %s] (~7d)",
+			eol.Sub(started), eol, minEOL, maxEOL)
+	}
+
+	ttl, err := rec.TTL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ttl != ipns.DefaultRecordTTL {
+		t.Fatalf("record TTL is %s, want DefaultRecordTTL %s", ttl, ipns.DefaultRecordTTL)
+	}
+
+	value, err := rec.Value()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantValue := "/ipfs/" + root.String()
+	if value.String() != wantValue {
+		t.Fatalf("record value is %s, want %s", value, wantValue)
 	}
 }
 

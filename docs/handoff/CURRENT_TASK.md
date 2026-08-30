@@ -1,13 +1,13 @@
 # Current Task
 
-Ticket: BBGO-GOV-002
+Ticket: BBGO-NET-001
 
 State: ACCEPTED
 
 Actor: Lead Engineer/Reviewer — Codex
 
-The repository-local test-first policy is established by
-[BBGO-GOV-002](../../tickets/BBGO-GOV-002.md). No production or test implementation is
-currently authorized. The reviewer must publish a new bounded ticket with an exact source
-baseline, authorized paths, red/green and falsification evidence, commands, acceptance
-criteria, and stop condition before Sr Dev — Grok Build edits source.
+[BBGO-NET-001](../../tickets/BBGO-NET-001.md) restored and proved the seven-day IPNS
+record lifetime in the maintained daemon while retaining Boxo's five-minute cache TTL.
+The implementation is accepted. No further production or test implementation is
+currently authorized; the reviewer must publish another bounded ticket before Sr Dev —
+Grok Build edits source again.
