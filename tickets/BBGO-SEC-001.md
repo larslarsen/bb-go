@@ -6,7 +6,7 @@ Reviewer: Lead Engineer/Reviewer — Codex
 
 Proposed source actor: Implementation Dev — Codex Spark
 
-Proposed integration actor: Jr Dev — Hermes
+Proposed integration actor: Jr Dev — Codex Luna
 
 Source baseline: `6088b79dd2523c710b7df0eaa18cd299f23b11a0`
 
@@ -58,7 +58,7 @@ Codex Spark may author only:
 - `scripts/security_policy.py`
 - `scripts/security_policy_test.py`
 
-Hermes may integrate those paths and author only this evidence record:
+Codex Luna may integrate those paths and author only this evidence record:
 
 - `docs/security/BBGO-SEC-001-EVIDENCE.md`
 
@@ -127,7 +127,7 @@ Codex Spark authors `scripts/security_policy_test.py` before the checker or work
 and reports the files as separate test-source and production-source sections. It does
 not execute them.
 
-Hermes then performs the evidence sequence:
+Codex Luna then performs the evidence sequence:
 
 1. Integrate only `scripts/security_policy_test.py` and run
    `python3 -m unittest scripts/security_policy_test.py`. Record the expected red result:
@@ -144,10 +144,10 @@ The checker and tests must use only Python's standard library; no project or CI 
 may be added. Tests that merely search for a success string emitted by the workflow are
 rejected.
 
-## Proposed Hermes Acceptance Commands
+## Proposed Codex Luna Acceptance Commands
 
 These commands are not authorized while the ticket remains a draft. Once authorized,
-Hermes records exact versions, commands, exit codes, and summarized counts without
+Codex Luna records exact versions, commands, exit codes, and summarized counts without
 publishing secret material:
 
 ```text
@@ -160,7 +160,7 @@ gitleaks git --redact --no-banner .
 git diff --check
 ```
 
-Hermes also executes the SBOM workflow's build, binary scan, generation, and structural
+Codex Luna also executes the SBOM workflow's build, binary scan, generation, and structural
 validation commands locally with a temporary directory and records the resulting SBOM's
 SHA-256 hash, byte size, CycloneDX spec version, component count, and dependency count.
 The temporary binary and SBOM are not committed.
@@ -170,12 +170,12 @@ The temporary binary and SBOM are not committed.
 - Any Govulncheck reachable vulnerability, Gosec finding, Gitleaks finding, Actionlint
   error, policy-test failure, SBOM validation failure, or existing test regression stops
   integration before Git.
-- Hermes reports metadata needed for triage but never echoes or records a detected secret
+- Codex Luna reports metadata needed for triage but never echoes or records a detected secret
   value.
 - No baseline, ignore rule, inline suppression, `continue-on-error`, or altered exit code
   may be added. The reviewer must issue a separate remediation or time-bounded exception
   ticket for every proposed disposition.
-- Codex Spark stops after the bounded source drop. Hermes stops after publishing the
+- Codex Spark stops after the bounded source drop. Codex Luna stops after publishing the
   evidence and Git change for reviewer inspection. Only the reviewer may accept it.
 
 ## Acceptance Criteria

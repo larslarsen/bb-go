@@ -17,8 +17,8 @@ only and changes no code, protocol, data, or acceptance state.
   privacy, cryptography, concurrency, persistence, corrective, and other senior source
   and test-source work. It does not execute tests, integrate, maintain records, or use
   Git.
-- **Jr Dev — Hermes:** uses the best reliable free Nous Portal model currently available.
-  It owns source-drop integration, test and acceptance-command execution,
+- **Jr Dev — Codex Luna:** uses `gpt-5.6-luna`. It owns source-drop integration, test and
+  acceptance-command execution,
   implementation/evidence records, and the corresponding Git, commit, and push work. It
   does not design or author tests.
 - **Owner:** makes product decisions and relays one-way prompts, reports, repository
@@ -30,7 +30,7 @@ only and changes no code, protocol, data, or acceptance state.
 2. Codex Spark receives mechanical work whose design and semantics are already fixed.
 3. Grok Build receives senior or corrective work where accepted-result risk dominates
    nominal model cost.
-4. Hermes integrates every developer drop, runs the ticket's commands, records evidence,
+4. Codex Luna integrates every developer drop, runs the ticket's commands, records evidence,
    and publishes the resulting Git change.
 5. The reviewer alone accepts or rejects the result and authorizes what follows.
 

@@ -6,7 +6,7 @@ Reviewer: Lead Engineer/Reviewer — Codex
 
 Source actor: Sr Dev — Grok Build (Grok 4.6 High)
 
-Integration actor: Jr Dev — Hermes
+Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
 
 Source baseline: `f62d7879fca86db6080ea2ce4e83f6709f1351eb`
 
@@ -44,7 +44,7 @@ Only after the test source is complete, Grok Build may delete:
 Grok Build may not edit any other path, run tests, install dependencies, use Git, or
 author repository records.
 
-Hermes may integrate those source changes and author/update only:
+Codex Luna may integrate those source changes and author/update only:
 
 - `docs/security/BBGO-SEC-002-EVIDENCE.md`
 - `docs/handoff/CURRENT_TASK.md`
@@ -58,7 +58,7 @@ history, encode a success constant, or add a Python dependency.
 
 ## Red, Green, and Falsification Evidence
 
-Hermes owns all execution:
+Codex Luna owns all execution:
 
 1. Integrate only `scripts/legacy_qa_retirement_test.py` and run from repository root:
    `python3 -m unittest scripts/legacy_qa_retirement_test.py`. It must fail because
@@ -68,7 +68,7 @@ Hermes owns all execution:
    targeted command, and record that it fails while naming the temporary path. Remove
    the temporary tree and rerun green. The temporary content must not enter Git.
 
-## Hermes Acceptance Commands
+## Codex Luna Acceptance Commands
 
 Run in this order from repository root unless a working directory is stated:
 
@@ -85,7 +85,7 @@ The race command runs from `modern/`. The final `git ls-files qa` output must be
 
 ## Evidence Record
 
-Hermes records:
+Codex Luna records:
 
 - Grok's source-drop report;
 - red, green, and falsification commands, exit codes, and relevant output;
@@ -95,7 +95,7 @@ Hermes records:
 - confirmation that no alert was dismissed and no dependency was added; and
 - the final commit hash and push result.
 
-Hermes then changes `docs/handoff/CURRENT_TASK.md` to `AWAITING REVIEW`, commits and
+Codex Luna then changes `docs/handoff/CURRENT_TASK.md` to `AWAITING REVIEW`, commits and
 pushes the authorized implementation paths, and stops. Only the reviewer accepts the
 result or authorizes another ticket.
 

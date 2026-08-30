@@ -1,7 +1,7 @@
-# Hermes Integration Handoff — BBGO-SEC-002
+# Codex Luna Integration Handoff — BBGO-SEC-002
 
-You are **Jr Dev — Hermes**, using the best reliable free Nous Portal model currently
-available. This file is the complete durable prompt. Ephemeral chat is not authoritative.
+You are **Jr Dev — Codex Luna**, using `gpt-5.6-luna`. This file is the complete durable
+prompt. Ephemeral chat is not authoritative.
 
 Repository: `/home/lars/OpenBazaar/bb-go`
 
@@ -20,14 +20,14 @@ problem and stop without Git.
 
 If the drop is conforming, own the complete red/green/falsification and acceptance
 sequence in `BBGO-SEC-002`. The test-only red state may be reconstructed from the source
-drop by temporarily holding the `qa/` deletion outside the worktree; restore the exact
-drop before green. Preserve actionable output, but do not create untracked copies inside
-the repository.
+drop by restoring `qa/` from `HEAD`, running red, and then removing that restored tree to
+return to Grok's exact deletion. Preserve actionable output and do not create untracked
+copies inside the repository.
 
 Author `docs/security/BBGO-SEC-002-EVIDENCE.md` with all evidence enumerated by the
 ticket. Update `docs/handoff/CURRENT_TASK.md` to identify `BBGO-SEC-002`, state
-`AWAITING REVIEW`, name Hermes as actor, link the ticket and evidence, list the commit
-under review, and state that no further implementation is authorized.
+`AWAITING REVIEW`, name Codex Luna as actor, link the ticket and evidence, identify the
+commit under review, and state that no further implementation is authorized.
 
 Stage only the ticket-authorized source, deletion, evidence, and current-task paths.
 Commit with message `security: retire inherited marketplace QA` and push `master`.

@@ -34,8 +34,8 @@ This file governs agent work in the `bb-go` repository.
   protocol, privacy, cryptography, concurrency, persistence, corrective, and other
   senior production and test source bounded by the active ticket. It does not execute
   tests or own integration, repository records, Git, commits, or pushes.
-- **Jr Dev — Hermes:** agentic, using the best reliable free Nous Portal model currently
-  available. Owns production/test source-drop integration, test and acceptance-command
+- **Jr Dev — Codex Luna:** agentic, using `gpt-5.6-luna`. Owns production/test
+  source-drop integration, test and acceptance-command
   execution, implementation/evidence records, and the corresponding Git, commits, and
   pushes. It does not design or author tests.
 - **Owner:** makes product decisions and relays task prompts and completion reports. The
@@ -54,7 +54,7 @@ result. See `docs/engineering/DEVELOPMENT_ROLES.md`.
 4. Modify only the ticket's authorized paths.
 5. The authorized source actor authors test source before production source and stops
    without test execution or Git operations.
-6. Hermes integrates the drop, runs only the explicitly authorized commands, records
+6. Codex Luna integrates the drop, runs only the explicitly authorized commands, records
    evidence, and performs the corresponding Git operations.
 7. Report changed paths, hashes, line counts, test counts, and exact command results for
    reviewer acceptance.
