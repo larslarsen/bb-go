@@ -63,9 +63,12 @@ If dependencies, build inputs, network parsing, cryptography, storage, or releas
 can change, the ticket must also name the applicable security scans, their exact commands,
 and the finding threshold that blocks acceptance.
 
-Grok Build authors the bounded tests and implementation. It runs only ticket-authorized
-targeted commands. The reviewer independently inspects the tests, rejects tautological or
-shortcut proofs, and runs the acceptance suite before accepting the drop.
+The ticket-authorized implementation developer authors bounded test source before
+production source, but does not execute tests. Jr Dev — Hermes integrates the test-only
+drop first, records the expected red result, integrates the production drop, runs the
+targeted and broader acceptance commands, and publishes the implementation evidence.
+The reviewer independently inspects the tests, rejects tautological or shortcut proofs,
+and accepts or rejects the integrated evidence.
 
 ## CI and Coverage
 

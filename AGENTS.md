@@ -20,18 +20,30 @@ This file governs agent work in the `bb-go` repository.
 ## Roles
 
 - **Lead Engineer/Reviewer — Codex:** owns architecture, task contracts, source review,
-  independent validation, acceptance or rejection, commits, and pushes. After this
-  governance baseline, the reviewer does not author production or test implementation
-  for work delegated to the senior developer. The reviewer may author and publish
-  governance, architecture, task, and review documents.
-- **Sr Dev — Grok Build:** agentic, using Grok 4.6 High. Authors only the production and
-  test source bounded by the active ticket. It may run only commands explicitly listed
-  in that ticket. It does not edit governance or review records, change architecture,
-  use Git, commit, push, access secrets, or widen scope.
+  acceptance or rejection, developer selection, and authorization of the next ticket.
+  The reviewer may directly publish a small reviewer-authored governance or review
+  change whose exact paths are enumerated. That exception never includes developer
+  source/test integration, acceptance-command execution, implementation evidence, or
+  data mutation.
+- **Implementation Dev — Codex Spark:** agentic, using GPT-5.3-Codex-Spark High. Authors
+  reviewer-bounded low/medium-risk boilerplate, scaffolding, mechanical adapters, and
+  their test source. It does not make architecture, protocol, privacy, cryptography,
+  concurrency, or persistence-design decisions. It does not execute tests or own
+  integration, repository records, Git, commits, or pushes.
+- **Sr Dev — Grok Build:** agentic, using Grok 4.6 High. Authors architecture-sensitive,
+  protocol, privacy, cryptography, concurrency, persistence, corrective, and other
+  senior production and test source bounded by the active ticket. It does not execute
+  tests or own integration, repository records, Git, commits, or pushes.
+- **Jr Dev — Hermes:** agentic, using the best reliable free Nous Portal model currently
+  available. Owns production/test source-drop integration, test and acceptance-command
+  execution, implementation/evidence records, and the corresponding Git, commits, and
+  pushes. It does not design or author tests.
 - **Owner:** makes product decisions and relays task prompts and completion reports. The
   owner is not the engineering acceptance authority.
 
 Only the reviewer accepts a developer drop or authorizes another implementation task.
+Routing is based on engineering risk, reliability, and end-to-end usage per accepted
+result. See `docs/engineering/DEVELOPMENT_ROLES.md`.
 
 ## Workflow
 
@@ -40,9 +52,12 @@ Only the reviewer accepts a developer drop or authorizes another implementation 
    test-falsification rules.
 3. Verify the exact source baseline before editing.
 4. Modify only the ticket's authorized paths.
-5. Run only its explicitly authorized commands.
-6. Report changed paths, hashes, line counts, test counts, and exact command results.
-7. Stop for reviewer inspection without Git operations.
+5. The authorized source actor authors test source before production source and stops
+   without test execution or Git operations.
+6. Hermes integrates the drop, runs only the explicitly authorized commands, records
+   evidence, and performs the corresponding Git operations.
+7. Report changed paths, hashes, line counts, test counts, and exact command results for
+   reviewer acceptance.
 
 If `CURRENT_TASK.md` says no implementation is authorized, inspect or discuss only; do
 not edit production or test source.
