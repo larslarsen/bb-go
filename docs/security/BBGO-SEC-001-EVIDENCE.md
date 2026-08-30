@@ -410,6 +410,25 @@ adjudicator, CycloneDX generation/validation, `git diff --check`, evidence compl
 commit, and push were not run. No finding was suppressed, allowlisted, baselined,
 downgraded, or repaired.
 
+## Reviewed Gitleaks Baseline 1 continuation stop
+
+The six delivered Gitleaks baseline/policy paths were verified against the durable report;
+all hashes and line counts matched exactly.
+
+The complete baseline-policy suite was then run:
+
+```text
+python3 -m unittest scripts/gitleaks_baseline_test.py
+Ran 25 tests; 1 failure; exit code 1
+```
+
+The failed test was `ContentMutationRejectionTest.test_non_redacted_match_is_rejected`:
+the validator did not raise its expected `BaselineError` for the non-redacted match
+mutation. No secret or match value was recorded. Per the ticket stop condition, the
+workflow-policy suite, targeted selectors, validator, Actionlint, Gitleaks scan, race
+tests, daemon/binary/SBOM validation, `git diff --check`, commit, and push were not run.
+No source, test, baseline, or policy repair was made.
+
 ## Reviewer Gitleaks triage
 
 A second `--redact=100` history report was written only to the exact disk-backed artifact

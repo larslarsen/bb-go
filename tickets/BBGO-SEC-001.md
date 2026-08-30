@@ -564,3 +564,21 @@ zero new findings it resumes the remaining race, disk-backed daemon/binary adjud
 CycloneDX validation, and final diff sequence. All prior stop, no-secret-output,
 disk-backed-path, no-local-`/tmp`, no-cleanup, and no-Git-before-green rules remain in
 force.
+
+## Reviewed Gitleaks Baseline Correction 1 — Authorized
+
+Codex Luna verified the delivered source hashes and ran the complete 25-test baseline
+suite. One test failed: the validator accepted the non-redacted match mutation
+`UNREDACTED_MATCH` because its substring check found `REDACTED` inside the larger word.
+Luna stopped before the workflow-policy suite, validator, Actionlint, Gitleaks, race,
+build, SBOM, or Git.
+
+Sr Dev — Grok Build may edit only `scripts/gitleaks_baseline_test.py` and
+`scripts/gitleaks_baseline.py` under the exact instructions in
+`docs/handoff/GROK_BUILD_BBGO_SEC_001_GITLEAKS_CORRECTION_01.md`. Existing failing test
+source must be preserved; any boundary tests are authored before production correction.
+The predicate must require `REDACTED` as a complete marker rather than a substring of an
+ASCII identifier and reject prefix/suffix forms without emitting the mutated value.
+The baseline JSON and every other path/invariant remain unchanged. Grok does not execute;
+Luna owns rerun and continuation. All prior stop and resource-safety rules remain in
+force.

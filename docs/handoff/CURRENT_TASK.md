@@ -84,3 +84,9 @@ redacted artifact and found no widened allowlist. Codex Luna now owns the exact 
 and remaining ticket acceptance sequence recorded in the same handoff. It must use only
 the fixed disk-backed tool/cache/temp/artifact paths, perform no cleanup or deletion, and
 stop before Git on any changed hash, failure, or new finding.
+
+Luna verified all six hashes, then the 25-test baseline suite stopped with one failure:
+the match-redaction predicate accepted `UNREDACTED_MATCH` because `REDACTED` appeared only
+as a substring. No later command ran. Grok is authorized only for the two-path bounded
+fix in `docs/handoff/GROK_BUILD_BBGO_SEC_001_GITLEAKS_CORRECTION_01.md`; Luna resumes the
+same gate only after that source report is preserved.
