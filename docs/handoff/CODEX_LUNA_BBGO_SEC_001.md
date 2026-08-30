@@ -43,6 +43,14 @@ and SBOM only to
 local `/tmp`, or any unresolved tool/cache/work/artifact path, and do not clean these
 directories; leave them in place for owner-reviewed later disposition.
 
+The first Govulncheck attempt was not a vulnerability result: its binary was built with
+Go 1.26 and could not load the Go 1.27 maintained module. Before resuming scanners,
+rebuild exactly `govulncheck@v1.7.0`, `gosec@v2.29.0`, `gitleaks@v8.30.1`, and
+`actionlint@v1.7.12` with `GOTOOLCHAIN=go1.27.0` and the exact disk-backed GOBIN, GOCACHE,
+and GOTMPDIR paths above. Do not rebuild the existing Go-1.27 CycloneDX binary. Verify
+all five binaries with `go version -m`; each must report Go 1.27.0 before scanner
+execution resumes.
+
 If any scanner reports a finding, stop before Git and write only redacted triage metadata
 to `docs/security/BBGO-SEC-001-EVIDENCE.md`; do not suppress, baseline, dismiss, or repair
 it. Otherwise record every required command, version, result, SBOM metric/hash, and

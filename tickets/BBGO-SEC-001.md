@@ -267,3 +267,23 @@ Resumed local acceptance must:
   `/home/lars/OpenBazaar/.security-artifacts/bb-go-sec-001-20260829`; and
 - never use local `/tmp`, `mktemp`, or an unresolved directory for this ticket's tools,
   caches, work files, binary, or SBOM. Leave all disk-backed task directories in place.
+
+## Local Toolchain Correction 1 — Authorized
+
+The first real `govulncheck -test ./...` attempt stopped during package loading because
+the pinned scanner binary was built with Go 1.26 while the maintained module requires Go
+1.27.0. This was not a vulnerability result. Embedded build metadata then confirmed that
+`govulncheck`, `gosec`, `gitleaks`, and `actionlint` were all built with Go 1.26;
+`cyclonedx-gomod` was already built correctly with Go 1.27.0.
+
+Codex Luna may rebuild exactly these four existing pinned binaries with
+`GOTOOLCHAIN=go1.27.0` in the already authorized disk-backed tool/cache/temp directories:
+
+- `golang.org/x/vuln/cmd/govulncheck@v1.7.0`
+- `github.com/securego/gosec/v2/cmd/gosec@v2.29.0`
+- `github.com/zricethezav/gitleaks/v8@v8.30.1`
+- `github.com/rhysd/actionlint/cmd/actionlint@v1.7.12`
+
+Do not rebuild CycloneDX or change a version. Before resuming scanners, verify with
+`go version -m` that all five tool binaries report Go 1.27.0. All destructive-action,
+tmpfs, exact-path, no-cleanup, finding, and stop rules remain in force.

@@ -1,6 +1,6 @@
 # BBGO-SEC-001 Integration Evidence
 
-Status: BLOCKED — policy-test failure; source returned for correction.
+Status: BLOCKED — govulncheck toolchain failure; integration stopped before Git.
 
 Ticket: [BBGO-SEC-001](../../tickets/BBGO-SEC-001.md)
 Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
@@ -67,8 +67,8 @@ that resumed attempt occurred.
 
 The ticket and Luna handoff now prohibit recursive deletion and deletion through
 variables, substitutions, globs, symlinks, or other unresolved targets. Temporary state
-must be left for `/tmp` or ephemeral-runner cleanup. Integration may resume from green
-under those constraints.
+must remain at the explicit disk-backed paths recorded below or on the ephemeral runner.
+Integration may resume from green under those constraints.
 
 ## Local resource safety interruption
 
@@ -87,3 +87,65 @@ The old `/tmp/bbgo-sec-tools-20260829` path is absent. Resumed integration must 
 those binaries, place all Go cache/temp and artifacts in the exact disk-backed paths in
 the ticket/handoff, install only the missing CycloneDX tool, and leave the directories in
 place.
+
+## Correction-cycle resume validation
+
+The corrected checker source was independently verified against the delivered report:
+`scripts/security_policy.py` SHA-256 is
+`4d80708822bf22e1e05abe56bb131db6176c217047001f68895dfdab3dc7058a`, line count 1,010,
+with no other Grok source-path changes.
+
+Green policy result:
+
+```text
+python3 -m unittest scripts/security_policy_test.py
+Ran 32 tests; OK; exit code 0
+```
+
+Immutable-pin falsification:
+
+```text
+python3 -m unittest scripts.security_policy_test.CheckerRejectionTest.test_mutable_action_tag_is_rejected
+Ran 1 test; OK; exit code 0
+```
+
+The existing in-memory test replaced an immutable Action SHA with a mutable tag and the
+checker rejected it. No temporary falsification tree was created or deleted. Full policy
+green was rerun afterward (`32/32`, exit code 0).
+
+Actionlint:
+
+```text
+actionlint .github/workflows/go.yml .github/workflows/security.yml .github/workflows/sbom.yml
+exit code 0; no diagnostics
+```
+
+## Blocking scanner failure
+
+Command:
+
+```text
+(cd modern && govulncheck -test ./...)
+```
+
+Tool: `golang.org/x/vuln/cmd/govulncheck@v1.7.0`, invoked from the approved
+disk-backed tool directory with the required Go cache/temp paths. Result: exit code 1
+while loading packages. Redacted triage metadata: the scanner executable reported it was
+built with Go 1.26, while the maintained module and downloaded Go standard-library inputs
+require Go 1.27.0; package loading therefore emitted multiple compiler/toolchain errors
+and did not produce a vulnerability result.
+
+Per the ticket stop condition, integration stops here. `gosec`, Gitleaks, maintained race
+tests, SBOM build/binary scan/generation/validation, `git diff --check`, evidence
+completion, commit, and push were not run. No finding was suppressed or baselined, and
+no secret value was recorded. The approved disk-backed tool/cache/temp/artifact
+directories are intentionally left in place.
+
+## Local toolchain disposition
+
+Reviewer inspection with `go version -m` confirmed that `govulncheck`, `gosec`,
+`gitleaks`, and `actionlint` were built with Go 1.26.0. `cyclonedx-gomod` was built with
+Go 1.27.0. To match the ticketed local/CI toolchain and avoid repeated package-loading
+failures, Luna is authorized to rebuild only those four exact pinned tools with Go 1.27.0
+at the same disk-backed paths, verify all five embedded build versions, and then resume
+from Govulncheck. No source repair, version change, suppression, or cleanup is authorized.

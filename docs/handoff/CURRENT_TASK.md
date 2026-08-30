@@ -34,3 +34,8 @@ under RAM-backed `/tmp`. The completed binaries were moved intact to the exact e
 tool directory recorded in the ticket and handoff. Luna may resume only with those fixed
 disk-backed tool, cache, temp, and artifact paths; it must not reinstall the four existing
 tools or clean the task directories.
+
+Policy, falsification, and Actionlint subsequently passed. Govulncheck stopped before
+analysis because its executable was built with Go 1.26 and could not load the Go 1.27
+module. Luna may perform only the exact Local Toolchain Correction 1 in the ticket,
+verify all embedded tool build versions, and resume from Govulncheck.
