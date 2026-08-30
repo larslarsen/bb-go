@@ -105,3 +105,11 @@ network-authorized source Govulncheck command. It is expected to continue report
 resolved module is exactly `v0.42.2` and whether it is the only reachable vulnerability,
 then stop before every later scanner, SBOM, commit, and push. No exception, suppression,
 allowlist, or continued scanning past a finding is authorized yet.
+
+The first bounded red attempt was blocked before the intended assertion only because the
+sandbox denied loopback socket binding. Production was restored to the exact delivered
+hash. Repeat the same bounded red/restoration/green sequence with approved localhost
+socket execution outside that restriction. The maintained race suite may use the same
+bounded localhost authority. Do not contact public peers; these tests must remain
+offline and in-process. Then continue only to the already authorized source Govulncheck
+rerun and expected stop.

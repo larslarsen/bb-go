@@ -348,3 +348,17 @@ After green and race success, Luna must rerun source Govulncheck. Record the exa
 resolved DHT version and reachable finding count, then stop again on any finding. This
 cycle does not authorize Gosec, Gitleaks, binary build/scan, SBOM, Git, or a scanner
 exception.
+
+## Localhost Socket Execution Correction 1 — Authorized
+
+The bounded red/falsification command stopped before the intended assertion because the
+sandbox denied binding `127.0.0.1:0`. Luna restored the exact production hunks and
+verified the delivered `modern/network/node.go` hash. This is an execution-environment
+restriction, not a source or test result.
+
+Codex Luna may repeat only the exact targeted red/falsification and green commands, plus
+the existing maintained Go race-suite command, outside the socket-restricted sandbox so
+the in-process nodes can bind loopback ephemeral ports. No public peer, credential,
+privileged port, or other expanded authority is authorized. All commands must retain the
+exact disk-backed GOCACHE and GOTMPDIR. The same bounded patch removal, exact restoration,
+hash verification, stop-on-failure, no-cleanup, and no-Git rules remain in force.

@@ -1,6 +1,6 @@
 # BBGO-SEC-001 Integration Evidence
 
-Status: BLOCKED — reachable Govulncheck vulnerability; integration stopped before Git.
+Status: BLOCKED — correction test environment failure; integration stopped before Git.
 
 Ticket: [BBGO-SEC-001](../../tickets/BBGO-SEC-001.md)
 Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
@@ -196,6 +196,43 @@ Per BBGO-SEC-001, integration stopped immediately on this scanner finding. Gosec
 Gitleaks, maintained race tests, SBOM build/binary scan/generation/validation,
 `git diff --check`, evidence completion, commit, and push were not run. No finding was
 suppressed, allowlisted, downgraded, baselined, or repaired.
+
+## Reachable Finding Correction 1 integration
+
+The three-path Grok source drop was independently verified before execution:
+
+```text
+modern/network/node_test.go  448 lines  SHA-256 2c791449967c412bc35756400dc832b3ec31557f0d9d868882e5103a4ea4ba74
+modern/network/node.go       261 lines  SHA-256 5add3a890d232af2ed8f53fcb9bd062660b69608937fdb0ea0fa6e0d86e057d9
+modern/go.mod                133 lines  SHA-256 a69dbd8a9ab76f75f8329782d1f3309122ac933c1ea10ab8503267f400d3b2ce
+```
+
+`GOTOOLCHAIN=go1.27.0 go mod tidy` completed using the exact disk-backed cache/temp
+paths. It updated the DHT checksums in `modern/go.sum` for v0.42.2 and promoted the
+already-required kbucket module to a direct requirement because the authorized regression
+test imports it. Resulting `modern/go.sum` is 374 lines, SHA-256
+`4c91209822dccd4a60955ddd6b8b94a327e88b55721577494c953a705395b83a`.
+
+For the required red reconstruction and falsification, only the Amino import, diversity
+filter option, and prior private-mode nil option were temporarily changed. The exact
+targeted command was run with Go 1.27.0 and exited 1, but could not reach the intended
+`constructed BitBook DHT has no routing-table IP-diversity filter` assertion: both
+subtests failed first because sandbox socket permissions denied binding
+`127.0.0.1:0`. This is recorded as an environmental test failure, not a source finding.
+The three production hunks were immediately restored with bounded patches; `node.go`
+returned to the delivered SHA-256 above. A post-restore `git diff --check` over the four
+correction paths passed.
+
+Per the correction stop condition, targeted green, maintained race tests, and the
+network-authorized source Govulncheck rerun were not run. The known advisory therefore
+was not re-evaluated. No source/test repair, suppression, allowlist, cleanup, or Git
+operation occurred.
+
+Reviewer disposition: the bind denial is a sandbox execution restriction. The exact
+targeted red/green and maintained race commands may be repeated with bounded localhost
+socket authority. They remain offline, credential-free, limited to loopback ephemeral
+ports, and use the same disk-backed cache/temp paths. No source repair or broader command
+authority is authorized.
 
 ## Reviewer finding triage
 

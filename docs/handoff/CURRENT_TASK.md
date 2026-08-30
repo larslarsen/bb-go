@@ -49,3 +49,8 @@ The network-enabled scan then found reachable `GO-2024-3218` in the DHT module a
 stopped. Reviewer triage found that the maintained single-DHT construction omits the
 upstream IP-diversity mitigation. Sr Dev — Grok Build is now authorized only for the
 test-first source correction in `docs/handoff/GROK_BUILD_BBGO_SEC_001_FINDING_01.md`.
+
+The first correction red run was blocked before its assertion by sandbox denial of a
+loopback ephemeral-port bind. Luna restored the exact source hash. Localhost Socket
+Execution Correction 1 now authorizes only the targeted red/green and maintained race
+commands outside that socket restriction, still using the named disk-backed paths.
