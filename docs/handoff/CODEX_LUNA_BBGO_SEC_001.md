@@ -69,3 +69,39 @@ Stage only the ticket-authorized source, evidence, and current-task paths. Commi
 message `security: add daemon scanning and SBOM evidence` and push `master`. Report the
 exact commit hash and push result, then stop. You do not accept the ticket or begin
 remediation outside it.
+
+## Reachable Finding Correction 1 Integration
+
+The earlier stop rules were followed and the reachable DHT finding is recorded. Now
+reread the correction section of `tickets/BBGO-SEC-001.md` and the complete delivered
+report in `docs/handoff/GROK_BUILD_BBGO_SEC_001_FINDING_01.md`.
+
+Inspect the three-path source drop and verify the recorded hashes before execution. Set
+the exact disk-backed GOCACHE and GOTMPDIR already named above for every Go module, test,
+build, or scanner command. Run `GOTOOLCHAIN=go1.27.0 go mod tidy` in `modern/` to
+regenerate `modern/go.sum`; no other dependency change is authorized.
+
+Reconstruct red without a worktree, temporary repository, deletion, or cleanup: first
+record the exact hashes of `modern/network/node.go` and `modern/go.mod`, then use bounded
+patch edits to temporarily remove only the new Amino import and diversity-filter option
+and restore only the prior private-mode nil-diversity option. Run:
+
+```text
+GOTOOLCHAIN=go1.27.0 go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$' -count=1
+```
+
+The expected red reason is `constructed BitBook DHT has no routing-table IP-diversity
+filter`. Immediately restore the three exact production hunks with bounded patch edits,
+verify the original recorded hashes, then run the same targeted command green. Falsify
+the high-value test through that same temporary mechanism removal and restoration; the
+single red run may serve as both the historical red reconstruction and falsification.
+Do not use `/tmp`, `mktemp`, another worktree, copying, recursive deletion, Git restore,
+or Git reset.
+
+Then run the maintained Go 1.27 race suite. If targeted or race testing fails, record the
+result in evidence and stop before Git; do not repair. If they pass, rerun the exact
+network-authorized source Govulncheck command. It is expected to continue reporting
+`GO-2024-3218` because the Go advisory lists no fixed version. Record whether the
+resolved module is exactly `v0.42.2` and whether it is the only reachable vulnerability,
+then stop before every later scanner, SBOM, commit, and push. No exception, suppression,
+allowlist, or continued scanning past a finding is authorized yet.

@@ -48,3 +48,28 @@ When finished, stop and report:
 - the dependency version change;
 - any ambiguity or unimplemented requirement; and
 - confirmation that no command, install, Git operation, or out-of-scope edit occurred.
+
+## Delivered Source Report
+
+Execution date: 2026-08-29
+
+Grok Build reported test-source-first authoring and no test, build, formatter, module,
+install, or Git execution. Only `sha256sum` and `wc -l` were used for this report.
+
+| Path | Lines | SHA-256 |
+|---|---:|---|
+| `modern/network/node_test.go` | 448 | `2c791449967c412bc35756400dc832b3ec31557f0d9d868882e5103a4ea4ba74` |
+| `modern/network/node.go` | 261 | `5add3a890d232af2ed8f53fcb9bd062660b69608937fdb0ea0fa6e0d86e057d9` |
+| `modern/go.mod` | 133 | `a69dbd8a9ab76f75f8329782d1f3309122ac933c1ea10ab8503267f400d3b2ce` |
+
+The new `TestDHTRoutingTableEnforcesIPDiversity` has default and private-address
+subtests. It constructs real nodes, rejects a nil diversity-stat result, connects four
+same-IP-group peers, requires both admission and a diversity-filter rejection, and
+independently recounts whole-table and common-prefix-length IP-group limits. Production
+now installs `NewRTPeerDiversityFilter` with Amino's per-CPL limit 2 and whole-table
+limit 3 before applying mode-specific options. Private-address mode no longer clears it.
+The direct DHT requirement is `v0.42.2`; `modern/go.sum` remains for Luna to regenerate.
+
+Reviewer independently read the complete diff and verified all hashes, line counts,
+authorized paths, behavioral assertions, and the absence of scanner-policy changes.
+Execution evidence remains required; source inspection is not acceptance.

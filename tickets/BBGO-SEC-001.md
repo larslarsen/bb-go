@@ -334,3 +334,17 @@ Grok must not change scanner policy, suppress or allowlist the advisory, edit wo
 or evidence, run commands, install tools, or use Git. The existing scanner finding is
 expected to remain until a separate reviewer decision accounts for the contradictory
 advisory metadata; this correction addresses the concrete missing mitigation first.
+
+Codex Luna must regenerate `modern/go.sum` with Go 1.27, reconstruct the focused red and
+falsification by temporarily removing only the diversity-filter production hunks with
+bounded patch edits, restore and hash-check them, then run the same test green and run
+the maintained race suite. The exact targeted command is:
+
+```text
+GOTOOLCHAIN=go1.27.0 go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$' -count=1
+```
+
+After green and race success, Luna must rerun source Govulncheck. Record the exact
+resolved DHT version and reachable finding count, then stop again on any finding. This
+cycle does not authorize Gosec, Gitleaks, binary build/scan, SBOM, Git, or a scanner
+exception.
