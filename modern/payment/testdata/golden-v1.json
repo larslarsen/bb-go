@@ -1,0 +1,231 @@
+{
+  "vectors": [
+    {
+      "name": "payment-request-zec-positive",
+      "kind": "payment_request_v1",
+      "classification": "valid",
+      "domain_separator": "bitbook-payment-request-v1\n",
+      "input": {
+        "v": 1,
+        "request_id": "00112233445566778899aabbccddeeff",
+        "payer_peer_id": "12D3KooWPayer",
+        "payee_peer_id": "12D3KooWPayee",
+        "asset": "ZEC",
+        "network": "zec-testnet",
+        "amount_atomic": "100000000",
+        "receiver": "u1testreceiver",
+        "receiver_kind": "zec-ua-orchard-protocol",
+        "memo": "coffee",
+        "nonce": "ffeeddccbbaa99887766554433221100",
+        "created_at": "2026-08-30T12:00:00Z",
+        "expires_at": "2026-08-30T12:15:00Z"
+      },
+      "canonical": "{\"amount_atomic\":\"100000000\",\"asset\":\"ZEC\",\"created_at\":\"2026-08-30T12:00:00Z\",\"expires_at\":\"2026-08-30T12:15:00Z\",\"memo\":\"coffee\",\"network\":\"zec-testnet\",\"nonce\":\"ffeeddccbbaa99887766554433221100\",\"payee_peer_id\":\"12D3KooWPayee\",\"payer_peer_id\":\"12D3KooWPayer\",\"receiver\":\"u1testreceiver\",\"receiver_kind\":\"zec-ua-orchard-protocol\",\"request_id\":\"00112233445566778899aabbccddeeff\",\"v\":1}",
+      "digest": "c21d03fcacab9128ce5d058b6b3b9b95adbf22de222df6d70d92390361ca60dc"
+    },
+    {
+      "name": "payment-status-cancelled-positive",
+      "kind": "payment_status_event_v1",
+      "classification": "valid",
+      "domain_separator": "bitbook-payment-status-v1\n",
+      "input": {
+        "v": 1,
+        "request_id": "00112233445566778899aabbccddeeff",
+        "event_id": "11112222333344445555666677778888",
+        "nonce": "9999aaaabbbbccccddddeeeeffff0000",
+        "status": "cancelled",
+        "at": "2026-08-30T12:05:00Z",
+        "tx_ref": ""
+      },
+      "canonical": "{\"at\":\"2026-08-30T12:05:00Z\",\"event_id\":\"11112222333344445555666677778888\",\"nonce\":\"9999aaaabbbbccccddddeeeeffff0000\",\"request_id\":\"00112233445566778899aabbccddeeff\",\"status\":\"cancelled\",\"tx_ref\":\"\",\"v\":1}",
+      "digest": "9e4b7b6ef01506b93aa76ef1e609a90a70d6fb491dd996e0660881de5c38c3aa"
+    },
+    {
+      "name": "review-image-zec-positive",
+      "kind": "review_image_v1",
+      "classification": "valid",
+      "domain_separator": "bitbook-intent-hash-v1\n",
+      "input": {
+        "v": 1,
+        "intent_id": "intent-test-1",
+        "prepared_id": "prepared-test-1",
+        "account_id": "account-test-1",
+        "request_id": "00112233445566778899aabbccddeeff",
+        "payment_request_hash": "c21d03fcacab9128ce5d058b6b3b9b95adbf22de222df6d70d92390361ca60dc",
+        "payer_peer_id": "12D3KooWPayer",
+        "payee_peer_id": "12D3KooWPayee",
+        "asset": "ZEC",
+        "network": "zec-testnet",
+        "amount_atomic": "100000000",
+        "fee_atomic": "10000",
+        "fee_bound_atomic": "12000",
+        "receiver": "u1testreceiver",
+        "receiver_kind": "zec-ua-orchard-protocol",
+        "change_policy": "shielded_internal",
+        "memo_hash": "37290d74ac4d186e3a8e5785d259d2ec04fac91ae28092e7620ec8bc99e830aa",
+        "tx_version": "6",
+        "zec_pools": [
+          "ironwood"
+        ],
+        "expires_at": "2026-08-30T12:15:00Z",
+        "prepared_at": "2026-08-30T12:00:10Z"
+      },
+      "canonical": "{\"account_id\":\"account-test-1\",\"amount_atomic\":\"100000000\",\"asset\":\"ZEC\",\"change_policy\":\"shielded_internal\",\"expires_at\":\"2026-08-30T12:15:00Z\",\"fee_atomic\":\"10000\",\"fee_bound_atomic\":\"12000\",\"intent_id\":\"intent-test-1\",\"memo_hash\":\"37290d74ac4d186e3a8e5785d259d2ec04fac91ae28092e7620ec8bc99e830aa\",\"network\":\"zec-testnet\",\"payee_peer_id\":\"12D3KooWPayee\",\"payer_peer_id\":\"12D3KooWPayer\",\"payment_request_hash\":\"c21d03fcacab9128ce5d058b6b3b9b95adbf22de222df6d70d92390361ca60dc\",\"prepared_at\":\"2026-08-30T12:00:10Z\",\"prepared_id\":\"prepared-test-1\",\"receiver\":\"u1testreceiver\",\"receiver_kind\":\"zec-ua-orchard-protocol\",\"request_id\":\"00112233445566778899aabbccddeeff\",\"tx_version\":\"6\",\"v\":1,\"zec_pools\":[\"ironwood\"]}",
+      "digest": "ad55816f327c002be813a29d41f9a7ae429782b6856a4d3bb2e6c498c6f9e3c0"
+    }
+  ],
+  "invalid_vectors": [
+    {
+      "name": "payment-request-duplicate-key",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "raw_json": "{\"v\":1,\"amount_atomic\":\"100000000\",\"asset\":\"ZEC\",\"created_at\":\"2026-08-30T12:00:00Z\",\"expires_at\":\"2026-08-30T12:15:00Z\",\"memo\":\"coffee\",\"network\":\"zec-testnet\",\"nonce\":\"ffeeddccbbaa99887766554433221100\",\"payee_peer_id\":\"12D3KooWPayee\",\"payer_peer_id\":\"12D3KooWPayer\",\"receiver\":\"u1testreceiver\",\"receiver_kind\":\"zec-ua-orchard-protocol\",\"request_id\":\"00112233445566778899aabbccddeeff\",\"v\":1}",
+      "reason": "Duplicate JSON object names are rejected before canonicalization."
+    },
+    {
+      "name": "payment-request-malformed-utf8-memo",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "hex_bytes": "7b22616d6f756e745f61746f6d6963223a22313030303030303030222c226173736574223a225a4543222c22637265617465645f6174223a22323032362d30382d33305431323a30303a30305a222c22657870697265735f6174223a22323032362d30382d33305431323a31353a30305a222c226d656d6f223a2263c328666565222c226e6574776f726b223a227a65632d746573746e6574222c226e6f6e6365223a226666656564646363626261613939383837373636353534343333323231313030222c2270617965655f706565725f6964223a22313244334b6f6f575061796565222c2270617965725f706565725f6964223a22313244334b6f6f575061796572222c227265636569766572223a227531746573747265636569766572222c2272656365697665725f6b696e64223a227a65632d75612d6f7263686172642d70726f746f636f6c222c22726571756573745f6964223a223030313132323333343435353636373738383939616162626363646465656666222c2276223a317d",
+      "reason": "The otherwise valid request has only its memo UTF-8 bytes changed from coffee to an invalid C3 28 sequence."
+    },
+    {
+      "name": "payment-request-unknown-field",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z", "unknown": "closed-schema" },
+      "reason": "PaymentRequestV1 is a closed schema."
+    },
+    {
+      "name": "payment-request-missing-memo",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "Every declared PaymentRequestV1 field is required, including the empty-capable memo."
+    },
+    {
+      "name": "payment-request-zero-amount",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "0", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "Atomic amounts are positive canonical decimal strings."
+    },
+    {
+      "name": "payment-request-leading-zero-amount",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "0100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "Canonical decimal strings have no leading zero."
+    },
+    {
+      "name": "payment-request-scientific-amount",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "1e8", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "Scientific notation is not an atomic decimal representation."
+    },
+    {
+      "name": "payment-request-invented-ironwood-receiver",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-ironwood", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "No invented Ironwood receiver encoding is authorized in v1."
+    },
+    {
+      "name": "payment-request-status-field",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z", "status": "open" },
+      "reason": "Mutable payment status is not signed into a payment request."
+    },
+    {
+      "name": "payment-request-impossible-calendar-date",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-02-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "Timestamp grammar is followed by strict Gregorian calendar validation."
+    },
+    {
+      "name": "payment-request-out-of-range-timestamp",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2101-01-01T00:00:00Z", "expires_at": "2101-01-01T00:15:00Z" },
+      "reason": "Signed-object timestamps are limited to years 2020 through 2100."
+    },
+    {
+      "name": "payment-request-non-nfc-memo",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "cafe\u0301", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "Signed strings must already be NFC rather than normalized during decode."
+    },
+    {
+      "name": "payment-request-bidi-control",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "safe\u202etext", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "Bidi controls are forbidden in every signed string."
+    },
+    {
+      "name": "payment-request-format-control",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "safe\u200btext", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z" },
+      "reason": "Invisible format controls are forbidden in every signed string."
+    },
+    {
+      "name": "payment-status-paid-without-tx-ref",
+      "kind": "payment_status_event_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "event_id": "11112222333344445555666677778888", "nonce": "9999aaaabbbbccccddddeeeeffff0000", "status": "paid", "at": "2026-08-30T12:05:00Z", "tx_ref": "" },
+      "reason": "Paid status requires a non-empty transaction reference."
+    },
+    {
+      "name": "review-fee-above-bound",
+      "kind": "review_image_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "intent_id": "intent-test-1", "prepared_id": "prepared-test-1", "account_id": "account-test-1", "request_id": "00112233445566778899aabbccddeeff", "payment_request_hash": "c21d03fcacab9128ce5d058b6b3b9b95adbf22de222df6d70d92390361ca60dc", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "fee_atomic": "12001", "fee_bound_atomic": "12000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "change_policy": "shielded_internal", "memo_hash": "37290d74ac4d186e3a8e5785d259d2ec04fac91ae28092e7620ec8bc99e830aa", "tx_version": "6", "zec_pools": ["ironwood"], "expires_at": "2026-08-30T12:15:00Z", "prepared_at": "2026-08-30T12:00:10Z" },
+      "reason": "The reviewed fee cannot exceed its signed fee bound."
+    },
+    {
+      "name": "review-orchard-v1-pool",
+      "kind": "review_image_v1",
+      "classification": "invalid",
+      "expected_code": "MIGRATION_REQUIRED",
+      "input": { "v": 1, "intent_id": "intent-test-1", "prepared_id": "prepared-test-1", "account_id": "account-test-1", "request_id": "00112233445566778899aabbccddeeff", "payment_request_hash": "c21d03fcacab9128ce5d058b6b3b9b95adbf22de222df6d70d92390361ca60dc", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "fee_atomic": "10000", "fee_bound_atomic": "12000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "change_policy": "shielded_internal", "memo_hash": "37290d74ac4d186e3a8e5785d259d2ec04fac91ae28092e7620ec8bc99e830aa", "tx_version": "6", "zec_pools": ["orchard"], "expires_at": "2026-08-30T12:15:00Z", "prepared_at": "2026-08-30T12:00:10Z" },
+      "reason": "A v1 spend review containing an Orchard pool requires migration rather than signing."
+    },
+    {
+      "name": "payment-request-rate-field",
+      "kind": "payment_request_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "request_id": "00112233445566778899aabbccddeeff", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "memo": "coffee", "nonce": "ffeeddccbbaa99887766554433221100", "created_at": "2026-08-30T12:00:00Z", "expires_at": "2026-08-30T12:15:00Z", "rate": "1.25" },
+      "reason": "Rate data is presentation-only and absent from signed payment requests."
+    },
+    {
+      "name": "review-fiat-field",
+      "kind": "review_image_v1",
+      "classification": "invalid",
+      "expected_code": "SCHEMA",
+      "input": { "v": 1, "intent_id": "intent-test-1", "prepared_id": "prepared-test-1", "account_id": "account-test-1", "request_id": "00112233445566778899aabbccddeeff", "payment_request_hash": "c21d03fcacab9128ce5d058b6b3b9b95adbf22de222df6d70d92390361ca60dc", "payer_peer_id": "12D3KooWPayer", "payee_peer_id": "12D3KooWPayee", "asset": "ZEC", "network": "zec-testnet", "amount_atomic": "100000000", "fee_atomic": "10000", "fee_bound_atomic": "12000", "receiver": "u1testreceiver", "receiver_kind": "zec-ua-orchard-protocol", "change_policy": "shielded_internal", "memo_hash": "37290d74ac4d186e3a8e5785d259d2ec04fac91ae28092e7620ec8bc99e830aa", "tx_version": "6", "zec_pools": ["ironwood"], "expires_at": "2026-08-30T12:15:00Z", "prepared_at": "2026-08-30T12:00:10Z", "fiat": "USD" },
+      "reason": "Fiat data is presentation-only and absent from signed review images."
+    }
+  ]
+}
