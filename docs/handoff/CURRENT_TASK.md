@@ -2,7 +2,7 @@
 
 Ticket: BBGO-PAY-001
 
-State: SECURITY A ACCEPTED — LUNA GITLEAKS PHASE B AUTHORIZED
+State: SECURITY COMPLETE — LUNA EVIDENCE/INTEGRATION AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -12,7 +12,7 @@ Production source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
 
 Integrated frozen-test baseline: `403df23a63f413c11e13085719fc7e767c2f15be`
 
-Active handoff: [CODEX_LUNA_BBGO_PAY_001_SECURITY_B_01.md](CODEX_LUNA_BBGO_PAY_001_SECURITY_B_01.md)
+Active handoff: [CODEX_LUNA_BBGO_PAY_001_INTEGRATE_01.md](CODEX_LUNA_BBGO_PAY_001_INTEGRATE_01.md)
 
 Evidence: [BBGO-PAY-001-EXPECTED-RED.md](../testing/BBGO-PAY-001-EXPECTED-RED.md)
 
@@ -73,10 +73,15 @@ and the final review. The visible reviewer-channel official-database probe retur
 non-reachable notes; and Gosec reported zero issues across 17 files / 4,579 lines. Codex
 XHigh accepts the complete phase in
 [BBGO-PAY-001-SECURITY-A-REVIEW-01.md](../testing/BBGO-PAY-001-SECURITY-A-REVIEW-01.md).
-Luna may now run only the active handoff's reviewed Gitleaks baseline validator, exact
-pinned redacted history scan, and final read-only checks. Every completed earlier gate
-must not be duplicated. Git integration, other public network, wallet, rate, transaction,
-hardware, device, release binary, SBOM, and other work remain unauthorized.
+Luna's fail-closed validator accepted the exact reviewed 25-entry redacted baseline, and
+the pinned fully redacted history scan passed 3,406 commits / approximately 313.91 MB
+with zero new leaks. Codex XHigh accepts phase B in
+[BBGO-PAY-001-SECURITY-B-REVIEW-01.md](../testing/BBGO-PAY-001-SECURITY-B-REVIEW-01.md).
+Every execution and security gate is complete and must not be duplicated. Luna may now
+create only the consolidated green evidence/current-task update and perform the exact
+ten-path feature integration in the active handoff. No other engineering, public
+network, wallet, rate, transaction, hardware, device, release binary, SBOM, or unrelated
+work is authorized.
 
 BBGO-SEC-001 and BBGO-SEC-002 remain accepted. Their existing reviewed exceptions and
 re-review dates are unchanged. `../go-ipfs` is deprecated and receives no wallet work.

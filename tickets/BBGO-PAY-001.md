@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: SECURITY A ACCEPTED — LUNA GITLEAKS PHASE B AUTHORIZED
+Status: SECURITY COMPLETE — LUNA EVIDENCE/INTEGRATION AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -341,6 +341,21 @@ history scan, and final read-only checks under
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_SECURITY_B_01.md`. All earlier gates must not be
 rerun. Integration remains separately gated; binaries and SBOM remain manual release
 work and are not authorized by this routine source ticket.
+
+## Security phase B acceptance 01 and integration authorization
+
+The fail-closed validator accepted the exact 25-entry reviewed redacted baseline with
+reviewer ownership and expiry 2026-11-29. Pinned Gitleaks v8.30.1 then scanned 3,406
+commits / approximately 313.91 MB in 20.4 seconds with zero new leaks and exit 0; only
+the known exhaustive-rename warnings appeared. No secret or match value was accessed or
+recorded. Exact safe metadata and unchanged state are accepted in
+`docs/testing/BBGO-PAY-001-SECURITY-B-REVIEW-01.md`.
+
+Every execution/security gate is now complete and must not be rerun. Luna may create the
+consolidated green evidence and perform only the exact ten-path integration under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_INTEGRATE_01.md`. Final engineering acceptance
+remains owned by Codex XHigh. Binaries and SBOM remain manual release gates and are not
+regenerated for this routine source ticket.
 
 ## Required test groups
 
