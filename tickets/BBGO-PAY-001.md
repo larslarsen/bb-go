@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: FUZZ STATIC AUDIT ACCEPTED — LUNA BOUNDED DIAGNOSTIC AUTHORIZED
+Status: FUZZ TARGET 2 ACCEPTED — LUNA TARGETS 3–6 AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -284,6 +284,18 @@ A fresh Luna may run only
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_FUZZ_DIAGNOSTIC_01.md`. It must stop at the first
 seed, one-iteration, sustained-fuzz, watchdog, or executor failure. No source correction,
 other target, fresh cache, scanner, integration, binary, or SBOM is authorized.
+
+## Fuzz target 2 diagnostic acceptance
+
+A fresh Luna passed the ordinary seeds, one native fuzz iteration, and a single-worker
+three-second native campaign under inner/outer watchdogs. The final run executed 4,967
+inputs with 67 total interesting inputs and no failure or watchdog. XHigh accepts target
+2 and the executor/transport classification in
+`docs/testing/BBGO-PAY-001-FUZZ-DIAGNOSTIC-REVIEW-01.md`.
+
+Luna may now run only targets 3–6 under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_CONTINUE_FUZZ_02.md`. Targets 1–2 and prior gates
+must not be rerun. Security, integration, binaries, and SBOM remain unauthorized.
 
 ## Required test groups
 
