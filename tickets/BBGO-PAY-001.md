@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: GAP EXPECTED-RED ATTEMPT 01 REJECTED — SOL TEST COMPILE CORRECTION AUTHORIZED
+Status: TEST COMPILE CORRECTION ACCEPTED — LUNA GAP EXPECTED RED 02 AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -194,6 +194,16 @@ Under `docs/handoff/CODEX_SOL_BBGO_PAY_001_TEST_COMPILE_CORRECTION_01.md`, Sol m
 only those two bindings to discard the first three results and retain the error from the
 frozen four-result `DecodePaymentStatus` API. No production edit, execution, integration,
 or other scope is authorized.
+
+## Test compile-correction acceptance 01
+
+Sol made only the two authorized result-binding corrections. Codex XHigh accepted the
+exact diff and final hash in
+`docs/testing/BBGO-PAY-001-TEST-COMPILE-CORRECTION-REVIEW-01.md`; the assertions' behavior
+is unchanged. Luna may retry only the focused expected-red command and, on acceptable
+red, integrate the four changed test files under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_02.md`. Production correction and
+broader execution remain unauthorized.
 
 ## Required test groups
 
