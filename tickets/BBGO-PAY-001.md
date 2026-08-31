@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: GAP TEST SOURCE ACCEPTED — LUNA EXPECTED RED AUTHORIZED
+Status: GAP EXPECTED-RED ATTEMPT 01 REJECTED — SOL TEST COMPILE CORRECTION AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -181,6 +181,19 @@ three accepted test files under
 must remain dirty, uncommitted, and byte-identical to production source review 01. No
 production correction or broader validation is authorized until Codex XHigh accepts the
 gap expected-red evidence.
+
+## Gap expected-red attempt 01 rejection
+
+Luna's exact focused command compiled the whole payment test package before selecting
+the three requested tests and exposed two stale two-result bindings in the frozen
+`TestNetworkStatusIsCancellationOnly`. The attempt and complete diagnostics are recorded
+in `docs/testing/BBGO-PAY-001-GAP-EXPECTED-RED-ATTEMPT-01.md`; none of the three gap tests
+ran, so this is not accepted red evidence.
+
+Under `docs/handoff/CODEX_SOL_BBGO_PAY_001_TEST_COMPILE_CORRECTION_01.md`, Sol may change
+only those two bindings to discard the first three results and retain the error from the
+frozen four-result `DecodePaymentStatus` API. No production edit, execution, integration,
+or other scope is authorized.
 
 ## Required test groups
 
