@@ -2,7 +2,7 @@
 
 Ticket: BBGO-PAY-001
 
-State: SECURITY COMPLETE — LUNA EVIDENCE/INTEGRATION AUTHORIZED
+State: GREEN 01 CAPTURED — XHIGH ACCEPTANCE REQUIRED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -13,6 +13,11 @@ Production source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
 Integrated frozen-test baseline: `403df23a63f413c11e13085719fc7e767c2f15be`
 
 Active handoff: [CODEX_LUNA_BBGO_PAY_001_INTEGRATE_01.md](CODEX_LUNA_BBGO_PAY_001_INTEGRATE_01.md)
+
+Consolidated evidence: [BBGO-PAY-001-GREEN-01.md](../testing/BBGO-PAY-001-GREEN-01.md)
+
+Feature commit under review: `feat(payment): add signed payment transport`.
+No further engineering work is authorized pending Codex XHigh's acceptance decision.
 
 Evidence: [BBGO-PAY-001-EXPECTED-RED.md](../testing/BBGO-PAY-001-EXPECTED-RED.md)
 

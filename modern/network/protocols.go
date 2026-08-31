@@ -18,4 +18,7 @@ const (
 	// DirectProtocolCurrent carries signed follows, chat messages, typing
 	// indicators, and read receipts between authenticated BitBook peers.
 	DirectProtocolCurrent protocol.ID = "/bitbook/direct/1.0.0"
+
+	// PaymentProtocolCurrent carries signed payer-bound payment objects.
+	PaymentProtocolCurrent protocol.ID = "/bitbook/payment/1.0.0"
 )
