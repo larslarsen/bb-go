@@ -2,28 +2,38 @@
 
 Ticket: BBGO-PAY-001
 
-State: TEST SOURCE QUEUED — AUTHORIZED AT OR AFTER 2026-08-30 19:53 PDT
+State: GROK TEST DROP REJECTED — SOL CORRECTION AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
-Source actor: Sr Dev — Grok Build (Grok 4.6 High)
+Correction actor: Principal Dev — Codex Sol (`gpt-5.6-sol`, High)
 
 Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
 
-Source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
+Production source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
 
-[BBGO-PAY-001](../../tickets/BBGO-PAY-001.md) is the only queued implementation task in
-this repository. At or after the time gate, Grok Build may perform only the seven-path
-test-source phase in [its durable handoff](GROK_BUILD_BBGO_PAY_001_TESTS.md). No source
-actor may run tests, Go, Git, GitHub, network commands, public peers, wallet/rate code, or
-edit production before reviewer acceptance and Codex Luna's expected-red evidence.
+Governance head before this handoff: `01d709c62fa27cca4ec4869edada3581ced90daa`
 
-The daemon remains wallet-free and rate-free. The accepted desktop fixture is an
-independent cross-language oracle, not a dependency on Electron or the Node implementation.
+Active handoff: [CODEX_SOL_BBGO_PAY_001_TESTS_CORRECTION_01.md](CODEX_SOL_BBGO_PAY_001_TESTS_CORRECTION_01.md)
 
-BBGO-SEC-001 remains accepted at implementation commit
-`7a874921866bee1ad43039f4fd90718e1e18795b`; remote Go 1.27 run `33291331166` and
-dependency-graph update `33291332767` passed. Its Govulncheck exception and reviewed
-Gitleaks baseline require re-review on 2026-11-29. BBGO-SEC-002 is also accepted, and
-GitHub reported zero open Dependabot alerts at acceptance. No security-ticket source work
-is active.
+[BBGO-PAY-001](../../tickets/BBGO-PAY-001.md) remains the only authorized
+implementation task in this repository. Grok Build ran in the foreground after its time
+gate, changed only the seven authorized test paths, copied the 231-line desktop oracle
+byte-for-byte, and ran no Go, tests, Git, or network command.
+
+The fixture and 20-line payment protocol-ID test are reviewer-accepted and frozen. The
+five payment test files are rejected before execution in
+[BBGO-PAY-001-TEST-SOURCE-REVIEW-01.md](../testing/BBGO-PAY-001-TEST-SOURCE-REVIEW-01.md).
+Static review found a mechanically broken split reader, incomplete request/status field
+signature mutations, a vacuous validation-order proof, weak stable-code assertions,
+service replay/terminal checks that can pass without the durable invariant, a vacuous
+negative-capability scan, loose leak detection, and fuzz/status boundary gaps.
+
+Those corrections affect signature trust, attacker-controlled framing, durable replay,
+and concurrency, so the repository routing policy assigns them to Sol High. Sol may edit
+only the five payment test files named in the active handoff. The frozen fixture and
+protocol test, all production, execution, integration, evidence, Git, GitHub, wallet,
+rate, transaction, public-peer, and other paths remain unauthorized.
+
+BBGO-SEC-001 and BBGO-SEC-002 remain accepted. Their existing reviewed exceptions and
+re-review dates are unchanged. `../go-ipfs` is deprecated and receives no wallet work.

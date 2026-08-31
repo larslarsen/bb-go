@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: TEST SOURCE QUEUED — AUTHORIZED AT OR AFTER 2026-08-30 19:53 PDT
+Status: GROK TEST DROP REJECTED — SOL CORRECTION AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -83,6 +83,20 @@ independent implementation.
 No production source, API, command wiring, module/lock input, documentation, workflow,
 policy implementation, evidence, Git, GitHub, network command, public peer, wallet, node
 process, rate provider, transaction, hardware, or other path is authorized in this phase.
+
+## Reviewer test-source correction 01
+
+Grok authored only the seven authorized paths and copied the fixture exactly, but the
+drop is rejected before execution in
+`docs/testing/BBGO-PAY-001-TEST-SOURCE-REVIEW-01.md`. The fixture and protocol-ID test
+are frozen. Blocking findings in the other five files affect signature mutation and
+validation order, framing, real durable replay, receipt-clock injection, leak detection,
+fuzz non-vacuity, and the negative wallet/rate capability boundary.
+
+Under `docs/handoff/CODEX_SOL_BBGO_PAY_001_TESTS_CORRECTION_01.md`, Principal Dev —
+Codex Sol at High may edit only the five named payment test files. No execution,
+integration, production, module/lock, evidence, Git, GitHub, wallet, rate, public peer,
+or other work is authorized.
 
 ## Required test groups
 
