@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: FUZZ TARGET 2 REPEATED HANG — SOL STATIC AUDIT AUTHORIZED
+Status: FUZZ STATIC AUDIT ACCEPTED — LUNA BOUNDED DIAGNOSTIC AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -271,6 +271,19 @@ Sol may now perform only the static target/decoder audit in
 `docs/handoff/CODEX_SOL_BBGO_PAY_001_FUZZ_HANG_AUDIT_01.md`. A third unchanged invocation,
 security scans, integration, binaries, and SBOM are unauthorized pending XHigh review of
 that audit.
+
+## Fuzz-hang static-audit acceptance 01
+
+Sol's command-free audit found no source-proven nontermination, failing round-trip input,
+blocking/shared state, or recursion escape. Codex XHigh accepts the reasoning and a
+three-stage diagnostic with one worker, JSON events, Go's internal timeout, and an outer
+wall-clock watchdog in
+`docs/testing/BBGO-PAY-001-FUZZ-HANG-AUDIT-REVIEW-01.md`.
+
+A fresh Luna may run only
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_FUZZ_DIAGNOSTIC_01.md`. It must stop at the first
+seed, one-iteration, sustained-fuzz, watchdog, or executor failure. No source correction,
+other target, fresh cache, scanner, integration, binary, or SBOM is authorized.
 
 ## Required test groups
 
