@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: PRODUCTION SOURCE REVIEW 02 ACCEPTED — LUNA GREEN 01 AUTHORIZED
+Status: PARTIAL GREEN RECOVERED — LUNA FUZZ 2–6 CONTINUATION AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -244,6 +244,20 @@ tests, three exact reversible falsifications, current pinned source-security gat
 evidence, and integration. Routine binaries and SBOM are explicitly excluded; they
 remain manual release gates. No wallet, exchange-rate, transaction, hardware/device,
 public-peer, or unrelated work is authorized.
+
+## Green recovery 01
+
+The first green turn completed tidy, focused/full tests, all three falsifications, vet,
+race, and native fuzz target 1 before its agent turn stopped responding at fuzz target 2.
+The reviewer recovered the same Luna execution history without rerunning or restoring
+anything. No process remained; fuzz target 2 had no output/result; all temporary hunks
+were restored at accepted hashes. Exact state is recorded in
+`docs/testing/BBGO-PAY-001-GREEN-RECOVERY-01.md`.
+
+Luna may now run only native fuzz targets 2–6 under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_CONTINUE_FUZZ_01.md`. Completed gates must not be
+duplicated. Security scanning, evidence integration, Git, binaries, and SBOM remain
+unauthorized pending reviewer recording of the bounded continuation.
 
 ## Required test groups
 
