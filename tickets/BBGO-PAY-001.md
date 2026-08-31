@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: GAP EXPECTED-RED ATTEMPT 02 REJECTED — LUNA LOOPBACK RETRY AUTHORIZED
+Status: GAP EXPECTED RED 03 ACCEPTED — SOL PRODUCTION CORRECTION AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -216,6 +216,19 @@ Luna may request a one-command sandbox override and retry the exact focused comm
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_03.md`. This is loopback-only test
 execution, not root or public-network access. No production correction or other broad
 execution is authorized.
+
+## Gap expected-red acceptance 03
+
+The final focused run compiled and produced exactly the three intended failures. The
+real two-node path accepted and stored a status reusing its linked request nonce; the
+offline paths accepted depth 33 and signed repaired invalid UTF-8. Codex XHigh accepts
+the evidence in `docs/testing/BBGO-PAY-001-GAP-EXPECTED-RED-REVIEW-03.md`.
+
+Under `docs/handoff/CODEX_SOL_BBGO_PAY_001_PRODUCTION_CORRECTION_01.md`, Sol may edit only
+`canonical.go`, `signature.go`, and `service.go` to close those regressions and replace
+quadratic stored-record validation with map-based linear validation. No execution,
+integration, module/lock, wallet, rate, public-network, release-binary, or SBOM work is
+authorized until XHigh accepts the corrected source.
 
 ## Required test groups
 
