@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: FUZZ TARGET 2 ACCEPTED — LUNA TARGETS 3–6 AUTHORIZED
+Status: ALL FUZZ ACCEPTED — LUNA SECURITY PHASE A AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -296,6 +296,18 @@ inputs with 67 total interesting inputs and no failure or watchdog. XHigh accept
 Luna may now run only targets 3–6 under
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_CONTINUE_FUZZ_02.md`. Targets 1–2 and prior gates
 must not be rerun. Security, integration, binaries, and SBOM remain unauthorized.
+
+## Native fuzz completion acceptance
+
+Luna completed targets 3–6 under the same single-worker inner/outer watchdog pattern.
+Together with accepted targets 1–2, all six native fuzz campaigns passed with nonzero
+execution counts and no failure/artifact. Exact counts are accepted in
+`docs/testing/BBGO-PAY-001-FUZZ-COMPLETION-REVIEW-01.md`. No fuzz target may be rerun.
+
+Luna may now run only security phase A under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_SECURITY_A_01.md`: complete policy suites,
+Actionlint, policy-adjudicated source Govulncheck, and Gosec. Gitleaks, integration,
+binaries, and SBOM remain separately gated.
 
 ## Required test groups
 
