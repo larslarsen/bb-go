@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: ALL FUZZ ACCEPTED — LUNA SECURITY PHASE A AUTHORIZED
+Status: SECURITY A PARTIAL RECOVERED — LUNA BOUNDED GOVULN/GOSEC CONTINUATION AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -308,6 +308,21 @@ Luna may now run only security phase A under
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_SECURITY_A_01.md`: complete policy suites,
 Actionlint, policy-adjudicated source Govulncheck, and Gosec. Gitleaks, integration,
 binaries, and SBOM remain separately gated.
+
+## Security phase A recovery 01
+
+Luna passed all three policy-unit suites (51, 49, and 27 tests) and pinned Actionlint
+over all three workflows. The sandboxed source Govulncheck had no usable result because
+the official database was inaccessible. Its network-authorized retry then produced no
+output or exit result for approximately 1,929.9 seconds before recovery. No scanner
+process or state change remained; Gosec did not run. This is recorded without a false
+pass or vulnerability verdict in
+`docs/testing/BBGO-PAY-001-SECURITY-A-RECOVERY-01.md`.
+
+Luna may now perform only the hard-bounded official-database probe, policy-adjudicated
+source Govulncheck, and conditional Gosec under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_SECURITY_A_CONTINUE_01.md`. Completed policy suites
+and Actionlint must not be duplicated. Gitleaks and integration remain separately gated.
 
 ## Required test groups
 
