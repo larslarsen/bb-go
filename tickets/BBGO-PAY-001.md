@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: SOL TEST CORRECTION ACCEPTED — LUNA EXPECTED RED AUTHORIZED
+Status: EXPECTED RED ACCEPTED — SOL PRODUCTION SOURCE AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -116,6 +116,41 @@ input, broad validation, scanners, public network, wallet, rate, transaction, ha
 device, release binary, and SBOM work remain unauthorized pending reviewer acceptance of
 the expected-red evidence.
 
+## Expected-red acceptance and production authorization
+
+Luna integrated the seven frozen test paths at
+`403df23a63f413c11e13085719fc7e767c2f15be`. Both authorized commands failed solely on
+the absent reserved production API, and Codex XHigh accepted that evidence in
+`docs/testing/BBGO-PAY-001-EXPECTED-RED-REVIEW.md`.
+
+Principal Dev — Codex Sol at High may now author exactly the seven production paths in
+`docs/handoff/CODEX_SOL_BBGO_PAY_001_PRODUCTION_01.md`. That handoff freezes the public
+Go surface, closed-domain RFC 8785 behavior, signature/identity validation order,
+one-frame half-close transport, single-key atomic persistence, replay-before-terminal
+ordering, cancellation-only network policy, handler shutdown, and negative wallet/rate
+boundary. No execution, test edit, fixture edit, module/lock input, integration, Git,
+public peer, wallet, rate, transaction, hardware, device, release binary, or SBOM is
+authorized until reviewer source acceptance.
+
+## Planned green and security gates (not yet executable)
+
+After Codex XHigh accepts the production source, a separate Luna handoff will authorize
+serial foreground execution of `go mod tidy`, the two targeted green commands, full
+`go vet ./...`, `go test -race ./... -count=1`, and one bounded run of each of the six
+native payment fuzz entrypoints. It will also prescribe exact reversible falsifications
+for domain separation, remote-peer binding, and durable replay conflict detection.
+
+The same handoff will run the current pinned BBGO-SEC-001 source ratchet: Govulncheck
+through `scripts/govulncheck_policy.py source`, Gosec v2.29.0, the reviewed Gitleaks
+baseline validator and Gitleaks v8.30.1 history scan, and all security-policy,
+Govulncheck-policy, and Gitleaks-baseline unit tests. Any new or unreviewed finding stops
+acceptance; it is not silently suppressed or added to a baseline.
+
+The existing manual release SBOM workflow remains mandatory for a release, but this
+routine source ticket does not regenerate binaries or an SBOM. That preserves the
+owner's CI-usage decision while keeping SBOM generation and scan policy in the release
+gate.
+
 ## Required test groups
 
 1. **Independent canonical oracle:** every accepted request/status fixture matches exact
@@ -152,18 +187,18 @@ does not execute it.
 
 ## Expected red and later acceptance
 
-After reviewer acceptance of the source drop, Codex Luna runs from `modern/`:
+After reviewer acceptance of the test-source drop, Codex Luna ran from `modern/`:
 
 ```text
 GOTOOLCHAIN=go1.27.0 go test ./payment -count=1
 GOTOOLCHAIN=go1.27.0 go test ./network -run TestPaymentProtocolCurrent -count=1
 ```
 
-Both must exit nonzero only because the reserved `payment` production API and
-`network.PaymentProtocolCurrent` do not exist. The source actor must not execute them.
+Both exited nonzero only because the reserved `payment` production API and
+`network.PaymentProtocolCurrent` did not exist. The source actor did not execute them.
 
-A later production handoff will freeze the exact exported Go API after test-source
-review. Green acceptance will include targeted tests, `go vet ./...`, `go test -race
+The production handoff freezes the exact exported Go API after test-source review.
+Green acceptance will include targeted tests, `go vet ./...`, `go test -race
 ./... -count=1`, bounded native fuzz runs, current pinned security-policy/scanner gates,
 and exact falsifications/restores for domain separation, remote-peer binding, and durable
 replay conflict detection. No release binary or SBOM is regenerated on this routine

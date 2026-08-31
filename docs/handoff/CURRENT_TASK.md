@@ -2,17 +2,17 @@
 
 Ticket: BBGO-PAY-001
 
-State: EXPECTED RED CAPTURED — REVIEWER ACCEPTANCE REQUIRED
+State: EXPECTED RED ACCEPTED — SOL PRODUCTION SOURCE AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
-Integration actor: Jr Dev — Codex Luna (`gpt-5.6-luna`)
+Source actor: Principal Dev — Codex Sol (`gpt-5.6-sol`, High)
 
 Production source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
 
-Governance head before this handoff: `1a4af21dd2f2266059088e809d17af4cea9ef43f`
+Integrated frozen-test baseline: `403df23a63f413c11e13085719fc7e767c2f15be`
 
-Active handoff: [CODEX_LUNA_BBGO_PAY_001_EXPECTED_RED.md](CODEX_LUNA_BBGO_PAY_001_EXPECTED_RED.md)
+Active handoff: [CODEX_SOL_BBGO_PAY_001_PRODUCTION_01.md](CODEX_SOL_BBGO_PAY_001_PRODUCTION_01.md)
 
 Evidence: [BBGO-PAY-001-EXPECTED-RED.md](../testing/BBGO-PAY-001-EXPECTED-RED.md)
 
@@ -25,8 +25,12 @@ The desktop oracle remains byte-identical, the payment protocol test remains fro
 the full drop is format-clean.
 
 The two authorized expected-red commands produced only missing-production API
-diagnostics. No production implementation is authorized pending Codex XHigh review of
-the evidence.
+diagnostics and are accepted in
+[BBGO-PAY-001-EXPECTED-RED-REVIEW.md](../testing/BBGO-PAY-001-EXPECTED-RED-REVIEW.md).
+Sol may now author only the seven production paths named in the active handoff. No test,
+fixture, module/lock, execution, integration, Git, public network, wallet, rate,
+transaction, hardware, device, release binary, or SBOM work is authorized. Codex XHigh
+must review the production source before Luna executes anything.
 
 BBGO-SEC-001 and BBGO-SEC-002 remain accepted. Their existing reviewed exceptions and
 re-review dates are unchanged. `../go-ipfs` is deprecated and receives no wallet work.

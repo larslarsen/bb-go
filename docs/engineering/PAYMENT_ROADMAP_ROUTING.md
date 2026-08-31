@@ -7,12 +7,12 @@ Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
 ## Assignment
 
-- `BBGO-PAY-001` is a bounded Grok Build ticket because BBD-WAL-001 and accepted
-  BBD-WAL-002 fixtures freeze the object schemas, domain separators, validation order,
-  trust direction, and negative rate/wallet contract. Grok authors tests first and stops.
-- Codex Sol is reserved for a correction that changes signature trust, canonicalization,
-  durable replay semantics, attacker-controlled framing, or concurrency beyond the fixed
-  ticket. The reviewer must explicitly re-route such a correction before source changes.
+- Grok Build authored the initial bounded `BBGO-PAY-001` test source after BBD-WAL-001
+  and the accepted fixture froze the object schema and negative rate/wallet contract.
+- Codex Sol corrected the trust-critical tests and owns the production source because it
+  implements signature trust and validation order, closed-domain canonicalization,
+  durable replay and persistence, attacker-controlled framing, and handler concurrency.
+  The exact re-route and source boundary are frozen in the active ticket and handoff.
 - Codex Spark may later own only mechanical API response/view-model/table scaffolding
   after the signed payment service is accepted. Spark does not own JCS, identity binding,
   signatures, transport verification, persistence, replay, or framing.
