@@ -2,7 +2,7 @@
 
 Ticket: BBGO-PAY-001
 
-State: PARTIAL GREEN RECOVERED — LUNA FUZZ 2–6 CONTINUATION AUTHORIZED
+State: FUZZ TARGET 2 REPEATED HANG — SOL STATIC AUDIT AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -12,7 +12,7 @@ Production source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
 
 Integrated frozen-test baseline: `403df23a63f413c11e13085719fc7e767c2f15be`
 
-Active handoff: [CODEX_LUNA_BBGO_PAY_001_CONTINUE_FUZZ_01.md](CODEX_LUNA_BBGO_PAY_001_CONTINUE_FUZZ_01.md)
+Active handoff: [CODEX_SOL_BBGO_PAY_001_FUZZ_HANG_AUDIT_01.md](CODEX_SOL_BBGO_PAY_001_FUZZ_HANG_AUDIT_01.md)
 
 Evidence: [BBGO-PAY-001-EXPECTED-RED.md](../testing/BBGO-PAY-001-EXPECTED-RED.md)
 
@@ -52,7 +52,11 @@ Tidy, focused/full tests, three falsifications, vet, race, and fuzz target 1 com
 successfully before Luna's agent turn stuck at fuzz target 2. The recovered state and
 non-duplicative boundary are recorded in
 [BBGO-PAY-001-GREEN-RECOVERY-01.md](../testing/BBGO-PAY-001-GREEN-RECOVERY-01.md).
-Luna may now run only fuzz targets 2–6. Security, Git integration, public network,
+The exact native target-2 invocation then silently stalled a second time for about 626
+seconds before reviewer interruption, as recorded in
+[BBGO-PAY-001-FUZZ-HANG-01.md](../testing/BBGO-PAY-001-FUZZ-HANG-01.md). No result or
+process remains and state is unchanged. Sol may perform only the active handoff's static
+target/decoder audit. Further fuzz execution, security, Git integration, public network,
 wallet, rate, transaction, hardware, device, release binary, SBOM, and other work remain
 unauthorized.
 

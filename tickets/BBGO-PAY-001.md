@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: PARTIAL GREEN RECOVERED — LUNA FUZZ 2–6 CONTINUATION AUTHORIZED
+Status: FUZZ TARGET 2 REPEATED HANG — SOL STATIC AUDIT AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -258,6 +258,19 @@ Luna may now run only native fuzz targets 2–6 under
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_CONTINUE_FUZZ_01.md`. Completed gates must not be
 duplicated. Security scanning, evidence integration, Git, binaries, and SBOM remain
 unauthorized pending reviewer recording of the bounded continuation.
+
+## Fuzz target 2 repeated hang
+
+The exact three-second `FuzzDecodeWireEnvelope` command silently stalled twice before
+emitting a fuzz banner or yielding an execution result; the second invocation remained
+inside foreground exec for approximately 626.1 seconds. Both were interrupted only after
+extended waits. No process, output, source change, or accepted fuzz result remains. See
+`docs/testing/BBGO-PAY-001-FUZZ-HANG-01.md`.
+
+Sol may now perform only the static target/decoder audit in
+`docs/handoff/CODEX_SOL_BBGO_PAY_001_FUZZ_HANG_AUDIT_01.md`. A third unchanged invocation,
+security scans, integration, binaries, and SBOM are unauthorized pending XHigh review of
+that audit.
 
 ## Required test groups
 
