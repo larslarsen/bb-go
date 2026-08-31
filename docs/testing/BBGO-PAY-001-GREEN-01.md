@@ -83,10 +83,10 @@ Detailed red/green and restoration records: [green recovery](BBGO-PAY-001-GREEN-
 
 ## Native fuzz evidence
 
-All six targets ran separately with one worker, JSON events, `GOMAXPROCS=1`,
-`-parallel=1`, Go's 15-second timeout, and the accepted outer TERM/KILL watchdog.
-Every campaign exited 0 with nonzero executions and no failure, artifact, panic,
-timeout, or watchdog firing:
+Target 1 ran its original native command with 12 workers. Targets 2–6 ran separately
+with one worker, JSON events, `GOMAXPROCS=1`, `-parallel=1`, Go's 15-second timeout, and
+the accepted outer TERM/KILL watchdog. Every campaign exited 0 with nonzero executions
+and no failure, artifact, panic, timeout, or watchdog firing:
 
 | Target | Executions | New / total interesting |
 |---|---:|---:|

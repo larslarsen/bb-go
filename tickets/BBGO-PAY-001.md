@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: SECURITY COMPLETE — LUNA EVIDENCE/INTEGRATION AUTHORIZED
+Status: ACCEPTED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -356,6 +356,22 @@ consolidated green evidence and perform only the exact ten-path integration unde
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_INTEGRATE_01.md`. Final engineering acceptance
 remains owned by Codex XHigh. Binaries and SBOM remain manual release gates and are not
 regenerated for this routine source ticket.
+
+## Reviewer acceptance — 2026-08-31
+
+Accepted feature commit: `6bbb0629cb0dfaca9958f9cac7d57216760630ae`.
+
+Codex XHigh verified the exact ten-path commit, preserved accepted hashes, clean
+worktree/local-upstream identity, complete consolidated local evidence, and successful
+remote Go 1.27 run `33404696381`. Dependency-graph update run `33404699575` also
+succeeded. The one evidence wording error about fuzz worker counts was corrected in the
+reviewer acceptance commit without changing implementation or rerunning a gate. Full
+decision: `docs/testing/BBGO-PAY-001-FINAL-REVIEW-01.md`.
+
+BBGO-PAY-001 is accepted and authorizes no further work. It intentionally adds no
+wallet, exchange-rate provider, transaction/broadcast path, HTTP/desktop integration,
+hardware-device access, product binary, or SBOM. Those require separate reviewed tickets
+or the existing manual release gate.
 
 ## Required test groups
 
