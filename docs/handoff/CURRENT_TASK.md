@@ -2,7 +2,7 @@
 
 Ticket: BBGO-PAY-001
 
-State: GAP EXPECTED RED 03 ACCEPTED — SOL PRODUCTION CORRECTION AUTHORIZED
+State: PRODUCTION SOURCE REVIEW 02 ACCEPTED — LUNA GREEN 01 AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -12,7 +12,7 @@ Production source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
 
 Integrated frozen-test baseline: `403df23a63f413c11e13085719fc7e767c2f15be`
 
-Active handoff: [CODEX_SOL_BBGO_PAY_001_PRODUCTION_CORRECTION_01.md](CODEX_SOL_BBGO_PAY_001_PRODUCTION_CORRECTION_01.md)
+Active handoff: [CODEX_LUNA_BBGO_PAY_001_GREEN_01.md](CODEX_LUNA_BBGO_PAY_001_GREEN_01.md)
 
 Evidence: [BBGO-PAY-001-EXPECTED-RED.md](../testing/BBGO-PAY-001-EXPECTED-RED.md)
 
@@ -47,8 +47,12 @@ exact three intended missing-protection failures. Codex XHigh accepts that resul
 [BBGO-PAY-001-GAP-EXPECTED-RED-REVIEW-03.md](../testing/BBGO-PAY-001-GAP-EXPECTED-RED-REVIEW-03.md).
 Sol may now edit only the three production paths in the active handoff to add typed UTF-8
 validation, a 32-container parse bound, linked nonce separation, and linear stored-record
-integrity validation. No execution, integration, module/lock, public network, wallet,
-rate, transaction, hardware, device, release binary, or SBOM work is authorized.
+integrity validation. Codex XHigh accepts the corrected full seven-path production drop
+for execution in
+[BBGO-PAY-001-PRODUCTION-SOURCE-REVIEW-02.md](../testing/BBGO-PAY-001-PRODUCTION-SOURCE-REVIEW-02.md).
+Luna may perform only the active handoff's module tidy, green/falsification/race/fuzz,
+pinned source-security, evidence, and integration sequence. No public network, wallet,
+rate, transaction, hardware, device, release binary, SBOM, or other work is authorized.
 
 BBGO-SEC-001 and BBGO-SEC-002 remain accepted. Their existing reviewed exceptions and
 re-review dates are unchanged. `../go-ipfs` is deprecated and receives no wallet work.

@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: GAP EXPECTED RED 03 ACCEPTED — SOL PRODUCTION CORRECTION AUTHORIZED
+Status: PRODUCTION SOURCE REVIEW 02 ACCEPTED — LUNA GREEN 01 AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -229,6 +229,21 @@ Under `docs/handoff/CODEX_SOL_BBGO_PAY_001_PRODUCTION_CORRECTION_01.md`, Sol may
 quadratic stored-record validation with map-based linear validation. No execution,
 integration, module/lock, wallet, rate, public-network, release-binary, or SBOM work is
 authorized until XHigh accepts the corrected source.
+
+## Production source acceptance 02 and green authorization
+
+Sol corrected only `canonical.go`, `signature.go`, and `service.go`. Codex XHigh accepts
+the resulting complete seven-path source for execution in
+`docs/testing/BBGO-PAY-001-PRODUCTION-SOURCE-REVIEW-02.md`. The parser is bounded at 32
+containers, typed producers reject invalid UTF-8 before marshal, linked request/status
+nonce reuse is replay, and stored-record integrity validation is O(n).
+
+Luna may now execute only
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_GREEN_01.md`: module tidy, focused/full/race/fuzz
+tests, three exact reversible falsifications, current pinned source-security gates,
+evidence, and integration. Routine binaries and SBOM are explicitly excluded; they
+remain manual release gates. No wallet, exchange-rate, transaction, hardware/device,
+public-peer, or unrelated work is authorized.
 
 ## Required test groups
 
