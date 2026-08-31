@@ -2,7 +2,7 @@
 
 Ticket: BBGO-PAY-001
 
-State: TEST COMPILE CORRECTION ACCEPTED — LUNA GAP EXPECTED RED 02 AUTHORIZED
+State: GAP EXPECTED-RED ATTEMPT 02 REJECTED — LUNA LOOPBACK RETRY AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -12,7 +12,7 @@ Production source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
 
 Integrated frozen-test baseline: `403df23a63f413c11e13085719fc7e767c2f15be`
 
-Active handoff: [CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_02.md](CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_02.md)
+Active handoff: [CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_03.md](CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_03.md)
 
 Evidence: [BBGO-PAY-001-EXPECTED-RED.md](../testing/BBGO-PAY-001-EXPECTED-RED.md)
 
@@ -37,10 +37,13 @@ inventory. Luna's first focused run was rejected before test execution in
 because two frozen transport assertions bound two results from the four-result
 `DecodePaymentStatus` API. Sol's exact two-line correction is accepted in
 [BBGO-PAY-001-TEST-COMPILE-CORRECTION-REVIEW-01.md](../testing/BBGO-PAY-001-TEST-COMPILE-CORRECTION-REVIEW-01.md).
-Luna may now perform only the active handoff's second focused expected-red attempt and,
-if acceptable, integrate the four changed test paths. No production correction, broad
-execution, module/lock, public network, wallet, rate, transaction, hardware, device,
-release binary, or SBOM work is authorized.
+Luna's second attempt reached the two offline assertions but the restricted sandbox
+denied the two-node test's ephemeral loopback bind, as recorded in
+[BBGO-PAY-001-GAP-EXPECTED-RED-ATTEMPT-02.md](../testing/BBGO-PAY-001-GAP-EXPECTED-RED-ATTEMPT-02.md).
+Luna may request a sandbox override and run only the active handoff's same focused command
+once more. This grants neither root nor a public listener. No production correction,
+broad execution, module/lock, public network, wallet, rate, transaction, hardware,
+device, release binary, or SBOM work is authorized.
 
 BBGO-SEC-001 and BBGO-SEC-002 remain accepted. Their existing reviewed exceptions and
 re-review dates are unchanged. `../go-ipfs` is deprecated and receives no wallet work.

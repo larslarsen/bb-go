@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: TEST COMPILE CORRECTION ACCEPTED — LUNA GAP EXPECTED RED 02 AUTHORIZED
+Status: GAP EXPECTED-RED ATTEMPT 02 REJECTED — LUNA LOOPBACK RETRY AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -204,6 +204,18 @@ is unchanged. Luna may retry only the focused expected-red command and, on accep
 red, integrate the four changed test files under
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_02.md`. Production correction and
 broader execution remain unauthorized.
+
+## Gap expected-red attempt 02 rejection
+
+The corrected package compiled and both offline regressions failed for their intended
+missing protections, but the restricted execution sandbox denied the real two-node
+test's ephemeral `127.0.0.1` listener. The exact result is recorded in
+`docs/testing/BBGO-PAY-001-GAP-EXPECTED-RED-ATTEMPT-02.md` and is not accepted red.
+
+Luna may request a one-command sandbox override and retry the exact focused command under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_03.md`. This is loopback-only test
+execution, not root or public-network access. No production correction or other broad
+execution is authorized.
 
 ## Required test groups
 
