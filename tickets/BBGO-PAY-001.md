@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: SECURITY A PARTIAL RECOVERED — LUNA BOUNDED GOVULN/GOSEC CONTINUATION AUTHORIZED
+Status: SECURITY A ACCEPTED — LUNA GITLEAKS PHASE B AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -323,6 +323,24 @@ Luna may now perform only the hard-bounded official-database probe, policy-adjud
 source Govulncheck, and conditional Gosec under
 `docs/handoff/CODEX_LUNA_BBGO_PAY_001_SECURITY_A_CONTINUE_01.md`. Completed policy suites
 and Actionlint must not be duplicated. Gitleaks and integration remain separately gated.
+
+## Security phase A acceptance 01
+
+Luna's exact preflight passed, but its network-authority probe stalled in the sub-agent
+tool channel without an HTTP or exit result. After confirming no process remained, the
+reviewer recovered its execution history and ran the content-suppressed official-database
+probe in the visible foreground reviewer channel: HTTP 200, exit 0. The bounded source
+policy then exited 0 with only reviewed `GO-2024-3218` on exact DHT v0.42.2 and two
+non-reachable `golang.org/x/crypto` notes. Pinned Gosec exited 0 after 17 files / 4,579
+lines with zero issues and zero suppressions. Exact commands, timing, findings metadata,
+execution-actor disposition, and unchanged state are accepted in
+`docs/testing/BBGO-PAY-001-SECURITY-A-REVIEW-01.md`.
+
+Luna may now run only the reviewed Gitleaks baseline validator, exact pinned redacted
+history scan, and final read-only checks under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_SECURITY_B_01.md`. All earlier gates must not be
+rerun. Integration remains separately gated; binaries and SBOM remain manual release
+work and are not authorized by this routine source ticket.
 
 ## Required test groups
 

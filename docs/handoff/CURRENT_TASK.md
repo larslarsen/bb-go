@@ -2,7 +2,7 @@
 
 Ticket: BBGO-PAY-001
 
-State: SECURITY A PARTIAL RECOVERED — LUNA BOUNDED GOVULN/GOSEC CONTINUATION AUTHORIZED
+State: SECURITY A ACCEPTED — LUNA GITLEAKS PHASE B AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -12,7 +12,7 @@ Production source baseline: `0560b6426b9af29a16a151dacc7c2f3021a3dc0d`
 
 Integrated frozen-test baseline: `403df23a63f413c11e13085719fc7e767c2f15be`
 
-Active handoff: [CODEX_LUNA_BBGO_PAY_001_SECURITY_A_CONTINUE_01.md](CODEX_LUNA_BBGO_PAY_001_SECURITY_A_CONTINUE_01.md)
+Active handoff: [CODEX_LUNA_BBGO_PAY_001_SECURITY_B_01.md](CODEX_LUNA_BBGO_PAY_001_SECURITY_B_01.md)
 
 Evidence: [BBGO-PAY-001-EXPECTED-RED.md](../testing/BBGO-PAY-001-EXPECTED-RED.md)
 
@@ -65,16 +65,18 @@ stalls as earlier executor/transport behavior in
 Luna completed targets 3–6 under the same watchdog pattern, with every target passing a
 nonzero native fuzz campaign. Codex XHigh accepts all six targets in
 [BBGO-PAY-001-FUZZ-COMPLETION-REVIEW-01.md](../testing/BBGO-PAY-001-FUZZ-COMPLETION-REVIEW-01.md).
-Security phase A policy suites and Actionlint passed. A sandboxed source Govulncheck
-attempt was network-blocked, and the official-database retry then silently stalled for
-approximately 1,929.9 seconds without a result; Gosec did not run. The exact recovered
-state and non-result are recorded in
-[BBGO-PAY-001-SECURITY-A-RECOVERY-01.md](../testing/BBGO-PAY-001-SECURITY-A-RECOVERY-01.md).
-Luna may now run only the active handoff's hard-bounded official-database probe,
-policy-adjudicated source Govulncheck, conditional Gosec, and final read-only checks.
-Completed policy suites and Actionlint must not be duplicated. Gitleaks, Git integration,
-other public network, wallet, rate, transaction, hardware, device, release binary, SBOM,
-and other work remain unauthorized.
+Security phase A policy suites and Actionlint passed. Two agent-channel scanner attempts
+produced no verdict and are preserved in
+[BBGO-PAY-001-SECURITY-A-RECOVERY-01.md](../testing/BBGO-PAY-001-SECURITY-A-RECOVERY-01.md)
+and the final review. The visible reviewer-channel official-database probe returned HTTP
+200; bounded source Govulncheck accepted only reviewed `GO-2024-3218` plus two
+non-reachable notes; and Gosec reported zero issues across 17 files / 4,579 lines. Codex
+XHigh accepts the complete phase in
+[BBGO-PAY-001-SECURITY-A-REVIEW-01.md](../testing/BBGO-PAY-001-SECURITY-A-REVIEW-01.md).
+Luna may now run only the active handoff's reviewed Gitleaks baseline validator, exact
+pinned redacted history scan, and final read-only checks. Every completed earlier gate
+must not be duplicated. Git integration, other public network, wallet, rate, transaction,
+hardware, device, release binary, SBOM, and other work remain unauthorized.
 
 BBGO-SEC-001 and BBGO-SEC-002 remain accepted. Their existing reviewed exceptions and
 re-review dates are unchanged. `../go-ipfs` is deprecated and receives no wallet work.
