@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: PRODUCTION SOURCE REVIEW 01 REJECTED — SOL GAP TESTS AUTHORIZED
+Status: GAP TEST SOURCE ACCEPTED — LUNA EXPECTED RED AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -165,6 +165,22 @@ The new regression tests must be statically reviewed and captured red before any
 production correction. All other source, execution, integration, Git, module/lock,
 network, wallet, rate, transaction, hardware, device, release, binary, and SBOM work is
 unauthorized.
+
+## Gap-test source acceptance 01
+
+Sol added the three requested regression paths without touching the preserved production
+drop. Codex XHigh accepted their exact source in
+`docs/testing/BBGO-PAY-001-GAP-TEST-SOURCE-REVIEW-01.md`: typed invalid UTF-8 is exercised
+through the real producer, the recursive parser is tested below/at/above a 32-container
+limit, and linked request/event nonce reuse is exercised through the real two-node
+transport and durable store.
+
+Jr Dev — Codex Luna may run only the focused expected-red command and integrate only the
+three accepted test files under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_01.md`. The seven production paths
+must remain dirty, uncommitted, and byte-identical to production source review 01. No
+production correction or broader validation is authorized until Codex XHigh accepts the
+gap expected-red evidence.
 
 ## Required test groups
 
