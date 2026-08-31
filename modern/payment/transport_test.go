@@ -239,7 +239,7 @@ func TestNetworkStatusIsCancellationOnly(t *testing.T) {
 		V: 1, RequestID: req.RequestID, EventID: "aaaabbbbccccddddeeeeffff00001111",
 		Nonce: "0123456789abcdef0123456789abcdef", Status: StatusPaid, At: "2026-08-30T12:06:00Z", TxRef: "txid",
 	}
-	if _, err := DecodePaymentStatus(mustJSON(t, paid)); err != nil {
+	if _, _, _, err := DecodePaymentStatus(mustJSON(t, paid)); err != nil {
 		t.Fatalf("codec rejected paid shape: %v", err)
 	}
 	ack, err = payee.svc.SendStatus(ctx, paid)
@@ -254,7 +254,7 @@ func TestNetworkStatusIsCancellationOnly(t *testing.T) {
 	expired.TxRef = ""
 	expired.EventID = "bbbbaaaaccccddddeeeeffff00001111"
 	expired.Nonce = "fedcba9876543210fedcba9876543210"
-	if _, err := DecodePaymentStatus(mustJSON(t, expired)); err != nil {
+	if _, _, _, err := DecodePaymentStatus(mustJSON(t, expired)); err != nil {
 		t.Fatalf("codec rejected expired shape: %v", err)
 	}
 	ack, err = payee.svc.SendStatus(ctx, expired)

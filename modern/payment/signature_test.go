@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -76,6 +77,18 @@ func TestProducerCannotSignForAnotherPayee(t *testing.T) {
 	req := liveRequest(other.id, payer.id)
 	if _, err := SignRequest(payee.priv, req); codeOf(err) != CodePayee {
 		t.Fatalf("foreign payee sign code = %q (%v)", codeOf(err), err)
+	}
+}
+
+func TestSignRequestRejectsInvalidUTF8MemoBeforeMarshal(t *testing.T) {
+	payee, payer := newIdentity(t), newIdentity(t)
+	request := liveRequest(payee.id, payer.id)
+	request.Memo = string([]byte{'c', 'o', 0xff, 'f', 'f', 'e', 'e'})
+	if utf8.ValidString(request.Memo) {
+		t.Fatal("invalid UTF-8 producer fixture was unexpectedly valid")
+	}
+	if _, err := SignRequest(payee.priv, request); codeOf(err) != CodeSchema {
+		t.Fatalf("invalid UTF-8 producer code = %q, want %q (%v)", codeOf(err), CodeSchema, err)
 	}
 }
 

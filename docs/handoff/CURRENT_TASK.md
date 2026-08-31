@@ -2,7 +2,7 @@
 
 Ticket: BBGO-PAY-001
 
-State: GAP EXPECTED-RED ATTEMPT 02 REJECTED — LUNA LOOPBACK RETRY AUTHORIZED
+State: GAP EXPECTED RED 03 CAPTURED — XHIGH ACCEPTANCE REQUIRED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -15,6 +15,8 @@ Integrated frozen-test baseline: `403df23a63f413c11e13085719fc7e767c2f15be`
 Active handoff: [CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_03.md](CODEX_LUNA_BBGO_PAY_001_GAP_EXPECTED_RED_03.md)
 
 Evidence: [BBGO-PAY-001-EXPECTED-RED.md](../testing/BBGO-PAY-001-EXPECTED-RED.md)
+
+Gap evidence: [BBGO-PAY-001-GAP-EXPECTED-RED-03.md](../testing/BBGO-PAY-001-GAP-EXPECTED-RED-03.md)
 
 [BBGO-PAY-001](../../tickets/BBGO-PAY-001.md) remains the only authorized task in this
 repository. Grok Build authored the original seven-path test drop in the foreground;
@@ -40,10 +42,9 @@ because two frozen transport assertions bound two results from the four-result
 Luna's second attempt reached the two offline assertions but the restricted sandbox
 denied the two-node test's ephemeral loopback bind, as recorded in
 [BBGO-PAY-001-GAP-EXPECTED-RED-ATTEMPT-02.md](../testing/BBGO-PAY-001-GAP-EXPECTED-RED-ATTEMPT-02.md).
-Luna may request a sandbox override and run only the active handoff's same focused command
-once more. This grants neither root nor a public listener. No production correction,
-broad execution, module/lock, public network, wallet, rate, transaction, hardware,
-device, release binary, or SBOM work is authorized.
+The final focused command ran with a loopback-only sandbox override and produced the
+exact three intended missing-protection failures. Production correction remains
+unauthorized pending Codex XHigh acceptance.
 
 BBGO-SEC-001 and BBGO-SEC-002 remain accepted. Their existing reviewed exceptions and
 re-review dates are unchanged. `../go-ipfs` is deprecated and receives no wallet work.

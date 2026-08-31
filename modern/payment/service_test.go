@@ -280,6 +280,51 @@ func TestConflictingEventIDAndNonceAreRejected(t *testing.T) {
 	)
 }
 
+func TestStatusNonceMustDifferFromLinkedRequest(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	payee := newTestPayment(t, ctx, nil)
+	payer := newTestPayment(t, ctx, nil)
+	defer payee.close()
+	defer payer.close()
+	connectPaymentNodes(t, ctx, payee.node, payer.node)
+	req := liveRequest(payee.node.ID(), payer.node.ID())
+	requestAck, err := payee.svc.SendRequest(ctx, req)
+	if err != nil || !requestAck.Accepted {
+		t.Fatalf("linked request was not persisted: ack=%+v err=%v", requestAck, err)
+	}
+	if _, err := payer.svc.GetRequest(ctx, req.RequestID); err != nil {
+		t.Fatalf("linked request is absent before status replay: %v", err)
+	}
+	event := liveCancel(req.RequestID)
+	event.Nonce = req.Nonce
+	if event.Nonce != req.Nonce {
+		t.Fatal("status fixture did not reuse the linked request nonce")
+	}
+	signed, err := SignStatus(payee.node.PrivateKey, event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ack, err := payee.svc.SendSigned(ctx, payer.node.ID(), signed)
+	requireRejectedCode(t, ack, err, CodeReplay)
+	if _, err := payer.svc.GetEvent(ctx, event.EventID); err == nil {
+		t.Fatal("request-nonce-conflicting status left a stored event")
+	}
+	records, err := payer.svc.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusRecords := 0
+	for _, record := range records {
+		if record.Signed.Kind == KindStatus {
+			statusRecords++
+		}
+	}
+	if statusRecords != 0 {
+		t.Fatalf("stored status records = %d, want zero: %+v", statusRecords, records)
+	}
+}
+
 func TestStatusBeforeRequestIsRejected(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
