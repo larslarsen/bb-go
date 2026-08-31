@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: GROK TEST DROP REJECTED — SOL CORRECTION AUTHORIZED
+Status: SOL TEST CORRECTION ACCEPTED — LUNA EXPECTED RED AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -64,9 +64,9 @@ broadcasts. This ticket adds no payment HTTP route and no renderer integration.
   and receipt time only. No wallet, quote, account, intent, seed, spend key, viewing key,
   raw transaction, provider, fiat value, or RPC field exists.
 
-## Current authorization — test source only
+## Test-source scope
 
-At or after the time gate, Grok Build may create or edit only:
+The test-source phase was restricted to these seven paths:
 
 - `modern/payment/testdata/golden-v1.json`
 - `modern/payment/canonical_test.go`
@@ -80,9 +80,10 @@ The copied fixture must be byte-identical to the named desktop oracle. Tests mus
 read the Node implementation in `../bb-desktop/wallet-contract/`; the Go path is an
 independent implementation.
 
-No production source, API, command wiring, module/lock input, documentation, workflow,
-policy implementation, evidence, Git, GitHub, network command, public peer, wallet, node
-process, rate provider, transaction, hardware, or other path is authorized in this phase.
+During test-source authorship, no production source, API, command wiring, module/lock
+input, documentation, workflow, policy implementation, evidence, Git, GitHub, network
+command, public peer, wallet, node process, rate provider, transaction, hardware, or
+other path was authorized.
 
 ## Reviewer test-source correction 01
 
@@ -97,6 +98,23 @@ Under `docs/handoff/CODEX_SOL_BBGO_PAY_001_TESTS_CORRECTION_01.md`, Principal De
 Codex Sol at High may edit only the five named payment test files. No execution,
 integration, production, module/lock, evidence, Git, GitHub, wallet, rate, public peer,
 or other work is authorized.
+
+## Reviewer test-source acceptance 02
+
+Codex Sol corrected exactly the five authorized payment test files. Codex XHigh accepted
+the resulting 49 ordinary tests and six fuzz entrypoints in
+`docs/testing/BBGO-PAY-001-TEST-SOURCE-REVIEW-02.md`. The accepted source closes every
+review-01 blocker: every-field signature mutation and validation order, exact frame
+codes and consumption, deterministic identity and clock injection, real two-node durable
+replay/terminal invariants, strict negative-capability inspection, repeated-cycle leak
+detection, all-network/status boundaries, and parameterized request/status replay fuzzing.
+
+Jr Dev — Codex Luna may execute only the two expected-red commands and integrate the
+frozen seven-path test drop under
+`docs/handoff/CODEX_LUNA_BBGO_PAY_001_EXPECTED_RED.md`. Production source, module/lock
+input, broad validation, scanners, public network, wallet, rate, transaction, hardware,
+device, release binary, and SBOM work remain unauthorized pending reviewer acceptance of
+the expected-red evidence.
 
 ## Required test groups
 
