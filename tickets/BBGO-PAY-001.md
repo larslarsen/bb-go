@@ -1,6 +1,6 @@
 # BBGO-PAY-001 — Signed Payer-Bound Payment Objects and Transport
 
-Status: EXPECTED RED ACCEPTED — SOL PRODUCTION SOURCE AUTHORIZED
+Status: PRODUCTION SOURCE REVIEW 01 REJECTED — SOL GAP TESTS AUTHORIZED
 
 Reviewer: Lead Engineer/Reviewer — Codex at XHigh
 
@@ -150,6 +150,21 @@ The existing manual release SBOM workflow remains mandatory for a release, but t
 routine source ticket does not regenerate binaries or an SBOM. That preserves the
 owner's CI-usage decision while keeping SBOM generation and scan policy in the release
 gate.
+
+## Production source review 01
+
+Sol authored only the seven authorized production paths and ran nothing. Codex XHigh
+rejected the drop before execution in
+`docs/testing/BBGO-PAY-001-PRODUCTION-SOURCE-REVIEW-01.md`. Typed invalid UTF-8 can be
+rewritten before signing, recursive JSON nesting is unbounded, linked request/event nonce
+reuse is not rejected, and stored-record integrity validation is quadratic.
+
+Under `docs/handoff/CODEX_SOL_BBGO_PAY_001_GAP_TESTS_01.md`, Sol may edit only the three
+named payment test files and must leave the seven uncommitted production paths untouched.
+The new regression tests must be statically reviewed and captured red before any
+production correction. All other source, execution, integration, Git, module/lock,
+network, wallet, rate, transaction, hardware, device, release, binary, and SBOM work is
+unauthorized.
 
 ## Required test groups
 
