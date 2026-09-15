@@ -64,9 +64,13 @@ can change, the ticket must also name the applicable security scans, their exact
 and the finding threshold that blocks acceptance.
 
 The ticket-authorized implementation developer authors bounded test source before
-production source, but does not execute tests. Jr Dev — Codex Luna integrates the test-only
-drop first, records the expected red result, integrates the production drop, runs the
-targeted and broader acceptance commands, and publishes the implementation evidence.
+production source. Sr Dev — Grok Build may execute focused tests using the exact commands
+authorized by the active ticket or reviewer handoff and report the commands and results.
+Explicit source-only phases still require review before execution; other source actors
+do not execute tests. Jr Dev — Hermes integrates the test-only drop first, records the
+expected red result, integrates the production drop, runs the targeted and broader
+acceptance commands, and publishes the implementation evidence. Sr Dev's focused test
+results support development and review; they do not replace integrated acceptance evidence.
 The reviewer independently inspects the tests, rejects tautological or shortcut proofs,
 and accepts or rejects the integrated evidence.
 

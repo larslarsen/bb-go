@@ -1,5 +1,58 @@
 # Current Task
 
+ACTIVE: BBGO-PAY-002 phase A — RUNTIME ACCEPTED; CONDITIONAL PUBLICATION AUTHORIZED.
+Owner wants end-to-end peer payment requests and payments; this slice
+connects the accepted payment service to the real daemon lifecycle.
+
+Source review: [BBGO-PAY-002-TEST-SOURCE-REVIEW-02.md](../testing/BBGO-PAY-002-TEST-SOURCE-REVIEW-02.md).
+Execution review: [BBGO-PAY-002-EXPECTED-RED-REVIEW-02.md](../testing/BBGO-PAY-002-EXPECTED-RED-REVIEW-02.md).
+Production review: [BBGO-PAY-002-PRODUCTION-SOURCE-REVIEW-01.md](../testing/BBGO-PAY-002-PRODUCTION-SOURCE-REVIEW-01.md).
+Active actor: Hermes using a free Nous Portal model, manually relayed by owner.
+Runtime acceptance: [BBGO-PAY-002-GREEN-REVIEW-01.md](../testing/BBGO-PAY-002-GREEN-REVIEW-01.md).
+Active handoff: [HERMES_BBGO_PAY_002_PUBLISH_01.md](HERMES_BBGO_PAY_002_PUBLISH_01.md).
+HEAD: 801f5d55d80fe02c6eb512ff35f8c09acfd679af.
+Accepted test: modern/cmd/bitbookd/payment_test.go, 733 lines, SHA-256
+f3e2188ebd2b3706e27903c26f6f8064dc5bf97e84d14b5015b82ef91b5314a2.
+Accepted main.go: 225 lines, SHA-256
+6333d04275944872f2c1ba533642fe16f06b807e7c8e6af537cecdd504c1269b.
+Its six inserted lines import/start payment service with error propagation and close
+it before the shared node/datastore. Grok's focused test command passed both behavior
+tests, exit 0, 1.313s wall time, 0.150s package duration. The test and remaining eight
+original inputs stay frozen.
+
+Hermes verified the exact integrated drop, ran focused green, temporarily removed
+registration and proved the same protocol-negotiation red, restored the exact accepted
+source and ran focused green again, then ran the five-package race suite:
+
+Stage 1 focused green: PASS exit 0, both TestPaymentDaemon tests, package 0.153s wall ~1s.
+Stage 2 falsification: main.go restored to original 219-line baseline
+(9c7aba19576d162b322dce3dddb61990f8d2a5a65f12b681100bf6e23f8a12ab). Both daemon
+tests failed on protocols not supported: [/bitbook/payment/1.0.0] — same expected-red,
+proving the test binds to the production registration. Source then restored to accepted
+225-line hash.
+Stage 3 restored green: PASS exit 0, both tests green again, package 0.154s.
+Stage 4 race suite (cmd/bitbookd, payment, api, direct, network): all five packages
+PASS, exit 0, ~29s wall. Corrected counts excluding package-level pass events:
+api 5, cmd/bitbookd 12 (4 top-level + 8 sub), direct 10 (6+4), network 12 (10+2),
+payment 278 (57+221). Totals: 82 top-level and 235 subtest entries. The daemon helper
+and six payment fuzz seed entrypoints are included. No native fuzz campaign is claimed.
+No race, panic, timeout, or cleanup diagnostic appears in the retained output.
+
+Evidence: [BBGO-PAY-002-GREEN-01.md](../testing/BBGO-PAY-002-GREEN-01.md).
+
+Codex accepts phase A runtime evidence; no further implementation or local tests are
+authorized. Hermes may publish only the exact 23 paths under the active handoff after
+verifying the baseline/staged source and passing the pinned redacted staged-content
+secret scan. One normal commit and push to origin master, followed by read-only CI
+observation, are authorized. Publication has not yet occurred. Stop on gate failure
+or remote divergence; no repair, force-push, or scope expansion.
+
+Preserve the owner-owned untracked modern/bitbookd and all ignored runner artifacts.
+No release binary, deployment, public-peer, wallet/coin, payment HTTP, desktop, or
+cross-repository work is authorized. Further payment product work needs a new contract.
+
+The prior BBGO-PAY-001 records below are historical acceptance, not active routing.
+
 Ticket: BBGO-PAY-001
 
 State: ACCEPTED

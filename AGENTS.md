@@ -44,9 +44,11 @@ This file governs agent work in the `bb-go` repository.
   execute tests or own integration, repository records, Git, commits, or pushes.
 - **Sr Dev — Grok Build:** agentic, using Grok 4.6 High. Authors bounded protocol,
   transport, corrective, and other senior source and test source after the reviewer has
-  fixed sensitive schemas and trust semantics. It does not execute tests or own
-  integration, repository records, Git, commits, or pushes.
-- **Jr Dev — Codex Luna:** agentic, using `gpt-5.6-luna`. Owns production/test
+  fixed sensitive schemas and trust semantics. It may run focused tests within the
+  active ticket or reviewer handoff's authorized commands and report exact results.
+  It does not own broader acceptance testing, integration, repository records, Git,
+  commits, or pushes.
+- **Jr Dev — Hermes:** agentic, using a free Nous Portal model. Owns production/test
   source-drop integration, test and acceptance-command
   execution, implementation/evidence records, and the corresponding Git, commits, and
   pushes. It does not design or author tests.
@@ -64,9 +66,11 @@ result. See `docs/engineering/DEVELOPMENT_ROLES.md`.
    test-falsification rules.
 3. Verify the exact source baseline before editing.
 4. Modify only the ticket's authorized paths.
-5. The authorized source actor authors test source before production source and stops
-   without test execution or Git operations.
-6. Codex Luna integrates the drop, runs only the explicitly authorized commands, records
+5. The authorized source actor authors test source before production source. Sr Dev
+   may run focused tests authorized by the active ticket or reviewer handoff; other
+   source actors stop without test execution. Explicit source-only phases still require
+   review before execution. All source actors stop without Git operations.
+6. Hermes integrates the drop, runs only the explicitly authorized commands, records
    evidence, and performs the corresponding Git operations.
 7. Report changed paths, hashes, line counts, test counts, and exact command results for
    reviewer acceptance.

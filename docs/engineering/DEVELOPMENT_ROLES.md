@@ -20,9 +20,11 @@ only and changes no code, protocol, data, or acceptance state.
   use Git.
 - **Sr Dev — Grok Build:** uses Grok 4.6 High for bounded protocol, transport,
   corrective, and other senior source and test-source work after the reviewer fixes
-  sensitive schemas and trust semantics. It does not execute tests, integrate, maintain
-  records, or use Git.
-- **Jr Dev — Codex Luna:** uses `gpt-5.6-luna`. It owns source-drop integration, test and
+  sensitive schemas and trust semantics. It may run focused tests using commands
+  authorized by the active ticket or reviewer handoff and report exact results. Explicit
+  source-only phases still require review before execution. It does not own broader
+  acceptance testing, integrate, maintain repository records, or use Git.
+- **Jr Dev — Hermes:** uses a free Nous Portal model. It owns source-drop integration, test and
   acceptance-command execution,
   implementation/evidence records, and the corresponding Git, commit, and push work. It
   does not design or author tests.
@@ -35,9 +37,9 @@ only and changes no code, protocol, data, or acceptance state.
 2. Codex Sol receives the highest-risk trust-boundary, cryptographic-core, and
    persistence work.
 3. Grok Build receives bounded senior work after the reviewer freezes its security and
-   protocol semantics.
+   protocol semantics, including focused test execution within the authorized scope.
 4. Codex Spark receives mechanical work whose design and semantics are already fixed.
-5. Codex Luna integrates every developer drop, runs the ticket's commands, records evidence,
+5. Hermes integrates every developer drop, runs the ticket's commands, records evidence,
    and publishes the resulting Git change.
 6. The reviewer alone accepts or rejects the result and authorizes what follows.
 

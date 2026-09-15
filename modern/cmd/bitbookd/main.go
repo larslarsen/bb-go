@@ -17,6 +17,7 @@ import (
 	"github.com/larslarsen/bb-go/modern/api"
 	"github.com/larslarsen/bb-go/modern/direct"
 	"github.com/larslarsen/bb-go/modern/network"
+	"github.com/larslarsen/bb-go/modern/payment"
 	"github.com/larslarsen/bb-go/modern/social"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -81,6 +82,11 @@ func run() error {
 		return err
 	}
 	defer node.Close()
+	paymentService, err := payment.NewService(node.Node)
+	if err != nil {
+		return err
+	}
+	defer paymentService.Close()
 
 	store, err := social.NewStore(node.Node)
 	if err != nil {
