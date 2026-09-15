@@ -1,6 +1,151 @@
 # Current Task
 
-NO ACTIVE IMPLEMENTATION: BBGO-PAY-002 phase A — ACCEPTED AND PUBLISHED.
+ACTIVE: BBGO-PAY-003 — source/runtime/Gosec accepted; bounded publication authorized.
+Review: [BBGO-PAY-003-ACCEPTANCE-REVIEW-03.md](../testing/BBGO-PAY-003-ACCEPTANCE-REVIEW-03.md).
+Active handoff: [HERMES_BBGO_PAY_003_PUBLICATION_01.md](HERMES_BBGO_PAY_003_PUBLICATION_01.md).
+Actor: Hermes on a free Nous Portal model, owner-relayed. No actor launched by this review.
+Baseline: master at 2b695a8719a7381f3919bb83c63e54251f43536d; source/binary pinned.
+
+Gosec analyzed both production files: 2 files, 693 lines, zero issues. Retain the
+accepted tests, fuzz, falsification/restoration, vet, Govulncheck and binary refresh.
+The index is currently empty; past clean Gitleaks logs do not pin the current files.
+Hermes must finish the specified report path normalization, stage/scan the exact
+sixteen-path feature set and publish only after all content checks pass. Record
+remote and Go 1.27 CI results in the publication document. The handoff also bounds
+one three-path documentation closeout commit after successful feature push and CI.
+
+No repeated test/scanner suite or build, source repair, daemon restart, desktop
+integration or broader Git operation. Scan/publication records belong in repository
+documents. Return for reviewer final verification.
+
+DEV-001 is cancelled. All DEV-001 handoffs below are historical and cancelled.
+
+HISTORICAL DEV-001 FINISH:
+
+Owner directed reducing the test/process overhead. Hermes signal red is accepted;
+all 12 source pins, real binary and before/after/current Git state match. No more
+test additions, formal-red phases, broad discovery or separate falsification run.
+Relay docs/handoff/GROK_BUILD_BBGO_DEV_001_FINISH_01.md to Grok Build 4.6 High:
+fix only helper cancellation and the README test cwd, run the existing fixture
+suite, then return for review. Hermes next performs the actual build-only refresh
+and scoped publication. No real daemon restart. Earlier handoffs below are historical.
+
+HISTORICAL SIGNAL RED 01:
+
+Signal regressions are source-accepted at 1107 lines, SHA-256
+0eabddae499cc425e89f0596e9e237ecc0bf26974e8ddc8659ce2ba93b78f399.
+Exactly 18 methods; the prior 16 tests and their fixture source reconstruct to the
+accepted old hash. Review: docs/testing/BBGO-DEV-001-SIGNAL-TEST-SOURCE-REVIEW-01.md.
+Owner may relay docs/handoff/HERMES_BBGO_DEV_001_SIGNAL_RED_01.md to Hermes on a
+free Nous Portal model. It captures the two-test/four-failure signal red and whole
+18-test target with the same four failures. All 12 source pins and the real binary
+are frozen. No production edits, actual Go/daemon, scans or Git mutation. Grok test
+authority is closed. Codex must accept the red before helper/README repair.
+Earlier source instructions below are historical. No actor launched.
+
+HISTORICAL SIGNAL TESTS 01:
+
+First five-path production drop requires correction: SIGINT/SIGTERM can be swallowed
+after the last interruption check and before publication/exec. README also lost the
+modern test-command cwd. See docs/testing/BBGO-DEV-001-PRODUCTION-SOURCE-REVIEW-01.md.
+Owner may relay docs/handoff/GROK_BUILD_BBGO_DEV_001_SIGNAL_TESTS_01.md to Grok Build
+4.6 High. Only scripts/dev_bitbookd_test.py may change to add the two bounded
+real-signal regressions; retain the original 16 tests. All five production paths,
+nonwritable original inputs and actual daemon binary are frozen. No Hermes green,
+real build/refresh, daemon restart, scans or Git mutation. No actor launched.
+
+HISTORICAL PRODUCTION 01:
+
+Formal red is accepted: 16 methods / 24 assertion failures, zero errors/skips,
+exit 1; all failures follow Python exit 2 for the missing copied helper. All nine
+input pins, accepted tests and actual daemon binary match. Review:
+docs/testing/BBGO-DEV-001-EXPECTED-RED-REVIEW-01.md. The review records the
+executor's removed out-of-scope temporary driver; no red rerun is needed.
+Owner may relay docs/handoff/GROK_BUILD_BBGO_DEV_001_PRODUCTION_01.md to Grok Build
+4.6 High. Exactly five production paths are writable; tests and real binaries stay
+frozen. Grok may iterate only the focused fixture suite. No actual Go build, daemon,
+broader acceptance, scans or Git mutation. Hermes formal green, verified local
+build-only refresh and publication require later reviewer handoffs. No actor launched.
+
+HISTORICAL EXPECTED RED 01:
+
+Corrected test source is accepted: 843 lines, SHA-256
+ceafeb66aa78a569a293bff628d09343876df3e74415c7c334d57f3815ecbfbb;
+16 test methods. All nine original inputs and the real daemon binary are unchanged;
+production helper remains absent. See docs/testing/BBGO-DEV-001-TEST-SOURCE-REVIEW-02.md.
+Owner may relay docs/handoff/HERMES_BBGO_DEV_001_EXPECTED_RED_01.md to Hermes on a
+free Nous Portal model. Its supplied driver captures the offline fixture red and
+before/after pins. No source edits, actual Go/daemon, build, Git mutation or restart.
+Grok authority is closed; Codex must accept the red before authorizing production.
+Earlier source/correction instructions below are historical. No actor was launched.
+
+HISTORICAL TEST CORRECTION 01:
+
+First 544-line test drop requires correction: failed build is not exercised in run
+mode, compiler lookup is not isolated, signal readiness races handler installation,
+and process cleanup/CLI-boundary proofs need repair. See
+docs/testing/BBGO-DEV-001-TEST-SOURCE-REVIEW-01.md. Owner may relay
+docs/handoff/GROK_BUILD_BBGO_DEV_001_TESTS_CORRECTION_01.md to Grok Build 4.6 High.
+Only scripts/dev_bitbookd_test.py may change. Nine input pins and the real local
+binary remain unchanged; production helper remains absent. No formal Hermes red
+or production is authorized. The original create-only handoff below is historical.
+
+WAL-019 is complete in bb-desktop. The next bounded task addresses the owner's
+stale local daemon: its current executable still records pre-PAY-002 revision
+801f5d55d80fe02c6eb512ff35f8c09acfd679af. Read tickets/BBGO-DEV-001.md and relay
+docs/handoff/GROK_BUILD_BBGO_DEV_001_TESTS_CORRECTION_01.md to Grok Build 4.6 High.
+Only scripts/dev_bitbookd_test.py may be corrected. Grok may run the ticket's offline
+fixture tests, which never invoke real Go or the actual daemon. Production, binary
+refresh, formal acceptance and publication each require later reviewer handoffs.
+Preserve modern/bitbookd and all unrelated work. No actor has been launched.
+Payment authenticated-client access remains the next payment dependency; mobile UI
+and profile pictures remain queued. No real funds, mainnet or deployment.
+
+BBGO-PAY-002 phase A remains ACCEPTED AND PUBLISHED. All older active-task/actor
+instructions below are historical and cannot authorize execution.
+
+WALLET UI DIRECTION: owner wants mobile ZEC wallet references considered for a likely
+future mobile BitBook version. Desktop docs/architecture/BBD-WAL-MOBILE-DESIGN-DIRECTION-01.md
+records Zodl/YWallet/MonteZecret references and proposed consistent phone/desktop
+flows. No daemon change, mobile framework choice or active-task replacement follows.
+
+LOCAL BUILD FOLLOW-UP: owner expects development updates to refresh the executable
+used locally. The documented modern/bitbookd path is correct, but its inspected Go
+build metadata is still revision 801f5d55d80fe02c6eb512ff35f8c09acfd679af, before
+PAY-002. Git updates and Go tests do not replace that executable. No maintained
+build-before-launch task was found; the root Makefile's bitbookd target builds the
+legacy daemon. Queue a bounded modern development build/launch task and an explicit
+verified local-binary refresh step in the integration workflow. Build failure must
+stop launch rather than silently run a stale binary; preserve launch arguments and
+data directories. This is a workflow gap, not a wrong executable location. No local
+binary replacement or process restart has happened. BBGO-DEV-001 now bounds this follow-up.
+
+HISTORICAL WAL-019 ROUTING: payments and usable UI. The then-active task was in
+bb-desktop: tickets/BBD-WAL-019.md, one-click native wallet Sync publication 01,
+via docs/handoff/HERMES_BBD_WAL_019_PUBLICATION_01.md in that repository.
+Runtime and the local wallet resource refresh are accepted; see its
+docs/testing/BBD-WAL-019-GREEN-REVIEW-01.md. Hermes may correct its reports and
+scan/commit/push the exact desktop path set. All source is frozen. No bb-go mutation,
+daemon rebuild, process restart or test execution is authorized here.
+Remaining payment sequence is recorded in bb-desktop's
+docs/architecture/BBD-PAY-END-TO-END-STATUS-01.md: authenticated request access,
+native receive/request/approval integration, then submission and confirmation.
+Social profile pictures get a separate recovery ticket. Advertising remains
+deferred. No real-fund transaction, mainnet, or deployment is authorized.
+
+Owner planning context: separate frontend feature recovery (profile pictures first
+among named gaps), Rust ZEC wallet UX/sync redesign, peer-payment completion, and a
+private advertising service with on-demand receiving addresses and server-held ad
+budgets. Local cross-project planning note:
+[PRODUCT_WORKSTREAM_CONTEXT.md](../../../PRODUCT_WORKSTREAM_CONTEXT.md).
+Advertising design is deferred. For wallet/payment planning, treat the future service
+as a specialized node transacting with users' wallets similarly to tips and tip
+requests. Preserve authenticated counterparties and explicit wallet approval; do not
+make ad-ledger, auction, or search design prerequisites for payment completion.
+The overview itself authorizes no source task; WAL-019 has its own bounded desktop
+contract above. Keep private service internals out of public
+publication scope. OB1 search reuse remains a deferred compatibility candidate.
+
 Owner wants end-to-end peer payment requests and payments; this slice
 connects the accepted payment service to the real daemon lifecycle.
 

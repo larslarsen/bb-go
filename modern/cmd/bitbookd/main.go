@@ -16,6 +16,7 @@ import (
 
 	"github.com/larslarsen/bb-go/modern/api"
 	"github.com/larslarsen/bb-go/modern/direct"
+	"github.com/larslarsen/bb-go/modern/localclient"
 	"github.com/larslarsen/bb-go/modern/network"
 	"github.com/larslarsen/bb-go/modern/payment"
 	"github.com/larslarsen/bb-go/modern/social"
@@ -87,6 +88,21 @@ func run() error {
 		return err
 	}
 	defer paymentService.Close()
+	localAccess, err := localclient.Start(*dataDir, node.ID(), paymentService)
+	if err != nil {
+		if !errors.Is(err, localclient.ErrUnavailable) {
+			return err
+		}
+		log.Print("local payment access unavailable")
+	} else {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if closeErr := localAccess.Close(shutdownCtx); closeErr != nil {
+				log.Printf("local payment access shutdown: %v", closeErr)
+			}
+		}()
+	}
 
 	store, err := social.NewStore(node.Node)
 	if err != nil {
@@ -126,6 +142,10 @@ func run() error {
 	go func() {
 		serverErrors <- server.ListenAndServe()
 	}()
+	var localFailures <-chan error
+	if localAccess != nil {
+		localFailures = localAccess.Failures()
+	}
 	select {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -136,6 +156,14 @@ func run() error {
 			return nil
 		}
 		return err
+	case err := <-localFailures:
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return fmt.Errorf("local payment access: %w", err)
 	}
 }
 
