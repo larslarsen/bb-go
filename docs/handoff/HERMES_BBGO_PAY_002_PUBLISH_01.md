@@ -1,7 +1,11 @@
 # BBGO-PAY-002 phase A — Hermes publication 01
 
 Actor: Hermes, free Nous Portal model, manually relayed by owner.
-Reviewer: Codex. Status: ACTIVE — conditional publication of accepted phase A.
+Reviewer: Codex. Status: COMPLETE — publication accepted in
+[final review 01](../testing/BBGO-PAY-002-FINAL-REVIEW-01.md).
+Published feature: c00764d4a84eb0e149ec2779d1746248f86ba3a4 on origin/master;
+Go 1.27 CI passed. The authority below is historical; no further execution or Git
+mutation is authorized by this completed handoff.
 
 Read AGENTS.md, TESTING.md, CURRENT_TASK.md, tickets/BBGO-PAY-002.md, and
 [integrated green review 01](../testing/BBGO-PAY-002-GREEN-REVIEW-01.md).

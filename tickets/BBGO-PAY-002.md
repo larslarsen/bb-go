@@ -1,15 +1,17 @@
 # BBGO-PAY-002 — Connect payment requests to the running daemon
 
-Status: PHASE A RUNTIME ACCEPTED — conditional publication authorized; no further implementation.
+Status: PHASE A ACCEPTED AND PUBLISHED — no further implementation authorized.
 Reviewer: Codex. Grok completed the source and focused development test; Hermes completed
-integrated green, falsification/restoration, and the five-package race suite. Active
-publisher: Hermes using a free Nous Portal model, manually relayed by owner.
+integrated green, falsification/restoration, the five-package race suite, and publication.
+Feature commit: c00764d4a84eb0e149ec2779d1746248f86ba3a4 on origin/master; CI passed.
+Active actor: none.
 
 Review: [BBGO-PAY-002-TEST-SOURCE-REVIEW-02.md](../docs/testing/BBGO-PAY-002-TEST-SOURCE-REVIEW-02.md).
 Execution review: [BBGO-PAY-002-EXPECTED-RED-REVIEW-02.md](../docs/testing/BBGO-PAY-002-EXPECTED-RED-REVIEW-02.md).
 Production review: [BBGO-PAY-002-PRODUCTION-SOURCE-REVIEW-01.md](../docs/testing/BBGO-PAY-002-PRODUCTION-SOURCE-REVIEW-01.md).
 Runtime acceptance: [BBGO-PAY-002-GREEN-REVIEW-01.md](../docs/testing/BBGO-PAY-002-GREEN-REVIEW-01.md).
-Active handoff: [HERMES_BBGO_PAY_002_PUBLISH_01.md](../docs/handoff/HERMES_BBGO_PAY_002_PUBLISH_01.md).
+Final acceptance: [BBGO-PAY-002-FINAL-REVIEW-01.md](../docs/testing/BBGO-PAY-002-FINAL-REVIEW-01.md).
+Active handoff: none. [Publication handoff](../docs/handoff/HERMES_BBGO_PAY_002_PUBLISH_01.md) is complete.
 
 Owner requirement: send payment requests and payments between BitBook users. This
 ticket advances request delivery, not coin custody or settlement. BBGO-PAY-001 supplied
@@ -17,7 +19,8 @@ the signed libp2p transport component but expressly omitted startup/client integ
 
 ## Baselines
 
-bb-go HEAD: 801f5d55d80fe02c6eb512ff35f8c09acfd679af (accepted PAY-001).
+Original bb-go baseline: 801f5d55d80fe02c6eb512ff35f8c09acfd679af (accepted PAY-001).
+Published phase A: c00764d4a84eb0e149ec2779d1746248f86ba3a4.
 bb-desktop read-only baseline: 2b5ad193f01af31f2a2bdcc7b0d1080dd5a2f68e, with existing
 dirty wallet work. See its docs/architecture/BBD-PAY-END-TO-END-STATUS-01.md.
 The untracked modern/bitbookd binary belongs to the owner; do not run/overwrite/delete it.
@@ -74,8 +77,8 @@ Client-facing request creation/retrieval, desktop UI, receiver derivation, walle
 chain submission and paid receipts are subsequent contracts, not authorized here.
 In particular, the current social API's wildcard CORS is not approval for payment
 request endpoints. Existing network paid-status rejection stays intact. Integration,
-commits and pushes are authorized only for the exact 23 paths and conditional staged
-secret-scan/remote-baseline gates in Hermes publication 01. No further source work,
-local retesting, deployment, or broader product acceptance is authorized. Existing
+commits and pushes under Hermes publication 01 are complete. The reviewer closeout
+records the published feature and successful CI. No further source work, executor
+task, local retesting, deployment, or broader product acceptance is authorized. Existing
 security exceptions remain unchanged; no dependency/parser/cryptographic-core change
 occurred in this slice.

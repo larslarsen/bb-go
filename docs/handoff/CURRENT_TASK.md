@@ -1,16 +1,19 @@
 # Current Task
 
-ACTIVE: BBGO-PAY-002 phase A — RUNTIME ACCEPTED; CONDITIONAL PUBLICATION AUTHORIZED.
+NO ACTIVE IMPLEMENTATION: BBGO-PAY-002 phase A — ACCEPTED AND PUBLISHED.
 Owner wants end-to-end peer payment requests and payments; this slice
 connects the accepted payment service to the real daemon lifecycle.
 
 Source review: [BBGO-PAY-002-TEST-SOURCE-REVIEW-02.md](../testing/BBGO-PAY-002-TEST-SOURCE-REVIEW-02.md).
 Execution review: [BBGO-PAY-002-EXPECTED-RED-REVIEW-02.md](../testing/BBGO-PAY-002-EXPECTED-RED-REVIEW-02.md).
 Production review: [BBGO-PAY-002-PRODUCTION-SOURCE-REVIEW-01.md](../testing/BBGO-PAY-002-PRODUCTION-SOURCE-REVIEW-01.md).
-Active actor: Hermes using a free Nous Portal model, manually relayed by owner.
+Active actor: none.
 Runtime acceptance: [BBGO-PAY-002-GREEN-REVIEW-01.md](../testing/BBGO-PAY-002-GREEN-REVIEW-01.md).
-Active handoff: [HERMES_BBGO_PAY_002_PUBLISH_01.md](HERMES_BBGO_PAY_002_PUBLISH_01.md).
-HEAD: 801f5d55d80fe02c6eb512ff35f8c09acfd679af.
+Final acceptance: [BBGO-PAY-002-FINAL-REVIEW-01.md](../testing/BBGO-PAY-002-FINAL-REVIEW-01.md).
+Active handoff: none. Hermes publication 01 is complete.
+Published feature commit: c00764d4a84eb0e149ec2779d1746248f86ba3a4 on origin/master.
+CI: [Go 1.27, run 34916979825](https://github.com/larslarsen/bb-go/actions/runs/34916979825) passed on that exact commit.
+Original source baseline: 801f5d55d80fe02c6eb512ff35f8c09acfd679af.
 Accepted test: modern/cmd/bitbookd/payment_test.go, 733 lines, SHA-256
 f3e2188ebd2b3706e27903c26f6f8064dc5bf97e84d14b5015b82ef91b5314a2.
 Accepted main.go: 225 lines, SHA-256
@@ -40,12 +43,12 @@ No race, panic, timeout, or cleanup diagnostic appears in the retained output.
 
 Evidence: [BBGO-PAY-002-GREEN-01.md](../testing/BBGO-PAY-002-GREEN-01.md).
 
-Codex accepts phase A runtime evidence; no further implementation or local tests are
-authorized. Hermes may publish only the exact 23 paths under the active handoff after
-verifying the baseline/staged source and passing the pinned redacted staged-content
-secret scan. One normal commit and push to origin master, followed by read-only CI
-observation, are authorized. Publication has not yet occurred. Stop on gate failure
-or remote divergence; no repair, force-push, or scope expansion.
+Codex accepts phase A runtime, publication, and CI. The feature commit contains the
+exact 23 authorized paths; the pinned staged-content secret scan reports no leaks.
+The remote master ref and successful CI head were independently verified. No further
+implementation, executor task, local testing, or developer Git work is authorized.
+The reviewer publishes only the four-path final governance/review closeout named in
+the final review. Further work requires a new reviewer-bounded contract.
 
 Preserve the owner-owned untracked modern/bitbookd and all ignored runner artifacts.
 No release binary, deployment, public-peer, wallet/coin, payment HTTP, desktop, or
