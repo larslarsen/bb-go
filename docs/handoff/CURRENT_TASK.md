@@ -1,22 +1,18 @@
 # Current Task
 
-ACTIVE: BBGO-PAY-003 — source/runtime/Gosec accepted; bounded publication authorized.
-Review: [BBGO-PAY-003-ACCEPTANCE-REVIEW-03.md](../testing/BBGO-PAY-003-ACCEPTANCE-REVIEW-03.md).
-Active handoff: [HERMES_BBGO_PAY_003_PUBLICATION_01.md](HERMES_BBGO_PAY_003_PUBLICATION_01.md).
-Actor: Hermes on a free Nous Portal model, owner-relayed. No actor launched by this review.
-Baseline: master at 2b695a8719a7381f3919bb83c63e54251f43536d; source/binary pinned.
+ACTIVE: BBGO-PAY-003 — PUBLISHED — REVIEWER FINAL VERIFICATION.
+Feature commit: `82ed5f9c62ab22687a4972ba0ad59731bf43013e` on origin/master.
+CI: [Go 1.27, run 35017544700](https://github.com/larslarsen/bb-go/actions/runs/35017544700) passed.
 
-Gosec analyzed both production files: 2 files, 693 lines, zero issues. Retain the
-accepted tests, fuzz, falsification/restoration, vet, Govulncheck and binary refresh.
-The index is currently empty; past clean Gitleaks logs do not pin the current files.
-Hermes must finish the specified report path normalization, stage/scan the exact
-sixteen-path feature set and publish only after all content checks pass. Record
-remote and Go 1.27 CI results in the publication document. The handoff also bounds
-one three-path documentation closeout commit after successful feature push and CI.
+Owner wants end-to-end peer payment requests and payments; this slice added the
+localclient HTTP server with authenticated request delivery, streaming regression
+tests, and fuzz coverage.
 
-No repeated test/scanner suite or build, source repair, daemon restart, desktop
-integration or broader Git operation. Scan/publication records belong in repository
-documents. Return for reviewer final verification.
+Publication: [BBGO-PAY-003-PUBLICATION-01.md](../testing/BBGO-PAY-003-PUBLICATION-01.md).
+
+Source, tests, and binary are frozen. No further implementation, executor task,
+local testing, or developer Git work is authorized. Further payment product work
+needs a new reviewer-bounded contract.
 
 DEV-001 is cancelled. All DEV-001 handoffs below are historical and cancelled.
 

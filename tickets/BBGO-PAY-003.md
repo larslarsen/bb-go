@@ -1,12 +1,11 @@
 # BBGO-PAY-003 — Authenticated local access to received payment requests
 
-Status: SOURCE/RUNTIME/GOSEC ACCEPTED; BOUNDED PUBLICATION AUTHORIZED. Reviewer: Codex.
+Status: PUBLISHED — REVIEWER FINAL VERIFICATION. Reviewer: Codex.
 Review: [source review 02](../docs/testing/BBGO-PAY-003-SOURCE-REVIEW-02.md).
 Evidence review: [acceptance review 03](../docs/testing/BBGO-PAY-003-ACCEPTANCE-REVIEW-03.md).
-Active handoff: [Hermes publication 01](../docs/handoff/HERMES_BBGO_PAY_003_PUBLICATION_01.md).
-Source stays frozen; retain completed tests/scans and the verified binary. Hermes
-may finish bounded report normalization, stage and scan the exact sixteen-path set,
-commit/push after clean content checks, observe CI and record the bounded closeout.
+Publication: [publication 01](../docs/testing/BBGO-PAY-003-PUBLICATION-01.md).
+Feature commit: `82ed5f9c62ab22687a4972ba0ad59731bf43013e` on origin/master.
+CI: [Go 1.27, run 35017544700](https://github.com/larslarsen/bb-go/actions/runs/35017544700) passed.
 The original contract below governs behavior; publication 01 is current authority.
 
 ## Outcome and scope
