@@ -1,12 +1,15 @@
 # BBGO-PAY-003 — Authenticated local access to received payment requests
 
-Status: PUBLISHED — REVIEWER FINAL VERIFICATION. Reviewer: Codex.
+Status: ACCEPTED AND PUBLISHED. Reviewer: Codex.
+Final review: [final acceptance 01](../docs/testing/BBGO-PAY-003-FINAL-REVIEW-01.md).
 Review: [source review 02](../docs/testing/BBGO-PAY-003-SOURCE-REVIEW-02.md).
 Evidence review: [acceptance review 03](../docs/testing/BBGO-PAY-003-ACCEPTANCE-REVIEW-03.md).
 Publication: [publication 01](../docs/testing/BBGO-PAY-003-PUBLICATION-01.md).
 Feature commit: `82ed5f9c62ab22687a4972ba0ad59731bf43013e` on origin/master.
 CI: [Go 1.27, run 35017544700](https://github.com/larslarsen/bb-go/actions/runs/35017544700) passed.
-The original contract below governs behavior; publication 01 is current authority.
+Hermes documentation closeout: `290825cb40f08f683d72993e8412a703d6a11836`.
+The original contract below is completed history. All developer execution and
+publication handoffs are closed. No further work is authorized under this ticket.
 
 ## Outcome and scope
 

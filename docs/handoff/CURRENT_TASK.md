@@ -1,8 +1,10 @@
 # Current Task
 
-ACTIVE: BBGO-PAY-003 — PUBLISHED — REVIEWER FINAL VERIFICATION.
+BBGO-PAY-003 — ACCEPTED AND PUBLISHED. No active implementation task.
 Feature commit: `82ed5f9c62ab22687a4972ba0ad59731bf43013e` on origin/master.
 CI: [Go 1.27, run 35017544700](https://github.com/larslarsen/bb-go/actions/runs/35017544700) passed.
+Hermes closeout: `290825cb40f08f683d72993e8412a703d6a11836`, independently verified
+on remote master. Final review: [BBGO-PAY-003-FINAL-REVIEW-01.md](../testing/BBGO-PAY-003-FINAL-REVIEW-01.md).
 
 Owner wants end-to-end peer payment requests and payments; this slice added the
 localclient HTTP server with authenticated request delivery, streaming regression
@@ -13,6 +15,10 @@ Publication: [BBGO-PAY-003-PUBLICATION-01.md](../testing/BBGO-PAY-003-PUBLICATIO
 Source, tests, and binary are frozen. No further implementation, executor task,
 local testing, or developer Git work is authorized. Further payment product work
 needs a new reviewer-bounded contract.
+The additional test-file scan findings are adjudicated in the final review; no
+source repair or rerun is needed. Codex's only closeout mutation is the exact
+three-file reviewer governance/review publication enumerated there. Desktop payment
+inbox integration remains a subsequent task; the local daemon has not been restarted.
 
 DEV-001 is cancelled. All DEV-001 handoffs below are historical and cancelled.
 
