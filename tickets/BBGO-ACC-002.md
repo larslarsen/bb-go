@@ -1,10 +1,10 @@
 # BBGO-ACC-002 — durable account grants and revocations
 
-Reviewer: Codex, 2026-09-17, High. **Active: Hermes scan completion/publication; review 04.**
-Actor: Hermes on a free Nous Portal model, owner-relayed. This ticket is the sole
-handoff. Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
-Behavior is accepted; gosec findings are adjudicated in review 04. All source is
-frozen. Review 04 authorizes the remaining scan and conditional scoped publication.
+Reviewer: Codex, 2026-09-17, High. **ACCEPTED, PUBLISHED AND CLOSED — review 05.**
+Feature: `84e3a26863ea5e230e3a737858719d62ad894c5e`, verified on remote master.
+No further source, execution or executor publication is authorized under this ticket.
+All earlier phase instructions below are historical. Read review 05 for the final
+evidence disposition and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md) for routing.
 
 ## Result and scope
 
@@ -817,7 +817,7 @@ capture records the relocation. The old manifest is not executable after relocat
 and must not be reused. Future fault artifacts must use non-Go filenames or a Go-ignored
 directory. No production/test/go.mod changes are needed.
 
-### Active Hermes task and conditional publication
+### Historical Hermes task and conditional publication — closed by review 05
 
 Run the exact command below from bb-go root. It preserves the passing results and
 reuses the captured environment/tool pins. It runs the existing focused DHT-diversity
@@ -983,3 +983,93 @@ Only `tickets/BBGO-ACC-002.md` and `docs/handoff/CURRENT_TASK.md`, based on the
 baseline above. The separate seven-path feature publication belongs to Hermes under
 the conditions above. Reviewer does not integrate source/tests/reports or execute
 acceptance commands. All unrelated work remains untouched.
+
+
+## Review 05 — accepted, published and closed, 2026-09-17
+
+Feature `84e3a26863ea5e230e3a737858719d62ad894c5e` is verified through GitHub's
+master ref. Exactly the six authorized accountstore source/test files and the one
+execution report were committed. All 15 source pins still match; worktree content
+matches the committed seven files. Unrelated dirty/untracked work remains separate.
+[Go 1.27 CI run 35275311397](https://github.com/larslarsen/bb-go/actions/runs/35275311397)
+is completed/success on this exact feature commit.
+
+Review 04's accepted tests, race checks, vet, fuzzing and falsification remain valid.
+The focused DHT-diversity prerequisite passed (exit 0, 0.059s). Govulncheck v1.7.0's
+actual scan and existing policy both exited 0. Retained SARIF has one reachable
+GO-2024-3218 result covered by the existing DHT v0.42.2 exception through 2026-11-29,
+zero warnings, and the same four non-reachable x/crypto notes listed in review 04.
+No new vulnerability finding or exception was introduced. Gosec's exact findings
+retain review 04's manual disposition; its nonzero exit was not made clean.
+
+Dependency/publication capture directory:
+`modern/dist/acc002/publication-20260917T205446828868Z`.
+
+- `publication.json` SHA-256:
+  `29ca03eac96345369b8de1236ffc886412ebe8e7b20541ab035424f82f090388`.
+- `govulncheck.sarif` SHA-256:
+  `1592c175b3b976462f929d2590b4404a7a65d34415aa1fe5c8af5d05e1ae3162`.
+- Final execution report SHA-256:
+  `f6ee1c6939513f8823d1da5fb7e2c69dcca0ae96fe46cebbbdf10e071a03bdbb`.
+- Final report Git blob: `87358909257cfead56b94cdfde11bcc0e1a3b676`.
+
+Reviewer verified the capture's artifact, output, source and tool hashes, the fault
+artifact's byte-preserving relocation, and the report's scan-output/metadata entries.
+No tests or scanners were rerun by Codex.
+
+### Publication evidence qualification and reviewer disposition
+
+The automatic publication capture stopped at staged whitespace checking, exit 2,
+because the copied gosec output contained trailing spaces. Consequently its
+publication.json does **not** contain the later secret scan, commit or push, despite
+the report's statement that those would be retained there.
+
+Hermes subsequently normalized report trailing whitespace. Its first staged Gitleaks
+run found the `cloud.google.com/go/auth v0.23.2` public Go module checksum in the
+captured scanner build metadata. This is a dependency checksum, not a credential.
+Hermes replaced only that checksum's displayed value with a redaction label, restaged
+the report, and rescanned before committing. The original raw build metadata remains
+intact. Reviewer reconstructed the earlier report's approved hash by reversing that
+single display substitution and whitespace normalization; scan output otherwise
+matches the retained raw files. No production/test source changed.
+
+Read-only inspection of Hermes session `20260913_213737_aba8d9` recovered:
+
+- Calls/results 86791/86792, 86793/86794 and 86795/86796: staged scan finding and
+  verbose location, identifying that public checksum in the report.
+- Calls/results 86803/86804: the one report-display substitution.
+- Calls/results 86805/86806: the final seven-path staging and pinned Gitleaks
+  `git --pre-commit --staged --redact=100 --no-banner .`; actual result at
+  21:09:26 UTC is **no leaks, EXIT=0**, approximately 133,305 bytes scanned.
+- Calls/results 86807/86808: staged whitespace passed and commit 84e3a268 created
+  exactly seven paths at 21:10:35 UTC.
+- Calls/results 86809/86810: push succeeded at 21:12:01 UTC, independently confirmed
+  by GitHub's master ref. No intervening report/source edit appears after the final
+  clean scan and before the feature commit.
+
+The executor deviated from the exact runner, removed preflight metadata/report hash
+assertions, and continued after a scan finding despite the ticket's stop instruction.
+Its stated metadata-hash typo is not substantiated: the ticket's reviewed hash matches
+the retained metadata. These deviations are recorded and are not authorization for
+future substitutions. The promised automatic staged-blob binding was not captured;
+the actual scan, edit/stage/commit sequence, unchanged source pins, scoped commit,
+retained raw evidence and successful CI support acceptance of this exact publication.
+Do not describe it as an uninterrupted automatic publication run.
+
+No further executor report correction, rerun or publication is needed under ACC-002.
+The reviewer records the qualification here rather than asking the owner to transcribe
+logs or changing the frozen published report.
+
+### Delivered boundary and next work
+
+The isolated package durably preserves acknowledged grants, revocations and saturation
+under its backend contract. It is not yet wired into the daemon/UI; portable-account
+pairing, authority synchronization and service admission remain subsequent work.
+No binary rebuild/restart is needed for an unimported package. Naming remains
+provisional and is not a gate. The owner's public-IPFS direction remains in NET-001;
+that queued networking change has not been implemented by ACC-002.
+
+Reviewer closeout scope: exactly `tickets/BBGO-ACC-002.md` and
+`docs/handoff/CURRENT_TASK.md`, based on feature commit 84e3a268 above. No feature
+source/test/report integration or other repository edits are included. No actor is
+active under ACC-002 after this closeout.

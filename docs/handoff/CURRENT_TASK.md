@@ -1,21 +1,24 @@
 # Current Task
 
-ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), review 04. Behavior is
-accepted: ordinary/race tests, vet, 30-second fuzzing and the pinned restart fault
-all produced the required results. Exact gosec findings are reviewed as non-blocking.
-The dependency scan stopped on the reviewer's generated fault artifact; no source
-fix is needed. Owner relays the same ticket to Hermes to run review 04's exact scan
-completion and conditional seven-path publication. Passing tests are not repeated.
-All source is frozen; any unexpected finding stops publication. Reviewer closeout
-awaits dependency/secret-scan evidence and the actual published commit. No actor
-has been launched by Codex and no acceptance command was run by Codex. High remains.
+ACCEPTED, PUBLISHED AND CLOSED: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md),
+review 05. Feature `84e3a26863ea5e230e3a737858719d62ad894c5e` is verified on
+remote master; Go 1.27 CI run 35275311397 passed. Tests, race checks, fuzzing,
+revocation-persistence falsification and dependency-policy results are accepted;
+review 04 adjudicates gosec findings. Final staged Gitleaks passed. Review 05 records
+the interrupted publication capture, checksum-display redaction and recovered actual
+scan/commit/push evidence. No further Hermes task, report edit or rerun is needed.
+This remains an isolated package with no daemon/UI integration or rebuild required.
+
+NEXT REVIEW: bound the implementation of the owner's queued public-IPFS direction
+in NET-001. No new implementation/execution actor is authorized yet. ACC-002's
+historical phase instructions are closed. Reviewer effort stays High.
 
 QUEUED NETWORK DIRECTION: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), use the
 public IPFS swarm/bootstrap infrastructure without a required BitBook seed fleet.
 Owner reiterated this on 2026-09-17. The old bootstrap-only ticket was incomplete:
 current DHT/Bitswap protocol prefixes still isolate BitBook. The revised ticket
 records the required compatibility work; no network migration has occurred.
-ACC-002 proceeds unchanged. Trust-profile bootstrap is unrelated and unchanged.
+ACC-002 is complete. Trust-profile bootstrap is unrelated and unchanged.
 
 ACCEPTED AND PUBLISHED: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable
 account grants and revocation verifier, closed by review 08. Feature ad52bf01 and
@@ -37,7 +40,7 @@ integration. Existing v1 peer-ID/signature bindings remain frozen. Naming is pro
 and is not a gate. Read the
 [account decision](../../../bb-desktop/docs/architecture/BB-ACCOUNT-RECIPIENT-PROPOSAL-01.md).
 Current reviewer governance publication is limited to this file and ACC-002 in bb-go;
-review 04 records the scope, evidence disposition and conditional publication. Preserve unrelated work.
+review 05 records the closeout scope and final evidence disposition. Preserve unrelated work.
 
 BBGO-PAY-003 — ACCEPTED AND PUBLISHED. Its authorizations below are historical and
 do not restrict or expand ACC-001's explicit scope. DEV-001 remains cancelled.
