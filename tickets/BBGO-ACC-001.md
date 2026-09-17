@@ -1,13 +1,13 @@
 # BBGO-ACC-001 — portable account grants and revocation verifier
 
-Reviewer: Codex, 2026-09-17. **Active phase: publication evidence completion, review 07.**
-Actor: Hermes, free Nous Portal model, owner-relayed. This ticket is the handoff;
-do not create another handoff for each subsection. Read AGENTS.md, TESTING.md and
+Reviewer: Codex, 2026-09-17. **ACCEPTED AND PUBLISHED — closed by review 08.**
+No active executor or source assignment. This ticket retains the full review record;
+do not create another closeout handoff. Read AGENTS.md, TESTING.md and
 [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md). The daemon's principal-dev role
 routes cryptographic/protocol-core source to Sol. Source publication and passing CI
-are verified in review 07. The secret scan lacks retained evidence; Hermes completes
-the bounded committed-range scan and report-only closeout below. No source changes
-or test reruns. Ticket closure awaits that evidence.
+are verified in review 07; review 08 recovers the actual secret-scan tool results and
+closes publication with explicit provenance limits. Feature: ad52bf01. Final report:
+4bd56126. All earlier execution/publication authorizations are historical and closed.
 The reviewer has not launched an actor or executed the tests.
 
 ## Result and boundaries
@@ -68,9 +68,9 @@ The requested state-test restoration is accepted; all tests and fixtures are fro
 - `modern/accountauth/records.go`
 - `modern/accountauth/state.go`
 
-Preserve unrelated dirty/untracked files, especially cancelled DEV-001 work. Hermes's
-publication and evidence scope is enumerated in review 07; no source, dependency,
-workflow or AGENTS edits. The source contract remains: author tests in
+Preserve unrelated dirty/untracked files, especially cancelled DEV-001 work. No
+further source, evidence, dependency, workflow or Git work is authorized for an
+executor under this closed ticket. The historical source contract follows: tests in
 package `accountauth` against the public contract below; do not add production stubs
 or a substitute verifier inside tests. Helpers may assemble and sign synthetic inputs.
 
@@ -263,16 +263,14 @@ durability/freshness integration requirements.
 
 ## Phase sequence and execution contract
 
-**Now:** review 07 verifies publication and bounds the missing secret-scan evidence.
-The source remains frozen at review 04 identities.
+**Now:** review 08 closes the accepted publication. Source remains at review 04
+identities. The commands below are historical, not authority for another execution.
 No owner transcription or invented execution result. Sol's role excludes repository-
 record ownership; Hermes owns the single execution report
 `docs/testing/BBGO-ACC-001-EXECUTION-01.md`.
 
-Hermes completes review 07's scan evidence and report closeout, using the same ticket
-and report. Review transitions update this ticket and CURRENT_TASK; do not create
-separate documents for every command. Only review 07's completion phase is active.
-Its exact path set and staged secret gate govern publication.
+The same ticket and report contain the completed phases and evidence limits.
+No additional handoff, source edit, report self-reference commit or rerun is needed.
 
 Hermes first records tool identities, clean/dirty inventory and all ten authorized
 source hashes. Use Go 1.27.0,
@@ -1059,7 +1057,7 @@ scan. The committed report's exit-0/no-findings sentence is actor-reported. It i
 not independently verifiable, and passing Go CI does not supply this missing gate.
 Do not describe the ticket as closed. Earlier source/execution acceptance stands.
 
-#### Hermes final evidence authority — two scans, report only
+#### Hermes final evidence authority — two scans, report only (closed by review 08)
 
 Do not reconstruct an empty staged scan or reset/re-stage the published source.
 Verify the ten source pins and the two published commits above. Use a fresh ignored
@@ -1123,3 +1121,87 @@ Review 07 document checks: scoped whitespace check exited 0; all 38 local links
 resolved. All ten working-tree/committed source pins and both report identities
 match. The index was empty before staging the two reviewer documents. No tests or
 scanners were executed by the reviewer.
+
+### Final review 08 — accepted, published and closed
+
+2026-09-17, Codex, High. Remote-ref API independently confirms master at final
+report commit `4bd561267ae59278b6f58ff3bbfb21a5811a1f47`. That commit changes only
+the execution report and descends from the reviewed feature
+`ad52bf019352b45bcf52906f99fcc4e776dc4b7e`. All ten current and committed source
+hashes still match review 04. The report is clean in the working tree; unrelated
+dirty work is preserved. The feature's passing CI remains linked in review 07.
+
+**Secret-scan evidence recovered and accepted.** Publication02's files do not come
+from its capture runner: they were manually written after terminal execution. The
+unused runner would scan the wrong initial range, and its generated file format
+does not match the saved files. The reviewer therefore inspected the task-specific
+tool records in Hermes's local state.db read-only, session `20260913_213737_aba8d9`.
+No agent was launched and no scanner was rerun. The actual records establish:
+
+| Tool call/result message IDs | Actual operation and result |
+| --- | --- |
+| 86641 / 86642 | Initial extra scan of ad52bf01..db8a1bf4: only one report commit, exit 0; insufficient source scope, not used for acceptance. |
+| 86645 / 86646 | Correct scan of 73b67c19..db8a1bf4: 2 commits, approximately 66,484 bytes, no leaks, immediate scanner status `EXIT=0`. |
+| 86657 / 86658 | Staged only the execution report; whitespace check passed. |
+| 86659 / 86660 | Staged report scan: approximately 982 bytes, no leaks, immediate scanner status `EXIT=0`. |
+| 86665 / 86666 | After that scan, replaced the report's earlier-scan paragraph with its new result and two capture pointers. |
+| 86667 / 86668 | Re-staged only the report, whitespace check passed, committed 4bd56126. |
+| 86669 / 86670 | Successful normal push and remote-ref verification of 4bd56126. |
+
+The actual terminal calls use the exact pinned binary and command options from
+review 07. They merge stderr into stdout and print the scanner's status immediately
+after it returns; the stored result contains both scanner output and `EXIT=0`.
+Selected stored tool-result text hashes (SHA-256 of the exact stored content string):
+
+| Result message | SHA-256 |
+| --- | --- |
+| 86646, committed-range scan | c08b8987f62d567a379cae8ea14839494669d93da82761f985f8b1fb92e66335 |
+| 86660, staged report scan | 8731a9eb65bb2cc486c9dbcc4e332752ee7933f6220592a72c6ef44ebef02de7 |
+| 86668, report commit | aab4135a98e716df582b1d15c7dc6ee1dfad22f2581b09f21931a323da79a71d |
+| 86670, push and remote verification | e0eee1d4e5a7f4db8be2cdbe679a0ee174a2fe284ad83d1545ca6795e9202975 |
+
+The copied scan-output files agree with those terminal outputs. The hand-authored
+metadata's `08:55Z` / `09:04Z` times are wrong: stored tool-call timestamps are
+15:55:07.926843 UTC and 16:04:26.944874 UTC respectively. These are tool-call
+timestamps, not reconstructed process start/end times. Separate stderr, completed
+timestamps and scanner configuration identity were not retained. Do not treat the
+metadata as automatic capture or claim full execution provenance. The recovered
+records supply the missing actual command/result evidence for this bounded scan.
+
+Reviewer independently inspected the binary's current embedded module metadata:
+`github.com/zricethezav/gitleaks/v8 v8.30.1`. Its SHA-256 matches the report:
+`444a87409b36e0c330caf3fa61f354dd13e66987ecc9db63d787db761641541a`.
+
+The report was edited after its staged scan, contrary to review 07. Reviewer read
+the exact intervening patch: only the scan-result heading, public byte count/result
+and two repository-relative capture paths were changed. It contains no source,
+secret or private data. Accept this narrow reporting deviation by inspection; do
+not claim the final report bytes were all scanned. No additional report-only scan
+cycle is justified. This does not waive final-byte scanning for future source or
+substantive content changes. Earlier red/green/finish01 provenance limits remain
+as recorded in reviews 03, 05 and 06; the report's historical claims must be read
+with those qualifications.
+
+Final report SHA-256:
+`fb57888d8edcd01b286b79a37c1d94b9a7ce623596c5de1892894917e6360543`.
+Publication02 scan-output hashes: range
+`864fe24bebc9c91704cd391705333ea9cbd5c79d82967c082585882c13a9887f`;
+staged report `54d72cf2011c837065fc11479e2e48f7b27b1541f88c83c31cf02a71c57d9c9c`.
+
+**Final disposition: BBGO-ACC-001 accepted and published; all actor authority closed.**
+Delivered: the isolated controller/device grant and known-revocation verifier with
+the reviewed tests, fuzz/race/fault evidence and adjudicated security results. Not
+delivered by this slice: key custody, durable state, revocation synchronization,
+transport integration or UI. The next integration work must bound durable account
+state and revocation discovery; this closeout authorizes no new implementation.
+No owner testing, report rewrite, additional handoff, rebuild or actor launch is needed.
+
+Reviewer closeout publication is exactly this ticket and
+`docs/handoff/CURRENT_TASK.md`, based on 4bd56126. No executor report or source
+edits are included. Verify scoped diffs, links, whitespace and source identities,
+then publish those two governance files; preserve all unrelated work.
+
+Review 08 document checks: scoped whitespace check exited 0; all 38 local links
+resolved. Ten source pins, the clean final report and four recovered tool-result
+hashes match. The index was empty before the two-document closeout staging. No
+compiler, tests or scanners were executed by the reviewer.

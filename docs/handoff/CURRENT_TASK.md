@@ -1,14 +1,15 @@
 # Current Task
 
-ACTIVE: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable account grants and
-revocation verifier. This ticket is the sole handoff. Owner relays review 07 to
-Hermes on a free Nous Portal model. Feature ad52bf01 and report closeout db8a1bf4
-are verified on remote master; all ten source hashes match and CI passed. The report
-claims a clean secret scan but no scanner output, exit capture or tool identity was
-retained. Hermes now captures the exact published-range scan and publishes only the
-corrected report after its staged scan. No source changes or test reruns. Execution
-acceptance stands; final closure awaits secret-scan evidence. This isolated package
-adds no UI behavior yet. Codex has not launched an actor or executed tests/scanners.
+ACCEPTED AND PUBLISHED: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable
+account grants and revocation verifier, closed by review 08. Feature ad52bf01 and
+final report 4bd56126 are verified on remote master. Source hashes match and CI
+passed. Reviewer recovered actual successful secret-scan tool results; review 08
+documents the manually transcribed captures, incorrect timestamps and small report
+edit after its scan. No further executor task, report correction or test rerun is
+needed. No active source assignment. This isolated package adds no UI behavior yet.
+The next integration boundary is durable account state and revocation discovery;
+it needs its own bounded contract. Codex has not launched an actor or executed
+tests/scanners. Preserve unrelated work.
 The owner confirms reviewer effort High. Review and phase evidence remain in the same
 ticket; no separate execution handoff is needed.
 
