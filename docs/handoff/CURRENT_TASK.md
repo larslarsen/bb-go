@@ -1,15 +1,14 @@
 # Current Task
 
 ACTIVE: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable account grants and
-revocation verifier. This ticket is the sole handoff. Owner relays review 05's
-completion section to Hermes on a free Nous Portal model. Retained test/race/fuzz
-and fault/restoration logs are accepted with explicit provenance limits; all ten
-source hashes match. The gosec seed-helper finding is adjudicated in the ticket.
-Hermes must complete the required vulnerability-policy scan (the narrower package
-scan did not satisfy it), capture a short test/vet run with metadata, and correct
-the existing report. No repeated red, race, fuzz, fault or gosec run; no source edits
-or Git publication. Final acceptance awaits those remaining results. Codex has not
-launched an actor or executed tests/scanners.
+revocation verifier. This ticket is the sole handoff. Owner relays review 06's
+publication section to Hermes on a free Nous Portal model. Execution is accepted
+with recorded evidence limits; the required vulnerability-policy scan passed under
+the existing reviewed exception. All ten source hashes match. Hermes corrects the
+existing report and publishes exactly six package files plus that report, after
+the staged secret scan. No more test runs or source changes. Publication verification
+remains pending; this isolated package adds no UI behavior yet. Codex has not launched
+an actor or executed tests/scanners.
 The owner confirms reviewer effort High. Review and phase evidence remain in the same
 ticket; no separate execution handoff is needed.
 

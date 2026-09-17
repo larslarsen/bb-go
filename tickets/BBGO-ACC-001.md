@@ -1,14 +1,13 @@
 # BBGO-ACC-001 — portable account grants and revocation verifier
 
-Reviewer: Codex, 2026-09-16. **Active phase: Hermes execution completion, review 05.**
+Reviewer: Codex, 2026-09-16. **Active phase: Hermes publication, review 06.**
 Actor: Hermes, free Nous Portal model, owner-relayed. This ticket is the handoff;
 do not create another handoff for each subsection. Read AGENTS.md, TESTING.md and
 [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md). The daemon's principal-dev role
-routes cryptographic/protocol-core source to Sol. Review 05 accepts the retained
-behavioral results with stated provenance limits and adjudicates the gosec finding.
-Hermes now completes the required vulnerability-policy scan and short test/vet capture,
-and corrects its existing report. Follow review 05 only; no repeated fuzz or fault run.
-Final acceptance and developer Git publication remain pending reviewer disposition.
+routes cryptographic/protocol-core source to Sol. Review 06 accepts execution with
+the recorded evidence limits. Hermes corrects the existing report and publishes
+exactly the seven enumerated files after the staged secret scan. Follow review 06
+only; no more test runs or source changes. Publication verification remains pending.
 The reviewer has not launched an actor or executed the tests.
 
 ## Result and boundaries
@@ -70,8 +69,8 @@ The requested state-test restoration is accepted; all tests and fixtures are fro
 - `modern/accountauth/state.go`
 
 Preserve unrelated dirty/untracked files, especially cancelled DEV-001 work. Hermes's
-execution and evidence scope is enumerated in review 05; no permanent source edits,
-dependency, workflow, AGENTS or Git mutation. The source contract remains: author tests in
+publication and evidence scope is enumerated in review 06; no source, dependency,
+workflow or AGENTS edits. The source contract remains: author tests in
 package `accountauth` against the public contract below; do not add production stubs
 or a substitute verifier inside tests. Helpers may assemble and sign synthetic inputs.
 
@@ -264,16 +263,16 @@ durability/freshness integration requirements.
 
 ## Phase sequence and execution contract
 
-**Now:** review 05 bounds completion of execution evidence and the missing security gate.
-The source remains accepted and frozen at review 04 identities.
+**Now:** review 06 accepts execution and authorizes scoped publication.
+The source remains frozen at review 04 identities.
 No owner transcription or invented execution result. Sol's role excludes repository-
 record ownership; Hermes owns the single execution report
 `docs/testing/BBGO-ACC-001-EXECUTION-01.md`.
 
-Hermes completes review 05's remaining commands and evidence, using the same ticket
+Hermes completes review 06's report corrections and publication, using the same ticket
 and report. Review transitions update this ticket and CURRENT_TASK; do not create
-separate documents for every command. Only review 05's completion phase is active.
-Final publication requires reviewer acceptance and an enumerated path set.
+separate documents for every command. Only review 06's publication phase is active.
+Its exact path set and staged secret gate govern publication.
 
 Hermes first records tool identities, clean/dirty inventory and all ten authorized
 source hashes. Use Go 1.27.0,
@@ -843,7 +842,7 @@ gosec result plus matching reported binary and source is accepted with that limi
 no gosec repeat is needed. Final security acceptance/publication remains pending the
 required policy result and later staged secret scan.
 
-#### Hermes completion authority — follow this section only
+#### Hermes completion authority (closed by review 06)
 
 Keep the six package files, four original inputs and policy script frozen at their
 pins. No further fault injection or source edits. Write only the existing execution
@@ -909,3 +908,128 @@ Review 05 document checks: scoped `git diff --check` exited 0; all 37 local link
 resolved. Ten source pins, the policy-script pin and reviewed evidence hashes match;
 the saved backup equals current state.go. The reviewer inspected scanner build
 metadata only and executed no tests, compiler, fuzz campaign or security scanner.
+
+### Acceptance review 06 — execution accepted; scoped publication authorized
+
+2026-09-16 local date (finish01 captures are 2026-09-17 UTC), Codex, High. Baseline
+HEAD `d5fca0b693f64f9b316420a6daf3a57b16c8c5ad`. Read the report, capture runner,
+five command metadata files, output/error logs, tool identities and Git snapshots.
+All reported finish01 capture hashes match. All ten source inputs and the policy
+script match their reviewed hashes; the index is empty.
+
+Accepted results: Go 1.27.0, focused package tests, vet, and the required source-policy
+command each have return code 0, no timeout and empty stderr. The policy reports only
+the existing reachable exception GO-2024-3218 on DHT v0.42.2, expiring 2026-11-29,
+and four non-reachable x/crypto notes: GO-2026-5932, GO-2026-6303, GO-2026-6354,
+GO-2026-6355. The notes stay visible; they are not additional reachable findings
+under the [existing policy](BBGO-SEC-001.md). This review does not create or extend
+an exception. Prior race/fuzz/fault results and the G115 disposition remain as
+accepted in review 05. No additional execution is needed before publication other
+than the staged secret scan below.
+
+Evidence identities (finish01 paths relative to `modern/dist/acc001/finish01/`):
+
+| Artifact | SHA-256 |
+| --- | --- |
+| docs/testing/BBGO-ACC-001-EXECUTION-01.md | b36dd7939277df2792e64969b451cc3e8bcd07b926053d99870fafd8ac6f8018 |
+| runner.py | 226487a8fc1038c75c154dbb78be197168d09d3278d71e0bf9e62d336c212c71 |
+| before.json and after.json (identical) | f4a38195be5f9409e98fd6651cf90504e2c5cf701b4a440bdb38044ca0307b02 |
+| tools.log | f5d8be6bd27ab19def6a3aa762fd66de9d69476ce86ab07aca5c2a59faaf2399 |
+| 03-test.meta.json | a511c1fd8094e9a70c5294e6db0e9463216a0c4003c2bea3b8a4b7b2f7ec3904 |
+| 04-vet.meta.json | 4de26344d28cf1275e98fbff952b62b8078d5c7068f37ef1942c60a4bf2272ee |
+| 05-policy.meta.json | fbac18a5ad0451ccb96c49dc07277749efe85222d090ff6fc21e57496b4bbd01 |
+| 05-policy.stdout.log | 05234cec3775b7be8a52ab2326ce83935c9f60cc4e78ae00d016dafd5e6bbf7d |
+
+**Evidence limits accepted explicitly; correct the report during publication:**
+
+- before/after.json contain HEAD/status only, not the requested source/tool hash
+  manifests. Current hashes match the earlier reviewer inventory; do not claim
+  those snapshots independently prove unchanged bytes throughout execution.
+- The runner omitted GOSUMDB from both the environment override and go-env query,
+  contrary to review 05. Its effective value is unrecorded. GOPROXY=off, Go 1.27.0,
+  GOWORK=off and empty GOFLAGS are captured. There is no retained evidence that
+  setting GOSUMDB=off caused a toolchain error; the runner's comment is not proof.
+  This deviation does not invalidate the observed results on the unchanged isolated
+  package, and does not warrant another run. Do not claim a fully verified offline
+  environment or reconstruct the missing setting.
+- PATH is not retained in command metadata, though the runner prepends the tool
+  directory and tools.log records the pinned module versions. The runner also lacks
+  fail-fast handling and final manifests on interruption and gives the policy a
+  600-second bound. All five commands completed successfully; those unused failure
+  paths did not affect this run. Do not reuse it as a general acceptance runner.
+- Red/green provenance limits from reviews 03/05 still apply. Label the historical
+  exit/environment claims as actor-reported where no metadata exists. Disclose the
+  failed extra `-include-tests` gosec attempt and retain its existing log pointer.
+- Replace the report's incorrect “Index: contains untracked files” with “index empty;
+  working tree contains unrelated modified/untracked files.” Remove absolute tool
+  paths from the published report. Include relative links to the captures and the
+  ticket's findings dispositions; raw ignored artifacts may retain local paths.
+
+Disposition: the isolated verifier is accepted for publication with these documented
+limits. No current transport, wallet or UI integration is claimed. Report cleanup is
+part of normal publication, not a separate execution/report-only phase.
+
+#### Hermes publication authority — exact seven-file set
+
+Use the same ticket and report. Verify the six package hashes from review 04 and the
+four original input hashes. Start with an empty index; stop if unrelated staged work
+appears rather than unstaging someone else's work. The next reviewer governance
+commit may advance HEAD without changing source; record the actual starting HEAD.
+
+Only these seven paths may be integrated/committed:
+
+1. `modern/accountauth/types.go`
+2. `modern/accountauth/records.go`
+3. `modern/accountauth/state.go`
+4. `modern/accountauth/records_test.go`
+5. `modern/accountauth/state_test.go`
+6. `modern/accountauth/fuzz_test.go`
+7. `docs/testing/BBGO-ACC-001-EXECUTION-01.md`
+
+All six Go files are byte-frozen. Only the report may be edited: apply the precise
+corrections above, retain the command results and append publication evidence. No
+AGENTS, .gitignore, dependency, workflow, ticket, CURRENT_TASK or cancelled DEV-001
+changes. Do not add raw artifacts, binaries, caches, runners, private data or keys.
+Read-only inventories and publication captures under `modern/dist/acc001/publication01/`
+are authorized. Capture exact Git/scan argv, exits, output, staged paths/blob identities,
+commit IDs and remote verification there, and summarize actual results in the report.
+
+Use pinned Gitleaks v8.30.1, verify version/provenance and binary hash. Reuse a verified
+existing binary if available. If unavailable, this pinned install is authorized with
+GOBIN resolved to `modern/dist/acc001/tools/` and task-owned disk-backed caches:
+
+```sh
+env GOWORK=off GOTOOLCHAIN=go1.27.0 go install github.com/zricethezav/gitleaks/v8@v8.30.1
+```
+
+Tool acquisition may use the network; do not modify module files or persistent Go
+settings. From the repository root, stage only the seven literal paths above, inspect
+`git diff --cached --name-only` and `git diff --cached --check`, and run:
+
+```sh
+gitleaks git --pre-commit --staged --redact=100 --no-banner .
+```
+
+Require exit 0 and no findings. A secret finding, unknown scanner failure or changed
+source hash stops publication for review; no exclusion/baseline/suppression changes.
+Scan the final staged bytes after any report edits. Then commit the exact seven-file
+set and push normally to origin/master, without force or unrelated integration.
+Verify the remote contains the published commit and the committed Go blobs match
+all six pins. Append the feature commit, push result and retained scan evidence to
+the same report; a report-only closeout commit/push is authorized, with its final
+staged secret scan too. Record that last commit/push in publication01 captures so
+the reviewer can verify it without a self-referential report edit cycle.
+
+No new tests/scans beyond this staged secret gate, source edits, runtime integration,
+rebuild, restart or extra actor. Preserve all earlier captures. Finish with the report
+pointer; the reviewer verifies publication and closes the ticket. No owner testing
+or log transcription is required.
+
+Reviewer governance publication for review 06 is exactly this ticket and
+`docs/handoff/CURRENT_TASK.md`. The reviewer does not integrate source or edit Hermes's
+report. Validate scoped diffs/links/whitespace and unchanged source pins, then publish
+these two governance documents from the baseline recorded above.
+
+Review 06 document checks: scoped `git diff --check` exited 0; all 38 local links
+resolved. Source, policy, reviewed report and finish01 artifact hashes match. The
+reviewer performed read-only evidence/document checks and no acceptance execution.
