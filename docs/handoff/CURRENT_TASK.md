@@ -1,5 +1,15 @@
 # Current Task
 
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, test source only**.
+The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
+plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
+must not appear as BitBook peers in the API. Existing daemon keys remain stable;
+portable-account integration remains subsequent work. No naming or trust-policy change.
+Sol may edit only the enumerated test paths, with no execution, production, report or
+Git work. Reviewer reads the files, then authorizes the next phase in the same ticket.
+No Hermes phase is active yet. Reviewer effort stays High. Reviewer publication is
+limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
+
 ACCEPTED, PUBLISHED AND CLOSED: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md),
 review 05. Feature `84e3a26863ea5e230e3a737858719d62ad894c5e` is verified on
 remote master; Go 1.27 CI run 35275311397 passed. Tests, race checks, fuzzing,
@@ -9,16 +19,8 @@ the interrupted publication capture, checksum-display redaction and recovered ac
 scan/commit/push evidence. No further Hermes task, report edit or rerun is needed.
 This remains an isolated package with no daemon/UI integration or rebuild required.
 
-NEXT REVIEW: bound the implementation of the owner's queued public-IPFS direction
-in NET-001. No new implementation/execution actor is authorized yet. ACC-002's
-historical phase instructions are closed. Reviewer effort stays High.
-
-QUEUED NETWORK DIRECTION: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), use the
-public IPFS swarm/bootstrap infrastructure without a required BitBook seed fleet.
-Owner reiterated this on 2026-09-17. The old bootstrap-only ticket was incomplete:
-current DHT/Bitswap protocol prefixes still isolate BitBook. The revised ticket
-records the required compatibility work; no network migration has occurred.
-ACC-002 is complete. Trust-profile bootstrap is unrelated and unchanged.
+NET-001 is now bounded above; no network migration has occurred yet. ACC-002's
+historical phase instructions are closed. Trust-profile bootstrap is unrelated.
 
 ACCEPTED AND PUBLISHED: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable
 account grants and revocation verifier, closed by review 08. Feature ad52bf01 and
@@ -39,8 +41,8 @@ test/acceptance obligations. This is an isolated package with no current daemon/
 integration. Existing v1 peer-ID/signature bindings remain frozen. Naming is provisional
 and is not a gate. Read the
 [account decision](../../../bb-desktop/docs/architecture/BB-ACCOUNT-RECIPIENT-PROPOSAL-01.md).
-Current reviewer governance publication is limited to this file and ACC-002 in bb-go;
-review 05 records the closeout scope and final evidence disposition. Preserve unrelated work.
+The completed ACC-002 reviewer publication was limited to this file and ACC-002;
+review 05 records its closeout scope and final evidence disposition.
 
 BBGO-PAY-003 — ACCEPTED AND PUBLISHED. Its authorizations below are historical and
 do not restrict or expand ACC-001's explicit scope. DEV-001 remains cancelled.
