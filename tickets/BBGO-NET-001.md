@@ -1,7 +1,7 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, test-source correction under review 01 below.**
-Reviewer: Codex, High. The initial drop is not accepted for execution.
+Status: **ACTIVE — Sol High, narrow test-source correction under review 02 below.**
+Reviewer: Codex, High. Execution remains pending the listed fixture corrections.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
 ACC-002 is accepted and closed. No NET-001 executor is active yet.
@@ -454,7 +454,7 @@ This is a configuration/source finding, not a live two-application acceptance ru
 The existing ordinary-IPFS-peer exclusion tests cover the applicable BitBook boundary;
 do not add a dependency on running Keel or widen the source correction scope.
 
-### Current source authorization
+### Review 01 source authorization — superseded by review 02
 
 Return this same ticket to **Sol High**. Modify only:
 
@@ -474,3 +474,101 @@ No execution, production/dependency edits, report writing, Git or publication by
 No Hermes phase is active. Reviewer will inspect the corrected files, then authorize
 red in this ticket. Publication of this review is reviewer-only and limited to this
 ticket and CURRENT_TASK.md; developer tests remain uncommitted and untouched.
+
+## Review 02 — corrected drop; three fixture corrections remain
+
+Reviewer: Codex, 2026-09-17. Read source and pinned dependencies only; no test/build
+execution. The four frozen tests and all production/module pins still match review 01.
+The drop now has twenty TestNET001 declarations (one guarded child) and FuzzPeerHello.
+
+Improvements retained: real handler occupancy and reset checks, capacity boundaries,
+startup/provider readiness, completed-probe regression, daemon discovery/early-error
+coverage, blocked-advertisement independence, cleanup and final concurrency assertions.
+Do not reopen or rewrite those corrections.
+
+### Updated source pins
+
+| Test path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/network/bootstrap_test.go | 349 | be3ce5ceca2b05d49010a7113d07782a6e8b7326f86847c64dfb6dd7c007e6f2 |
+| modern/network/discovery_test.go | 1069 | dc47eea1009f0a4c77b437232227fd273ce517268ee80bd1c56fd04244e70c58 |
+| modern/api/handler_test.go | 606 | b075335978206b134462ea3e64f8d0f7b3b8db62f166154df1ecae433a75ffe9 |
+| modern/cmd/bitbookd/bootstrap_test.go | 403 | 23c5348829a97a149567ebafbec53295712be45902d48a63f4b5f21c4e7f41ee |
+
+The other four test hashes remain as in review 01. Original production/module hashes
+remain mandatory; discovery.go is still absent.
+
+### Bounded correction instructions
+
+1. **Bootstrap fixture must fit the chosen upstream scheduler.**
+   bootstrap_test.go:77-135 waits for both a stalled seed and a gated healthy seed
+   before releasing either, then requires healthy connection while the stalled dial
+   remains active. Pinned go-libp2p-kad-dht v0.42.2 dht.go:533-555 iterates randomized
+   bootstrap peers with synchronous Connect calls, one at a time. With an eight-second
+   test context and ten-second dial timeout, the fixture cannot satisfy that ordering.
+
+   Reviewer clarification: review 01's wording could suggest parallel seed dialing.
+   That was too strong. The frozen architecture reuses upstream sequential bootstrap;
+   New/local work must remain usable during a pending dial, and another seed must be
+   tried after failure. Do not add a parallel seed manager to satisfy this test.
+
+   Split the proof into (a) a stalled-only seed where New returns promptly and local
+   Put succeeds before releasing the owned stall, and (b) failed-plus-healthy seeds
+   where the controlled failure is released and healthy connectivity eventually
+   succeeds, independent of seed order. Retain the outer/inner-slice ownership check.
+   Remove the now-unneeded gated proxy; keep fixture/constructor goroutines joined
+   and close late-arriving connections/results during failure cleanup.
+
+   The loopback-default substitution and positive controls are retained. Their
+   250/500 ms negative observations are bounded supporting evidence, not proof a
+   bootstrap cycle completed: upstream DHT.Bootstrap only schedules work. Production
+   review must separately verify exact empty bootstrap options and disabled CLI wiring.
+   No further observation-only production API is required for those negative cases.
+
+2. **Do not read EOF twice as a completion signal.**
+   The invalid-response fixtures in discovery_test.go (retry and completed-probe
+   cases) and handler_test.go read the entire request through EOF, write the invalid
+   response, then read again expecting ErrReset. The requester already closed its
+   write half as required by the protocol. That second read can immediately return
+   EOF before the remote validation/reset arrives. Pinned go-yamux/v5 v5.1.0
+   stream.go:89-108 explicitly returns EOF for an empty half-closed read side.
+   This is a fixture race, not a production rejection failure.
+
+   In TestNET001OutboundHelloRequiresValidation, use the production probe's return
+   as the completion boundary: require rejection and no confirmed peer, then a valid
+   exchange with the same controlled peer. A bounded notification may confirm the
+   fixture wrote its intended response, but do not require another read after EOF.
+   Keep this test as the falsification target.
+
+   For TestNET001DiscoveryRetryAfterInvalidHello, use two synchronous calls to the
+   real runDiscoveryRound helper after seed/provider readiness: finish the invalid
+   round, check no confirmation, replace the responder, then finish the valid round.
+   Do not run a background StartDiscovery round concurrently in this isolated retry
+   test; the separate lifecycle test already proves actual startup discovery.
+
+   For the API integration fixture, notify after successful invalid-response write
+   and CloseWrite, without requiring ErrReset on the ended read half. Keep actual
+   provider discovery, real-peer positive control, peer/status assertions and
+   disconnect/reconfirmation. This is integration coverage; the completed-probe
+   regression supplies the deterministic outbound validation/falsification proof.
+   Do not describe response-write completion as proof remote validation has completed.
+
+3. **Allow the real daemon's specified retry interval.**
+   cmd/bitbookd/bootstrap_test.go:92 permits 45 seconds while requiring the child
+   to advertise. Background bootstrap may finish after its first discovery attempt,
+   and the next round is scheduled at one minute. Use a bounded 120-second context
+   for TestNET001DaemonBootstrapWiring so that valid startup/retry behavior can pass.
+   Keep immediate-readiness observations and existing child cleanup; do not shorten
+   production intervals or add sleeps to force bootstrap order. The targeted command's
+   180-second package timeout remains unchanged.
+
+### Current source authorization
+
+Sol High may edit only the four paths in review 02's table, and only to make the three
+corrections above plus their necessary fixture/import cleanup. No new test program,
+production/dependency changes, execution, records or Git. Preserve the four frozen
+test files. This is still the same test-source task, not a new feature or handoff.
+
+No Hermes phase is active until the corrected source is reviewed. Reviewer publication
+is limited to this ticket and CURRENT_TASK.md. No developer source is integrated,
+committed or executed by this review.

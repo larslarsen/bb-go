@@ -1,15 +1,15 @@
 # Current Task
 
 ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, test-source correction**
-under review 01. The first drop is not accepted for execution: rejection/timeouts are
-conflated, startup/probe completion races weaken assertions, and bootstrap/daemon
-wiring checks need direct evidence. The review specifies the four correction paths
-and preserves the remaining four test files. Production/module hashes are unchanged.
+under review 02. Most review-01 corrections are present. Remaining fixture work:
+respect sequential upstream bootstrap, remove reset observations on an already-ended
+read half, and allow the daemon's specified discovery retry window. The review narrows
+edits to those fixes in four files; the other four tests and all production remain frozen.
 The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
 plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
 must not appear as BitBook peers in the API. Existing daemon keys remain stable;
 portable-account integration remains subsequent work. No naming or trust-policy change.
-Sol may edit only review 01's test paths, with no execution, production, report or
+Sol may edit only review 02's test paths, with no execution, production, report or
 Git work. Reviewer reads the files, then authorizes the next phase in the same ticket.
 No Hermes phase is active yet. Reviewer effort stays High. Reviewer publication is
 limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
