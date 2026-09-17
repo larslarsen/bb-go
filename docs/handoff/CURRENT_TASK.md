@@ -1,14 +1,23 @@
 # Current Task
 
+ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), durable account grants and
+revocations. Owner relays this ticket to Codex Sol (`gpt-5.6-sol`, High) for its
+three test-source files only. It freezes a bounded per-account datastore value,
+explicit Create/Open, verified replay, durable saturation and storage-error denial.
+Tests cover real LevelDB reopen/process-kill behavior and deterministic failed writes.
+No production, test execution, records, dependencies or Git work for Sol now. The
+reviewer accepts test source before activating Hermes execution in this same ticket.
+No actor has been launched. Reviewer effort stays High; naming is not a gate.
+
 ACCEPTED AND PUBLISHED: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable
 account grants and revocation verifier, closed by review 08. Feature ad52bf01 and
 final report 4bd56126 are verified on remote master. Source hashes match and CI
 passed. Reviewer recovered actual successful secret-scan tool results; review 08
 documents the manually transcribed captures, incorrect timestamps and small report
 edit after its scan. No further executor task, report correction or test rerun is
-needed. No active source assignment. This isolated package adds no UI behavior yet.
-The next integration boundary is durable account state and revocation discovery;
-it needs its own bounded contract. Codex has not launched an actor or executed
+needed under ACC-001. This isolated package adds no UI behavior yet. ACC-002 now
+bounds durable state; network revocation discovery remains subsequent integration.
+Codex has not launched an actor or executed
 tests/scanners. Preserve unrelated work.
 The owner confirms reviewer effort High. Review and phase evidence remain in the same
 ticket; no separate execution handoff is needed.
@@ -19,8 +28,8 @@ test/acceptance obligations. This is an isolated package with no current daemon/
 integration. Existing v1 peer-ID/signature bindings remain frozen. Naming is provisional
 and is not a gate. Read the
 [account decision](../../../bb-desktop/docs/architecture/BB-ACCOUNT-RECIPIENT-PROPOSAL-01.md).
-Reviewer governance publication is limited to this file and that ticket in bb-go;
-the cross-repository scope and source pins are recorded there. Preserve unrelated work.
+Current reviewer governance publication is limited to this file and ACC-002 in bb-go;
+its scope and source pins are recorded there. Preserve unrelated work.
 
 BBGO-PAY-003 — ACCEPTED AND PUBLISHED. Its authorizations below are historical and
 do not restrict or expand ACC-001's explicit scope. DEV-001 remains cancelled.
