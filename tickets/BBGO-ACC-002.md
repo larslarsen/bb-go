@@ -1,10 +1,10 @@
 # BBGO-ACC-002 — durable account grants and revocations
 
-Reviewer: Codex, 2026-09-17, High. **Active: Hermes expected-red capture; see review 01 below.**
-Actor: Hermes on a free Nous Portal model, owner-relayed. This ticket is the sole
-handoff. Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
-Review 01 supersedes the initial test-authoring phase below. Sol source authority
-is closed; production remains inactive.
+Reviewer: Codex, 2026-09-17, High. **Active: Sol production source; see review 02.**
+Actor: Codex Sol, `gpt-5.6-sol`, High, owner-relayed. This ticket is the sole handoff.
+Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
+Review 02 accepts the expected missing-implementation red and activates exactly
+three production files. Test source is frozen. Hermes execution is closed for now.
 
 ## Result and scope
 
@@ -65,13 +65,13 @@ These inputs are frozen through every phase:
 | modern/go.sum | 4c91209822dccd4a60955ddd6b8b94a327e88b55721577494c953a705395b83a |
 | modern/network/open.go | 96bf07274832c57ef67ace9a6e0a5dc06651bc7a5b27eef7cff7f480610d4f3b |
 
-**Sol writable now:** `modern/accountstore/store_test.go`, `persistence_test.go`,
+**Historical test-authoring scope; now frozen:** `modern/accountstore/store_test.go`, `persistence_test.go`,
 `fuzz_test.go`. Helpers stay in those files. Tests exercise the public contract;
 do not copy the verifier or add production stubs. Synthetic reproducible keys only.
 Gofmt of these three test files is allowed; no compiler/test/fuzz/scanner execution,
 dependency changes, records, Git or actor launch. Stop with the ticket/source pointer.
 
-**Future production scope, inactive:** `modern/accountstore/types.go`, `store.go`,
+**Production scope, activated by review 02:** `modern/accountstore/types.go`, `store.go`,
 `codec.go`. No imports of accountstore elsewhere, runtime wiring or existing source
 edits. Sol authors those files only after reviewed tests and expected-red acceptance.
 
@@ -239,7 +239,8 @@ Reviewer pins the exact fault after source review. Hermes must not invent a patc
 
 ## Execution and acceptance sequence
 
-Only Sol's three test-source files are active now. Reviewer reviews them, then Hermes
+Initial sequence (reviews below govern the current phase): reviewer reviews Sol's
+three test-source files, then Hermes
 captures missing-implementation red. Sol next authors production after red acceptance;
 reviewer reads it before Hermes green/falsification/security execution and publication.
 Transitions stay in this ticket/current-task pointer; use one execution report,
@@ -328,7 +329,7 @@ release. Review production lock/persistence order explicitly before green. Fuzz
 replay checks the returned Records; the independent ordinary snapshot/restart tests
 remain necessary to detect omitted records. No claim of exhaustive parser coverage.
 
-### Active Hermes work — one expected-red capture
+### Historical Hermes work — expected-red capture, closed by review 02
 
 Run the exact command below from the bb-go repository root. It checks the source
 pins and disk backing, captures the installed Go identity, and runs only the package
@@ -446,3 +447,94 @@ storage contract. Preserve the untracked Sol test drop and all unrelated work.
 Publication checks: all 12 source pins match; 39 local document links resolve;
 scoped whitespace checks pass. The embedded capture snippet parses as Python; it
 was not executed. The staging scope contains only the three reviewer documents.
+
+
+## Review 02 — expected red accepted; production source active, 2026-09-17
+
+Baseline: `fb52a11d5e034d2c925717127db01424421d0af9`. The nine original input
+pins and three test-source pins still match. Exactly the three test files exist in
+accountstore; `types.go`, `store.go` and `codec.go` remain absent. No compiler,
+test or scanner was executed by Codex during this review.
+
+### Evidence and disposition
+
+Read [execution report 01](../docs/testing/BBGO-ACC-002-EXECUTION-01.md), SHA-256
+`3f816f8d919901de6607b6708a489cf957c107169021833bbfb4fa8b5d822be2`, and its
+retained capture. The review-01 command stopped at `go version`, exit 1: the
+reviewer-supplied `GOSUMDB=off` prevented launcher verification of Go 1.27.0.
+That capture did not execute the package test. This was a capture-command defect;
+it is not evidence of a source failure.
+
+Hermes then ran, cwd `modern/`:
+
+```sh
+env GOWORK=off GOTOOLCHAIN=go1.27.0 GOPROXY=off GOFLAGS=-p=2 go test ./accountstore -count=1
+```
+
+**Actual exit: 1. Accepted missing-implementation red.** Output names undefined
+`MaxStoredRecords`, `MaxSnapshotBytes`, `Open`, `ErrCorrupt`, `Store` and `Create`,
+then the compiler's too-many-errors limit. It contains no reported syntax or
+fixture/dependency error. It cannot prove the absence of errors hidden after that
+limit; production compilation remains necessary. No test body ran.
+
+The reviewer independently recovered the actual execution record read-only from
+Hermes's local session `20260913_213737_aba8d9`: terminal call 86697 started the
+command at 18:23:28 UTC; process result 86700 reports exit 1, observed at
+18:24:39 UTC (not a claimed precise completion time); read result 86702 contains
+the complete 802-byte output. The retained `acc002-expected-red.log` in the system
+temporary directory matches those compiler diagnostics and has SHA-256
+`b081520c686db9031026c8501fa3d2839cef0cfd36afb5c2cfb7ff44cefd235c`.
+Earlier terminal results 86692 and 86696 identify installed Go 1.27.0 linux/amd64.
+The selected cached toolchain binary currently hashes to
+`1db869c560a193573a71be466a34e0d4abb7792d78165c6102cdda069276a3a8`;
+this is a review-time hash, not a retrospectively claimed execution-time capture.
+
+Report qualifications: Hermes manually rewrote the report after the direct run.
+Its `metadata.json` covers only the failed automatic capture, not the direct test;
+its filesystem label `ext2/ext3` disagrees with the captured `ext4`. The direct run
+also changed the authorized environment/capture procedure: inherited settings were
+not fully captured, task-specific cache/temp paths were not pinned, and output went
+to a small temporary log. Do not treat it as execution of the supplied script or as
+fully captured offline acceptance. These deviations are recorded, not authorized
+as precedent. The actual command, exit, compiler output and unchanged source are
+sufficient for this narrowly scoped missing-implementation check. No rerun or
+report-only handoff is required before production authoring.
+
+Original capture directory: `modern/dist/acc002/red-20260917T181655552699Z`.
+Metadata SHA-256: `fccacd7e02acb078eb92194b81fa92ee6bfc12d0aec8af7b8c3069384ba55b07`.
+Retain it and the execution report. When green execution is activated, use the
+already installed, verified Go 1.27.0 binary directly with `GOTOOLCHAIN=local` in
+the automatic capture to avoid launcher verification, and retain the complete
+explicit environment and task-owned disk-backed cache/temp paths. The later Hermes
+phase will append to the same report and point to this qualification; do not rewrite
+historical evidence or launch another actor now.
+
+### Active Sol production task
+
+Author exactly these new files under the frozen contract above:
+
+- `modern/accountstore/types.go`: constants, error sentinels and private Store state.
+- `modern/accountstore/store.go`: Create/Open, serialized operations, persistence
+  before acknowledgment, permanent handle denial after storage failure, owned reads
+  and caller-owned backend lifecycle.
+- `modern/accountstore/codec.go`: bounded snapshot encoding/decoding, signature and
+  exact-account verification, semantic duplicate rejection and overflow-witness replay.
+
+All three test files and nine original inputs are frozen. No runtime imports,
+network changes, dependencies, records or other source edits. Do not weaken the
+contract to satisfy tests. In particular, hold the Store lock through Put/Sync and
+committed-state advancement; fully verify before duplicate/capacity handling; never
+shallow-copy KnownState or mutate it before persistence. Open never creates or repairs.
+Keep this an isolated package; NET-001 remains queued.
+
+Gofmt of the three new production files is allowed. No compiler/test/fuzz/scanner
+execution, Git, report editing, daemon build/restart or actor launch. Stop with the
+source/ticket pointer for reviewer source review. Hermes green, the reviewer-pinned
+falsification, scans and source/evidence publication remain inactive until that review.
+
+### Reviewer publication for review 02
+
+Exactly `tickets/BBGO-ACC-002.md` and `docs/handoff/CURRENT_TASK.md`, based on the
+baseline above. Preserve the untracked tests, execution report and all unrelated
+work; none are part of this reviewer publication. Verify the 12 source pins, local
+links and scoped whitespace before committing these two governance documents only.

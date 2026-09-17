@@ -1,12 +1,14 @@
 # Current Task
 
-ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), review 01. Sol's three
-test files are source-accepted for the expected-red compile check (1,897 lines,
-11 tests and one fuzz target); all nine frozen inputs match. Owner relays the same
-ticket to Hermes on a free Nous Portal model. Run its exact automatic capture
-command and retain the designated execution report. No source edits, production,
-scans or Git work in this phase. No actor has been launched by Codex and no tests
-have been executed by Codex. Reviewer effort stays High; naming is not a gate.
+ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), review 02. The expected
+missing-implementation compile failure is accepted from the retained log and actual
+Hermes terminal result. Review 02 records the failed automatic capture and the
+direct-run evidence limitations; no rerun or report-only handoff is needed.
+Owner relays this same ticket to Codex Sol (`gpt-5.6-sol`, High) to author exactly
+`modern/accountstore/types.go`, `store.go` and `codec.go`. The three tests and nine
+original inputs are frozen. No source actor execution, records, dependencies or Git.
+Hermes green/scans/publication await production source review. No actor has been
+launched by Codex; reviewer effort stays High and naming is not a gate.
 
 QUEUED NETWORK DIRECTION: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), use the
 public IPFS swarm/bootstrap infrastructure without a required BitBook seed fleet.
@@ -34,8 +36,8 @@ test/acceptance obligations. This is an isolated package with no current daemon/
 integration. Existing v1 peer-ID/signature bindings remain frozen. Naming is provisional
 and is not a gate. Read the
 [account decision](../../../bb-desktop/docs/architecture/BB-ACCOUNT-RECIPIENT-PROPOSAL-01.md).
-Current reviewer governance publication is limited to this file, ACC-002 and NET-001
-in bb-go; review 01 records the scope and source pins. Preserve unrelated work.
+Current reviewer governance publication is limited to this file and ACC-002 in bb-go;
+review 02 records the scope, evidence disposition and source pins. Preserve unrelated work.
 
 BBGO-PAY-003 — ACCEPTED AND PUBLISHED. Its authorizations below are historical and
 do not restrict or expand ACC-001's explicit scope. DEV-001 remains cancelled.
