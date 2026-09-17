@@ -1,13 +1,13 @@
 # BBGO-ACC-001 — portable account grants and revocation verifier
 
-Reviewer: Codex, 2026-09-16. **Active phase: Hermes publication, review 06.**
+Reviewer: Codex, 2026-09-17. **Active phase: publication evidence completion, review 07.**
 Actor: Hermes, free Nous Portal model, owner-relayed. This ticket is the handoff;
 do not create another handoff for each subsection. Read AGENTS.md, TESTING.md and
 [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md). The daemon's principal-dev role
-routes cryptographic/protocol-core source to Sol. Review 06 accepts execution with
-the recorded evidence limits. Hermes corrects the existing report and publishes
-exactly the seven enumerated files after the staged secret scan. Follow review 06
-only; no more test runs or source changes. Publication verification remains pending.
+routes cryptographic/protocol-core source to Sol. Source publication and passing CI
+are verified in review 07. The secret scan lacks retained evidence; Hermes completes
+the bounded committed-range scan and report-only closeout below. No source changes
+or test reruns. Ticket closure awaits that evidence.
 The reviewer has not launched an actor or executed the tests.
 
 ## Result and boundaries
@@ -69,7 +69,7 @@ The requested state-test restoration is accepted; all tests and fixtures are fro
 - `modern/accountauth/state.go`
 
 Preserve unrelated dirty/untracked files, especially cancelled DEV-001 work. Hermes's
-publication and evidence scope is enumerated in review 06; no source, dependency,
+publication and evidence scope is enumerated in review 07; no source, dependency,
 workflow or AGENTS edits. The source contract remains: author tests in
 package `accountauth` against the public contract below; do not add production stubs
 or a substitute verifier inside tests. Helpers may assemble and sign synthetic inputs.
@@ -263,15 +263,15 @@ durability/freshness integration requirements.
 
 ## Phase sequence and execution contract
 
-**Now:** review 06 accepts execution and authorizes scoped publication.
+**Now:** review 07 verifies publication and bounds the missing secret-scan evidence.
 The source remains frozen at review 04 identities.
 No owner transcription or invented execution result. Sol's role excludes repository-
 record ownership; Hermes owns the single execution report
 `docs/testing/BBGO-ACC-001-EXECUTION-01.md`.
 
-Hermes completes review 06's report corrections and publication, using the same ticket
+Hermes completes review 07's scan evidence and report closeout, using the same ticket
 and report. Review transitions update this ticket and CURRENT_TASK; do not create
-separate documents for every command. Only review 06's publication phase is active.
+separate documents for every command. Only review 07's completion phase is active.
 Its exact path set and staged secret gate govern publication.
 
 Hermes first records tool identities, clean/dirty inventory and all ten authorized
@@ -969,7 +969,7 @@ Disposition: the isolated verifier is accepted for publication with these docume
 limits. No current transport, wallet or UI integration is claimed. Report cleanup is
 part of normal publication, not a separate execution/report-only phase.
 
-#### Hermes publication authority — exact seven-file set
+#### Hermes publication authority — exact seven-file set (closed by review 07)
 
 Use the same ticket and report. Verify the six package hashes from review 04 and the
 four original input hashes. Start with an empty index; stop if unrelated staged work
@@ -1033,3 +1033,93 @@ these two governance documents from the baseline recorded above.
 Review 06 document checks: scoped `git diff --check` exited 0; all 38 local links
 resolved. Source, policy, reviewed report and finish01 artifact hashes match. The
 reviewer performed read-only evidence/document checks and no acceptance execution.
+
+### Publication review 07 — commits verified; secret-scan evidence missing
+
+2026-09-17, Codex, High. Verified through GitHub's remote-ref API that master is
+`db8a1bf4f838ee5293fd3ada02f487344fafdf64`, directly following feature
+`ad52bf019352b45bcf52906f99fcc4e776dc4b7e`. The feature contains exactly six accountauth
+files and the execution report; the closeout changes only that report. All ten
+reviewed source hashes match both commits and the working tree. No source correction
+or repeat test is needed. [Go CI run 35186610615](https://github.com/larslarsen/bb-go/actions/runs/35186610615)
+passed on the feature commit (compile, social runtime boundaries, maintained P2P
+core). That workflow does not include a secret scan.
+
+The committed report's SHA-256 is
+`2b21f1735bfd092072ec83e48fdb255cd6cc844207c2217a581540641f2cb95d`.
+The working copy is `09d16476c18ace490d856d1ae7c9f2d042cc9682bd4fce63e115851783ea9c42`;
+its only uncommitted changes replace the pending closeout ID and update the remote
+pointer. Preserve them for the report closeout below. No third source publication
+is needed.
+
+Publication01 contains only tree-manifest.txt, a list of eleven paths without blob
+hashes. There is no retained Gitleaks output, return-code metadata, binary hash or
+version/provenance capture, nor distinct evidence of the report-closeout staged
+scan. The committed report's exit-0/no-findings sentence is actor-reported. It is
+not independently verifiable, and passing Go CI does not supply this missing gate.
+Do not describe the ticket as closed. Earlier source/execution acceptance stands.
+
+#### Hermes final evidence authority — two scans, report only
+
+Do not reconstruct an empty staged scan or reset/re-stage the published source.
+Verify the ten source pins and the two published commits above. Use a fresh ignored
+capture directory `modern/dist/acc001/publication02/`; the existing task tools/cache
+directories remain authorized. The only tracked writable/stageable path is
+`docs/testing/BBGO-ACC-001-EXECUTION-01.md`. Preserve all other work. No tests, fuzz,
+gosec, govulncheck, builds, source changes or additional actor.
+
+1. Locate Gitleaks v8.30.1 and capture binary SHA-256 plus `go version -m` provenance
+   (or official release provenance/version). If unavailable, use review 06's exact
+   pinned install into task tools, with captured install result. No exclusions,
+   baseline/config edits or secret-scan environment overrides. Record active config
+   identity or absence; do not dump secrets from the environment.
+2. From the repository root, run exactly:
+
+   ```sh
+   gitleaks git --redact=100 --no-banner --log-opts=73b67c197f3b51941ddc345541ba5e36b56dfa76..db8a1bf4f838ee5293fd3ada02f487344fafdf64 .
+   ```
+
+   This scans both published commits. Reviewer checked the locally cached v8.30.1
+   command source: `git --log-opts` is supported. Record it as a new committed-range
+   scan, never as proof of the earlier staged run. Require actual exit 0 and no
+   findings. Any finding/tool failure stops publication for review.
+3. Correct the report in this same task: link this review and new captures; label
+   the old staged result and historical red/green exit/environment claims as
+   actor-reported where metadata is missing. In finish01's displayed go-env command,
+   remove GOSUMDB, which the actual argv omitted; its effective value is unavailable.
+   Retain review 06's accepted provenance limits rather than inventing evidence.
+   Preserve the already-correct feature/closeout IDs from the working copy. Record
+   the new range-scan command, tool identity, actual result and capture hashes.
+4. Stage only that corrected report, verify the one-path index and whitespace, then
+   capture its final staged scan:
+
+   ```sh
+   gitleaks git --pre-commit --staged --redact=100 --no-banner .
+   ```
+
+   Require exit 0/no findings. Commit and push only this report normally to
+   origin/master. Do not edit it again merely to add its own commit ID. Save the
+   final commit/push/remote-ref evidence in publication02 for reviewer verification.
+
+**Completion requires actual capture files:** for each scan, `.stdout.log`,
+`.stderr.log` and `.meta.json` containing argv, cwd, UTC start/end, direct subprocess
+return code, timeout status and binary hash. Retain the tool identity output, final
+staged report blob ID, commit output and remote-ref output. Capture both streams,
+including empty stdout (Gitleaks may report on stderr). Use a 600-second bound and
+stop on failure. A small capture runner here is authorized. Check these files exist
+and contain real results before reporting done; a prose assertion alone does not
+complete this task. Do not overwrite earlier evidence.
+
+No extra report-only self-reference commit or new handoff document. Return the report
+pointer when the new scan evidence and corrected report are published. Reviewer
+closure will record the final commit ID without changing Hermes's report.
+
+Reviewer governance publication for review 07 is limited to this ticket and
+`docs/handoff/CURRENT_TASK.md`, based on db8a1bf4 above. Leave the dirty execution
+report and all unrelated work unstaged. Check scoped diffs, links, whitespace and
+source pins before publishing these two documents.
+
+Review 07 document checks: scoped whitespace check exited 0; all 38 local links
+resolved. All ten working-tree/committed source pins and both report identities
+match. The index was empty before staging the two reviewer documents. No tests or
+scanners were executed by the reviewer.
