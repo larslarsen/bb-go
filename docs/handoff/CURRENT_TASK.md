@@ -1,17 +1,17 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, test-source correction**
-under review 02. Most review-01 corrections are present. Remaining fixture work:
-respect sequential upstream bootstrap, remove reset observations on an already-ended
-read half, and allow the daemon's specified discovery retry window. The review narrows
-edits to those fixes in four files; the other four tests and all production remain frozen.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes expected-red capture**
+under review 03. The corrected eight-file test drop is source-accepted and pinned:
+21 TestNET001 declarations (including the guarded child) and one fuzz target.
+Hermes may run only the targeted red command and write the ticket's single execution
+report. All test/production/module inputs are frozen; discovery.go remains absent.
 The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
 plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
 must not appear as BitBook peers in the API. Existing daemon keys remain stable;
 portable-account integration remains subsequent work. No naming or trust-policy change.
-Sol may edit only review 02's test paths, with no execution, production, report or
-Git work. Reviewer reads the files, then authorizes the next phase in the same ticket.
-No Hermes phase is active yet. Reviewer effort stays High. Reviewer publication is
+Sol's source authority is closed. Reviewer reads Hermes's repository report, then
+authorizes production in the same ticket after accepting red. No Hermes source edits,
+broader acceptance, build/restart or Git mutation. Reviewer effort stays High. Publication is
 limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
 
 QUEUED OWNER REQUESTS (2026-09-17):

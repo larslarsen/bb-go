@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, narrow test-source correction under review 02 below.**
-Reviewer: Codex, High. Execution remains pending the listed fixture corrections.
+Status: **ACTIVE — Hermes expected-red capture authorized by review 03 below.**
+Reviewer: Codex, High. Corrected test source is accepted for this run only.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. No NET-001 executor is active yet.
+ACC-002 is accepted and closed. Sol's source authority is closed pending red review.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — pending source review
+## Execution plan — only review 03's red phase is currently authorized
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -562,7 +562,7 @@ remain mandatory; discovery.go is still absent.
    production intervals or add sleeps to force bootstrap order. The targeted command's
    180-second package timeout remains unchanged.
 
-### Current source authorization
+### Review 02 source authorization — superseded by review 03
 
 Sol High may edit only the four paths in review 02's table, and only to make the three
 corrections above plus their necessary fixture/import cleanup. No new test program,
@@ -572,3 +572,84 @@ test files. This is still the same test-source task, not a new feature or handof
 No Hermes phase is active until the corrected source is reviewed. Reviewer publication
 is limited to this ticket and CURRENT_TASK.md. No developer source is integrated,
 committed or executed by this review.
+
+## Review 03 — test source accepted; Hermes expected-red authorization
+
+Reviewer: Codex, 2026-09-17, at HEAD
+867c0d6494d078f001749ec87ccb9f5a4e4cc9fa. Static source review only; no tests,
+builds or scanners executed. All original production/module pins still match and
+discovery.go is absent. The four frozen tests are unchanged. There are 21 TestNET001
+declarations, including the guarded child entry, and one FuzzPeerHello target.
+
+All three review-02 corrections are accepted: separate stalled-local-use and
+failed-plus-healthy bootstrap cases respect upstream ordering; invalid-response
+fixtures no longer reread an ended request half; the daemon discovery case allows
+120 seconds for startup and the specified retry. The invalid-probe test checks the
+production probe's return, response-write notification and confirmation state, then
+positively confirms the same peer with a valid response. The retry case runs two
+completed rounds without a competing background loop. API response-write notification
+remains supporting integration evidence, not proof that remote validation completed.
+
+Acceptance here authorizes expected-red execution, not feature acceptance. The
+bounded negative bootstrap observations retain review 02's limitations. Constructor
+failure cleanup cancels and joins New; if New ignores cancellation, the package's
+180-second timeout is the outer failure bound. Later production review must verify
+empty bootstrap selection, cancellation and real-path use of the private test seams.
+
+### Frozen test inputs for execution
+
+These supersede earlier test hashes; the original production/module pins remain in
+force. No source file may change during this phase.
+
+| Test path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/network/node_test.go | 548 | 9abc12fc479252c390f78802c9df546e6c4a4e78d71b09acf9db20ba815ab000 |
+| modern/network/open_test.go | 92 | 29feea3dfb533bd28e2b1c46a37bf33515787b35867fdc732d72d578cad2ef3d |
+| modern/network/bootstrap_test.go | 273 | cc1376f0f8dec262c460c06b40a8283b74b5e8381cccc4bd1fe4a88a559792ad |
+| modern/network/discovery_test.go | 1052 | 8e4833bdb1d945f3797aa071f59da7ce33d2b755a2d873c0602eafc59c4f1ae5 |
+| modern/network/discovery_fuzz_test.go | 46 | c4f15be93af81e4d732fedafc80275aadf16b3bdc401bdcc0d3ca0acfcde8b0e |
+| modern/api/handler_test.go | 602 | 38a990cbccb38a04e6f8394909d429610217a5d134f5f71810a6186c1cf08950 |
+| modern/cmd/bitbookd/bootstrap_test.go | 403 | f338c4fe1b8cb96b21e14fdb0d1f0587d50021234816a7ed34ba4d4e0b8848c8 |
+| modern/cmd/bitbookd/payment_test.go | 734 | f1ac520574b48f22e41b8700d7852214479ccf3cf4b919ffd8be0deaf06eea31 |
+
+### Hermes assignment — expected red only
+
+Use this ticket as the complete assignment. Read AGENTS.md and TESTING.md. Verify
+the original production/module pins and review 03's eight test pins before and after
+execution; retain the observed hashes and line counts. Stop and record any mismatch.
+Confirm discovery.go remains absent. Preserve unrelated working-tree changes.
+
+Use the cached Go 1.27.0 binary and environment specified in the execution plan;
+verify its listed SHA-256 and capture `go version`. No downloads or module edits.
+Inspect filesystem type and available space with `findmnt -T .` and `df -h .` from
+modern before creating artifacts. Use disk-backed `modern/dist/net001/red01` for
+raw logs and an owned tmp subdirectory, setting TMPDIR and GOTMPDIR to that absolute
+tmp path. If red01 already exists, retain it and choose a new numbered directory,
+recording the choice. Do not overwrite previous output or use RAM-backed build state.
+
+Run exactly this test command from modern, with the execution plan's environment:
+
+```sh
+go test ./network ./api ./cmd/bitbookd -run '^TestNET001' -count=1 -timeout=180s
+```
+
+Capture full stdout and stderr directly to retained files, start/end UTC timestamps,
+the actual exit code, cwd, command and relevant environment. Preserve the nonzero exit
+without letting shell error handling discard the remainder of the evidence capture.
+Read-only Git/source/tool metadata commands and artifact/report creation are authorized.
+
+Write the result in `docs/testing/BBGO-NET-001-EXECUTION-01.md`, the single report for
+this ticket. Include source identities, static test counts, raw-log paths/hashes,
+exact command/result and actual diagnostics. Expected red is missing planned
+discovery/bootstrap-selection symbols, or assertions against the old behavior.
+A missing-symbol build failure demonstrates only absent implementation; report that
+no test bodies ran. Compiler truncation at "too many errors" does not justify claiming
+unprinted diagnostics. Fixture syntax, unrelated dependency or environment failures
+are gaps requiring review, not accepted red; record them without source repair.
+
+Stop after the capture and report. No production/test changes, stubs, broader tests,
+fuzzing, scanners, local daemon build/restart, real-data access or Git mutation are
+authorized for Hermes in this phase. Sol's prior edit authority is closed. Reviewer
+will read the report and authorize production in this same ticket after accepting red.
+Reviewer publication now includes only this ticket and CURRENT_TASK.md; the test drop
+remains uncommitted pending the later developer integration phase.
