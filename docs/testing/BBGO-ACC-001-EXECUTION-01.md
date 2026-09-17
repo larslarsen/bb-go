@@ -107,7 +107,7 @@ Command: `go version`
 Exit: 0. Output: `go version go1.27.0 linux/amd64`.
 
 ### 02-env
-Command: `go env GOVERSION GOWORK GOCACHE GOTMPDIR GOPROXY GOSUMDB GOFLAGS`
+Command: `go env GOVERSION GOWORK GOCACHE GOTMPDIR GOPROXY GOFLAGS`
 Exit: 0. Verified environment: GOWORK=off, GOPROXY=off, GOFLAGS empty.
 
 **Note (review 06):** GOSUMDB was omitted from the runner's environment override
@@ -174,12 +174,6 @@ All 10 source hashes match review 05. No lasting source modification.
 6. `modern/accountauth/fuzz_test.go`
 7. `docs/testing/BBGO-ACC-001-EXECUTION-01.md`
 
-### Staged secret scan
-
-Command: `gitleaks git --pre-commit --staged --redact=100 --no-banner .`
-Tool: Gitleaks v8.30.1
-Exit: 0. No findings.
-
 ### Feature commit
 
 Commit: `ad52bf019352b45bcf52906f99fcc4e776dc4b7e`
@@ -188,7 +182,25 @@ Paths: 7 (6 accountauth files + execution report)
 
 ### Report-only closeout
 
-Commit: `<pending>`
+Commit: `db8a1bf4f838ee5293fd3ada02f487344fafdf64`
 Message: "docs: record ACC-001 publication and closeout"
 
-Remote verification: origin/master at `ad52bf019...` (feature).
+Remote verification: origin/master at `db8a1bf4f...` (closeout).
+
+### Committed-range secret scan (review 07)
+
+Command: `gitleaks git --redact=100 --no-banner --log-opts=73b67c197f3b51941ddc345541ba5e36b56dfa76..db8a1bf4f838ee5293fd3ada02f487344fafdf64 .`
+Tool: Gitleaks v8.30.1, SHA-256 `444a87409b36e0c330caf3fa61f354dd13e66987ecc9db63d787db761641541a`
+Exit: 0. Scanned 2 commits, ~66.48 KB. **No leaks found.**
+
+Evidence: `modern/dist/acc001/publication02/01-range-scan.stdout.log`,
+`modern/dist/acc001/publication02/01-range-scan.meta.json`
+
+### Staged scan (report correction)
+
+Command: `gitleaks git --pre-commit --staged --redact=100 --no-banner .`
+Tool: Gitleaks v8.30.1
+Exit: 0. Scanned ~982 bytes (corrected report only). **No leaks found.**
+
+Evidence: `modern/dist/acc001/publication02/02-staged-scan.stdout.log`,
+`modern/dist/acc001/publication02/02-staged-scan.meta.json`
