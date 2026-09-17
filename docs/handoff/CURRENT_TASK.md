@@ -1,14 +1,12 @@
 # Current Task
 
-ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), review 02. The expected
-missing-implementation compile failure is accepted from the retained log and actual
-Hermes terminal result. Review 02 records the failed automatic capture and the
-direct-run evidence limitations; no rerun or report-only handoff is needed.
-Owner relays this same ticket to Codex Sol (`gpt-5.6-sol`, High) to author exactly
-`modern/accountstore/types.go`, `store.go` and `codec.go`. The three tests and nine
-original inputs are frozen. No source actor execution, records, dependencies or Git.
-Hermes green/scans/publication await production source review. No actor has been
-launched by Codex; reviewer effort stays High and naming is not a gate.
+ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), review 03. Sol's three
+production files are source-accepted for execution (453 lines); all 12 prior input
+and test pins match. Owner relays this same ticket to Hermes on a free Nous Portal
+model for its exact automatic green/falsification/security capture. It includes a
+build-only fault overlay and appends to the existing execution report. All source
+is frozen. No Git/publication, source correction or daemon restart is authorized.
+Reviewer has not run tests/scans or launched an actor. Effort stays High.
 
 QUEUED NETWORK DIRECTION: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), use the
 public IPFS swarm/bootstrap infrastructure without a required BitBook seed fleet.
@@ -37,7 +35,7 @@ integration. Existing v1 peer-ID/signature bindings remain frozen. Naming is pro
 and is not a gate. Read the
 [account decision](../../../bb-desktop/docs/architecture/BB-ACCOUNT-RECIPIENT-PROPOSAL-01.md).
 Current reviewer governance publication is limited to this file and ACC-002 in bb-go;
-review 02 records the scope, evidence disposition and source pins. Preserve unrelated work.
+review 03 records the scope, execution authorization and source pins. Preserve unrelated work.
 
 BBGO-PAY-003 — ACCEPTED AND PUBLISHED. Its authorizations below are historical and
 do not restrict or expand ACC-001's explicit scope. DEV-001 remains cancelled.

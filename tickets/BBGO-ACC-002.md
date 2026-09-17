@@ -1,10 +1,10 @@
 # BBGO-ACC-002 — durable account grants and revocations
 
-Reviewer: Codex, 2026-09-17, High. **Active: Sol production source; see review 02.**
-Actor: Codex Sol, `gpt-5.6-sol`, High, owner-relayed. This ticket is the sole handoff.
-Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
-Review 02 accepts the expected missing-implementation red and activates exactly
-three production files. Test source is frozen. Hermes execution is closed for now.
+Reviewer: Codex, 2026-09-17, High. **Active: Hermes green/falsification/security; review 03.**
+Actor: Hermes on a free Nous Portal model, owner-relayed. This ticket is the sole
+handoff. Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
+Production source is accepted for execution, not final acceptance. All source is
+frozen. Run only review 03's capture; no Git/publication or source correction yet.
 
 ## Result and scope
 
@@ -71,7 +71,7 @@ do not copy the verifier or add production stubs. Synthetic reproducible keys on
 Gofmt of these three test files is allowed; no compiler/test/fuzz/scanner execution,
 dependency changes, records, Git or actor launch. Stop with the ticket/source pointer.
 
-**Production scope, activated by review 02:** `modern/accountstore/types.go`, `store.go`,
+**Production scope, authored under review 02; now frozen:** `modern/accountstore/types.go`, `store.go`,
 `codec.go`. No imports of accountstore elsewhere, runtime wiring or existing source
 edits. Sol authors those files only after reviewed tests and expected-red acceptance.
 
@@ -509,7 +509,7 @@ explicit environment and task-owned disk-backed cache/temp paths. The later Herm
 phase will append to the same report and point to this qualification; do not rewrite
 historical evidence or launch another actor now.
 
-### Active Sol production task
+### Historical Sol production task — closed by review 03
 
 Author exactly these new files under the frozen contract above:
 
@@ -538,3 +538,210 @@ Exactly `tickets/BBGO-ACC-002.md` and `docs/handoff/CURRENT_TASK.md`, based on t
 baseline above. Preserve the untracked tests, execution report and all unrelated
 work; none are part of this reviewer publication. Verify the 12 source pins, local
 links and scoped whitespace before committing these two governance documents only.
+
+
+## Review 03 — production source accepted for execution, 2026-09-17
+
+Baseline: `9e51b7c111fe177b9ef6d4fb2fc5c044b2a10993`. The 12 original/test pins
+still match. Exactly the six authorized files exist in accountstore. New production:
+
+| Input | SHA-256 |
+| --- | --- |
+| modern/accountstore/types.go | d10523e39dc4b0e40b80be7105094c1df0d514dd3e156509e47de9a753f7b24f |
+| modern/accountstore/store.go | 7bd1a76b1055bcaa1723f751c702aa70fd4e6d40a6947267c3c1a6c1ab9b6d81 |
+| modern/accountstore/codec.go | fe864efcf92f2f2168da37fa7ea3b482b35f0463e438023dad27a10470e0deab |
+
+Production line counts: 40 / 267 / 146, total 453. Tests remain 1,897 lines,
+11 ordinary functions and one fuzz target. No blocking source finding. Create/Open
+remain distinct; derived keys and complete signed snapshots are bounded. Decoder
+checks lengths/count before collections, rejects duplicate facts and verifies every
+record for the pinned controller, including the 4097th saturation witness. Apply
+holds the same mutex used by all readers through verification, Put, Sync and state
+advancement. Failed storage permanently disables the handle without rollback writes.
+Records are copied, Close does not own the backend, and no runtime imports were added.
+The lock/order review directly addresses review 01's opportunistic reader-test limit.
+No compiler, test, fuzz or scanner was executed by Codex.
+
+### Active Hermes execution
+
+Run the exact capture below from bb-go root, unchanged. It uses the installed,
+hash-pinned Go 1.27.0 executable directly with `GOTOOLCHAIN=local`, avoiding the
+review-01 launcher failure. It checks all 15 source pins plus scanner/policy identities,
+records the explicit environment and raw outputs automatically, and appends results
+to the existing execution report. The report's original section remains historical
+and is qualified by review 02. No manual replacement of logs, timestamps or metadata.
+
+The batch runs package green, the accountauth/accountstore race suite, vet, 30-second
+snapshot fuzzing, the pinned fault and restored regression, gosec v2.29.0, and the
+existing govulncheck v1.7.0 source policy. Vet/scan results are evidence for review,
+not permission to suppress findings. Govulncheck's existing DHT exception retains
+its exact v0.42.2 scope and 2026-11-29 expiry; no exception is extended here.
+Advisory access is allowed only for that scan. Tests use no public services, and
+module downloads are disabled. Gitleaks/staging/publication remain a later phase.
+
+The fault is fixed: wrap only Apply's `s.backend.Put` block in
+`if record.Kind() != accountauth.RevokeDevice { ... }`; keep Sync, in-memory application
+and acknowledgment intact. Use Go's build overlay so tracked/untracked source bytes
+never change. The required failure is `TestRevocationSurvivesReopen` reporting
+`device revocation after reopen = true, <nil>`. A compile/setup/timeout failure is
+not successful falsification. The subsequent identical test without the overlay must
+pass. Overlay behavior was checked in installed Go 1.27.0's `cmd/go/alldocs.go`;
+this is a build-time source substitution, not a runtime file interception.
+
+Writable paths: task-owned `modern/dist/acc002/` captures, caches and overlay files,
+and append-only `docs/testing/BBGO-ACC-002-EXECUTION-01.md`. An unexpected Go fuzz
+failure may retain its generated reproducer under `modern/accountstore/testdata/fuzz/`;
+preserve and report it for review, without editing/promoting it into source. No other
+source/test/dependency/record changes, actor launch, daemon build/restart, Git or
+publication. The isolated package still has no UI/runtime effect. If the exact
+capture cannot run, record the actual failure in the report and stop; do not substitute
+an ad hoc execution environment. Review the already captured results before any rerun.
+
+```sh
+python3 - <<'ACC002_GREEN'
+import datetime, hashlib, json, os, pathlib, re, signal, subprocess, sys
+root = pathlib.Path.cwd().resolve()
+ticket = root / 'tickets/BBGO-ACC-002.md'
+assert ticket.is_file(), 'run from bb-go root'
+pins = dict(re.findall(r'^\| (modern/[^ |]+) \| ([0-9a-f]{64}) \|$', ticket.read_text(), re.M))
+assert len(pins) == 15
+sha = lambda p: hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+hashes = lambda: {p: sha(root / p) for p in pins}
+before = hashes()
+assert before == pins, 'source hash mismatch'
+assert {p.name for p in (root / 'modern/accountstore').iterdir()} == {
+    'types.go', 'store.go', 'codec.go', 'store_test.go', 'persistence_test.go', 'fuzz_test.go'}
+report = root / 'docs/testing/BBGO-ACC-002-EXECUTION-01.md'
+assert report.is_file() and '## Review 03 automated capture' not in report.read_text()
+fs = subprocess.run(['findmnt', '-T', str(root / 'modern'), '-n', '-o', 'FSTYPE'],
+                    capture_output=True, text=True, check=True).stdout.strip()
+assert fs and fs not in ('tmpfs', 'ramfs'), 'disk-backed task directory required'
+base = root / 'modern/dist/acc002'
+base.mkdir(parents=True, exist_ok=True)
+assert not base.is_symlink()
+assert subprocess.run(['findmnt', '-T', str(base), '-n', '-o', 'FSTYPE'],
+                     capture_output=True, text=True, check=True).stdout.strip() == fs
+utc = lambda: datetime.datetime.now(datetime.timezone.utc).isoformat()
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+run = base / ('green-' + stamp)
+run.mkdir(exist_ok=False)
+for name in ('tmp', 'gocache', 'xdg-cache'):
+    (run / name).mkdir()
+go = pathlib.Path.home() / 'go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/bin/go'
+gosec = pathlib.Path.home() / 'go/bin/gosec'
+govuln = pathlib.Path.home() / 'go/bin/govulncheck'
+policy = root / 'scripts/govulncheck_policy.py'
+tool_pins = {str(go): '1db869c560a193573a71be466a34e0d4abb7792d78165c6102cdda069276a3a8',
+             str(gosec): 'eb00a1fb095b161a48c5bcadbe1e246bbafe270da497a122d2e63ade346954c2',
+             str(govuln): '6c92f0536311f5e2083a839c75558e3fb986758a320a402aa8f524c85ffd7400',
+             str(policy): '709cb00d44c62ef6e2d394f457407183d6fb90bc98958c80db0261607bc3c77c'}
+assert all(sha(p) == h for p, h in tool_pins.items()), 'tool/policy identity mismatch'
+env = {'HOME': str(pathlib.Path.home()), 'LANG': 'C.UTF-8',
+       'PATH': str(go.parent) + ':' + str(govuln.parent) + ':/usr/bin:/bin',
+       'GOWORK': 'off', 'GOTOOLCHAIN': 'local', 'GOENV': 'off',
+       'GOPROXY': 'off', 'GOSUMDB': 'off', 'GOFLAGS': '-mod=readonly -p=2',
+       'GOMAXPROCS': '2', 'CGO_ENABLED': '1', 'GOTELEMETRY': 'off',
+       'GOMODCACHE': str(pathlib.Path.home() / 'go/pkg/mod'),
+       'GOCACHE': str(run / 'gocache'), 'TMPDIR': str(run / 'tmp'),
+       'XDG_CACHE_HOME': str(run / 'xdg-cache'), 'PYTHONDONTWRITEBYTECODE': '1'}
+meta = {'started_utc': utc(), 'filesystem': fs, 'environment': env,
+        'tools': tool_pins, 'before': before, 'commands': []}
+def capture(name, argv, cwd=None):
+    argv = list(map(str, argv))
+    cwd = cwd or root / 'modern'
+    entry = {'name': name, 'argv': argv, 'cwd': str(cwd), 'started_utc': utc()}
+    print('Starting ' + name, flush=True)
+    with (run / (name + '.stdout')).open('wb') as out, (run / (name + '.stderr')).open('wb') as err:
+        proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=out, stderr=err, start_new_session=True)
+        try:
+            entry['returncode'] = proc.wait(timeout=900)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            entry['returncode'] = proc.wait()
+            entry['timed_out'] = True
+    entry['finished_utc'] = utc()
+    entry['stdout_sha256'] = sha(run / (name + '.stdout'))
+    entry['stderr_sha256'] = sha(run / (name + '.stderr'))
+    entry['after'] = hashes()
+    meta['commands'].append(entry)
+    (run / 'metadata.json').write_text(json.dumps(meta, indent=2) + '\n')
+    assert entry['after'] == before, 'source changed during ' + name
+    print(name + ': exit ' + str(entry['returncode']), flush=True)
+    return entry
+try:
+    assert capture('go-version', [go, 'version'])['returncode'] == 0
+    assert capture('scanner-identities', [go, 'version', '-m', gosec, govuln])['returncode'] == 0
+    for name, args in [
+        ('green', ['test', './accountstore', '-count=1', '-timeout=3m']),
+        ('race', ['test', '-race', './accountauth', './accountstore', '-count=1', '-timeout=3m']),
+        ('vet', ['vet', './accountstore']),
+        ('fuzz', ['test', './accountstore', '-run', '^$', '-fuzz', '^FuzzOpenSnapshot$',
+                  '-fuzztime=30s', '-parallel=2', '-timeout=3m'])]:
+        result = capture(name, [go] + args)
+        assert result['returncode'] == 0, name + ' did not pass'
+    source = root / 'modern/accountstore/store.go'
+    original = source.read_text()
+    needle = '\tif err := s.backend.Put(ctx, s.key, snapshot); err != nil {\n\t\ts.disableLocked()\n\t\treturn storageError("put state", err)\n\t}\n'
+    assert original.count(needle) == 1
+    replacement = '\tif record.Kind() != accountauth.RevokeDevice {\n' + ''.join('\t' + line for line in needle.splitlines(True)) + '\t}\n'
+    fault = run / 'store-fault.go'
+    fault.write_text(original.replace(needle, replacement, 1))
+    assert sha(fault) == 'f9f5b359b8f7414d28cc9bfcf45b35cd3236735a03e4767615fc8468480e2849'
+    overlay = run / 'overlay.json'
+    overlay.write_text(json.dumps({'Replace': {str(source): str(fault)}}))
+    meta['fault_sha256'] = sha(fault)
+    meta['overlay_sha256'] = sha(overlay)
+    args = ['test', './accountstore', '-run', '^TestRevocationSurvivesReopen$', '-count=1', '-timeout=3m']
+    result = capture('fault', [go, args[0], '-overlay=' + str(overlay)] + args[1:])
+    output = (run / 'fault.stdout').read_text(errors='replace') + (run / 'fault.stderr').read_text(errors='replace')
+    meta['fault_detected'] = result['returncode'] == 1 and not result.get('timed_out') and 'device revocation after reopen = true, <nil>' in output
+    restored = capture('restored', [go] + args)
+    assert meta['fault_detected'] and restored['returncode'] == 0, 'falsification/restoration not proven'
+    capture('gosec', [gosec, '-tests', './accountstore/...'])
+    policy_capture = "import datetime, json, pathlib, runpy, subprocess, sys\nrun = pathlib.Path(sys.argv[2])\nns = runpy.run_path(sys.argv[1], run_name='acc002_policy')\ndef execute(argv, **kwargs):\n    utc = lambda: datetime.datetime.now(datetime.timezone.utc).isoformat()\n    entry = {'argv': argv, 'cwd': kwargs.get('cwd'), 'started_utc': utc()}\n    result = subprocess.run(argv, **kwargs)\n    (run / 'govulncheck.sarif').write_text(result.stdout or '')\n    (run / 'govulncheck.stderr').write_text(result.stderr or '')\n    entry.update(returncode=result.returncode, finished_utc=utc())\n    (run / 'govulncheck-command.json').write_text(json.dumps(entry, indent=2))\n    return result\nraise SystemExit(ns['main'](['source'], execute=execute))\n"
+    capture('govulncheck-policy', [sys.executable, '-c', policy_capture, policy, run], root)
+except Exception as exc:
+    meta['capture_failure'] = str(exc)
+finally:
+    meta['after'] = hashes()
+    meta['source_unchanged'] = meta['after'] == before
+    meta['finished_utc'] = utc()
+    meta['artifacts'] = {p.name: sha(p) for p in run.iterdir() if p.is_file() and p.name != 'metadata.json'}
+    (run / 'metadata.json').write_text(json.dumps(meta, indent=2) + '\n')
+    def public(value):
+        return value.replace(str(root), '<repo>').replace(str(pathlib.Path.home()), '<home>')
+    lines = ['','## Review 03 automated capture', '',
+             'Review 02 qualifies the earlier red capture. This section preserves this run only.',
+             'Local paths are labeled here; raw artifacts retain exact values.', '',
+             'Artifacts: `' + str(run.relative_to(root)) + '`.',
+             'Metadata SHA-256: `' + sha(run / 'metadata.json') + '`.', '',
+             '```json', public(json.dumps(meta, indent=2)), '```', '']
+    for entry in meta['commands']:
+        lines += ['### ' + entry['name'], '']
+        for stream in ('stdout', 'stderr'):
+            output = (run / (entry['name'] + '.' + stream)).read_text(errors='replace')
+            lines += [stream + ':', '', '```text', public(output.rstrip()), '```', '']
+    with report.open('a') as out:
+        out.write('\n'.join(lines))
+    print(report.relative_to(root), flush=True)
+    print(run.relative_to(root), flush=True)
+ACC002_GREEN
+```
+
+Capture completion does not mean acceptance: every returncode, fault diagnostic and
+scanner finding requires review. No source repair, suppression, repeated run or Git
+operation is authorized by a successful capture. The scanner stages are independent;
+retain both results even if gosec reports findings. Stop and relay this ticket/report
+pointer when complete.
+
+### Reviewer publication for review 03
+
+Exactly `tickets/BBGO-ACC-002.md` and `docs/handoff/CURRENT_TASK.md`, based on the
+baseline above. Preserve all six untracked source/test files, the execution report
+and unrelated work. None are part of this reviewer publication. Source acceptance
+permits execution only; final behavior/security acceptance and publication remain open.
+
+Publication checks: all 15 source pins and the four tool/policy pins match. Both
+embedded Python snippets parse without execution. The fault substitution has one
+exact match and its proposed bytes are hash-pinned; no source file was modified or
+compiled to check it. Local document links and scoped whitespace checks pass.
