@@ -1,17 +1,15 @@
 # Current Task
 
 ACTIVE: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable account grants and
-revocation verifier. This ticket is the sole handoff. Owner relays review 03's
-production-source section to Codex Sol (`gpt-5.6-sol`, High). The saved compiler
-diagnostics show the intended missing-implementation failure and all seven source
-hashes match. Review 03 accepts that narrow red, records the report's line-count and
-metadata gaps, and closes Hermes execution. No repeat red or separate report handoff.
-Sol first restores the two full-capacity rejection checks, then authors the three
-production files. Its six-path scope includes mechanical gofmt; other test semantics
-stay frozen. No test/compiler execution, dependencies, records, Git mutations or
-runtime integration for Sol. Hermes repairs its report during the later green phase
-after source review; broader execution is not yet authorized. Codex has not launched
-an actor or executed tests.
+revocation verifier. This ticket is the sole handoff. Owner relays review 04's
+execution section to Hermes on a free Nous Portal model. Source review accepts the
+three production files and restored full-capacity checks; Sol's source authority is
+closed. Hermes runs the focused green, one pinned temporary fault and restoration,
+race/vet/fuzz and named security checks, and repairs its existing execution report.
+All ten source inputs are pinned in the ticket. No permanent source edits or Git
+publication are authorized; staged secret scanning waits for publication review.
+Acceptance remains pending actual execution evidence. No repeat red or separate
+report handoff. Codex has not launched an actor or executed tests.
 The owner confirms reviewer effort High. Review and phase evidence remain in the same
 ticket; no separate execution handoff is needed.
 
