@@ -1,6 +1,24 @@
 # Current Task
 
-BBGO-PAY-003 — ACCEPTED AND PUBLISHED. No active implementation task.
+ACTIVE: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable account grants and
+revocation verifier. This ticket is the sole handoff. Owner relays it to Codex Sol
+(`gpt-5.6-sol`, High) under the daemon's principal-dev role. Current authority is its
+three test-source files only; no production edits, execution, records or Git for Sol.
+No actor has been launched. The reviewer inspects the drop and records its inventory
+in the ticket; Hermes later owns execution/evidence after reviewer activation.
+
+Account architecture: a backed-up controller and independent revocable device keys.
+The ticket freezes record bytes, capabilities, known-revocation rules, bounds and
+test/acceptance obligations. This is an isolated package with no current daemon/UI
+integration. Existing v1 peer-ID/signature bindings remain frozen. Naming is provisional
+and is not a gate. Read the
+[account decision](../../../bb-desktop/docs/architecture/BB-ACCOUNT-RECIPIENT-PROPOSAL-01.md).
+Reviewer governance publication is limited to this file and that ticket in bb-go;
+the cross-repository scope and source pins are recorded there. Preserve unrelated work.
+
+BBGO-PAY-003 — ACCEPTED AND PUBLISHED. Its authorizations below are historical and
+do not restrict or expand ACC-001's explicit scope. DEV-001 remains cancelled.
+
 Feature commit: `82ed5f9c62ab22687a4972ba0ad59731bf43013e` on origin/master.
 CI: [Go 1.27, run 35017544700](https://github.com/larslarsen/bb-go/actions/runs/35017544700) passed.
 Hermes closeout: `290825cb40f08f683d72993e8412a703d6a11836`, independently verified
