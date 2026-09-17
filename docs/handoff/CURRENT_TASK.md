@@ -10,6 +10,15 @@ Git work. Reviewer reads the files, then authorizes the next phase in the same t
 No Hermes phase is active yet. Reviewer effort stays High. Reviewer publication is
 limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
 
+QUEUED OWNER REQUESTS (2026-09-17):
+[BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with
+IPFS attachments, shared Electron/Android UI, emoji/GIF selection and reactions; and
+[BBGO-MSG-001](../../tickets/BBGO-MSG-001.md), libsignal private messaging.
+Private attachment keys travel inside MSG-001 encrypted messages. Public posts use
+signed public content/IPFS and no libsignal. Both tickets are queued
+architecture/implementation contracts; no new actor or source authorization. NET-001
+continues unchanged. Their documentation-only publication scope is in MEDIA-001.
+
 ACCEPTED, PUBLISHED AND CLOSED: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md),
 review 05. Feature `84e3a26863ea5e230e3a737858719d62ad894c5e` is verified on
 remote master; Go 1.27 CI run 35275311397 passed. Tests, race checks, fuzzing,
