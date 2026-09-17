@@ -182,12 +182,13 @@ Exit: 0. No findings.
 
 ### Feature commit
 
-Commit: `<to-be-recorded>`
+Commit: `ad52bf019352b45bcf52906f99fcc4e776dc4b7e`
 Message: "feat(account): add portable account grants and revocation verifier"
+Paths: 7 (6 accountauth files + execution report)
 
 ### Report-only closeout
 
-Commit: `<to-be-recorded>`
+Commit: `<pending>`
 Message: "docs: record ACC-001 publication and closeout"
 
-Remote verification: origin/master at `<to-be-recorded>`.
+Remote verification: origin/master at `ad52bf019...` (feature).
