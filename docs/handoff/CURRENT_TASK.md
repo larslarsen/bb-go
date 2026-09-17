@@ -1,13 +1,19 @@
 # Current Task
 
-ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), durable account grants and
-revocations. Owner relays this ticket to Codex Sol (`gpt-5.6-sol`, High) for its
-three test-source files only. It freezes a bounded per-account datastore value,
-explicit Create/Open, verified replay, durable saturation and storage-error denial.
-Tests cover real LevelDB reopen/process-kill behavior and deterministic failed writes.
-No production, test execution, records, dependencies or Git work for Sol now. The
-reviewer accepts test source before activating Hermes execution in this same ticket.
-No actor has been launched. Reviewer effort stays High; naming is not a gate.
+ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), review 01. Sol's three
+test files are source-accepted for the expected-red compile check (1,897 lines,
+11 tests and one fuzz target); all nine frozen inputs match. Owner relays the same
+ticket to Hermes on a free Nous Portal model. Run its exact automatic capture
+command and retain the designated execution report. No source edits, production,
+scans or Git work in this phase. No actor has been launched by Codex and no tests
+have been executed by Codex. Reviewer effort stays High; naming is not a gate.
+
+QUEUED NETWORK DIRECTION: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), use the
+public IPFS swarm/bootstrap infrastructure without a required BitBook seed fleet.
+Owner reiterated this on 2026-09-17. The old bootstrap-only ticket was incomplete:
+current DHT/Bitswap protocol prefixes still isolate BitBook. The revised ticket
+records the required compatibility work; no network migration has occurred.
+ACC-002 proceeds unchanged. Trust-profile bootstrap is unrelated and unchanged.
 
 ACCEPTED AND PUBLISHED: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable
 account grants and revocation verifier, closed by review 08. Feature ad52bf01 and
@@ -28,8 +34,8 @@ test/acceptance obligations. This is an isolated package with no current daemon/
 integration. Existing v1 peer-ID/signature bindings remain frozen. Naming is provisional
 and is not a gate. Read the
 [account decision](../../../bb-desktop/docs/architecture/BB-ACCOUNT-RECIPIENT-PROPOSAL-01.md).
-Current reviewer governance publication is limited to this file and ACC-002 in bb-go;
-its scope and source pins are recorded there. Preserve unrelated work.
+Current reviewer governance publication is limited to this file, ACC-002 and NET-001
+in bb-go; review 01 records the scope and source pins. Preserve unrelated work.
 
 BBGO-PAY-003 — ACCEPTED AND PUBLISHED. Its authorizations below are historical and
 do not restrict or expand ACC-001's explicit scope. DEV-001 remains cancelled.

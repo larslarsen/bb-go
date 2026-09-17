@@ -1,9 +1,10 @@
 # BBGO-ACC-002 — durable account grants and revocations
 
-Reviewer: Codex, 2026-09-17, High. **Active: Sol test-source authoring only.**
-Actor: Codex Sol, `gpt-5.6-sol`, High, owner-relayed. This ticket is the sole handoff.
-Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
-Do not run tests or author production until their phases are activated here.
+Reviewer: Codex, 2026-09-17, High. **Active: Hermes expected-red capture; see review 01 below.**
+Actor: Hermes on a free Nous Portal model, owner-relayed. This ticket is the sole
+handoff. Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
+Review 01 supersedes the initial test-authoring phase below. Sol source authority
+is closed; production remains inactive.
 
 ## Result and scope
 
@@ -296,3 +297,152 @@ Initial review checks: nine frozen hashes match, all six target files are absent
 snapshot size arithmetic is consistent, and all 38 local links across the two scoped
 documents resolve. Whitespace checks passed. No implementation, compiler, test,
 scanner or actor execution was performed.
+
+
+## Review 01 — test source accepted for expected-red execution, 2026-09-17
+
+Reviewed at HEAD `dd1abf272deb6ff1f5d8f31643094d8808b65704`. All nine frozen input
+hashes above match. The drop contains exactly the three authorized test files;
+production is absent. Source review only: no compiler, test, fuzz or scanner was
+run by Codex. Sol had no execution/report authority, so no Sol execution report is
+required. Eleven ordinary test functions and one fuzz target, 1,897 lines total:
+
+| Input | SHA-256 |
+| --- | --- |
+| modern/accountstore/store_test.go | 6c7c3b4c0849670fc4b1527091b0fb40e26854db10013813c885f5cff5940e32 |
+| modern/accountstore/persistence_test.go | 25e8308df9ff6a6aa3d1e43747a6d9a09efd66c12d36a6c3e19e1ef3db9e4c3a |
+| modern/accountstore/fuzz_test.go | ecff630ee50e23b4651d34aab7190f4872b2f8ad2e0d91b718e31d3518bcc9af |
+
+Line counts respectively 1,008 / 725 / 164. Independent fixtures use the accepted
+literal signature domains and byte offsets. Reviewed positive grant controls,
+real LevelDB reopen and acknowledged-child-kill cases, 4095/4096/4097 boundaries,
+forged/duplicate overflow witnesses, failed writes with old/new/corrupt outcomes,
+disabled handles, concurrent methods, owned bytes and snapshot fuzzing. The failure
+backend separates pending Put bytes from durable Sync bytes. No real daemon,
+wallet, public peers or user database is used.
+
+Review limits: this is permission to compile the tests, not evidence that they pass.
+The Sync barrier's immediate nonblocking read check is only opportunistic evidence
+about pre-Sync visibility; it is not a deterministic proof that the reader ran before
+release. Review production lock/persistence order explicitly before green. Fuzz
+replay checks the returned Records; the independent ordinary snapshot/restart tests
+remain necessary to detect omitted records. No claim of exhaustive parser coverage.
+
+### Active Hermes work — one expected-red capture
+
+Run the exact command below from the bb-go repository root. It checks the source
+pins and disk backing, captures the installed Go identity, and runs only the package
+compile/red command with downloads disabled. It automatically retains stdout/stderr,
+exit status, UTC times, argv, explicit environment and before/after hashes. The
+package currently lacks Store/Create/Open/constants/errors, so undefined-contract
+compiler errors are expected. A syntax, fixture API or dependency error is a gap,
+not an accepted red. Do not repair source or fabricate a successful result.
+
+Writable scope: task-owned `modern/dist/acc002/` artifacts/caches and
+`docs/testing/BBGO-ACC-002-EXECUTION-01.md` only. Source files, dependencies and all
+other records are frozen. No Git mutation, scans, production, daemon build/restart,
+network tests or actor launch. Return the report pointer; reviewer accepts the actual
+red before activating Sol's three production files in this same ticket. If the
+capture stops before writing its report, record that failure and actual output in
+the designated report; never reconstruct missing raw command output.
+
+```sh
+python3 - <<'ACC002_CAPTURE'
+import datetime, hashlib, json, os, pathlib, re, shutil, subprocess
+root = pathlib.Path.cwd().resolve()
+ticket = root / 'tickets/BBGO-ACC-002.md'
+assert ticket.is_file(), 'run from bb-go root'
+pins = dict(re.findall(r'^\| (modern/[^ |]+) \| ([0-9a-f]{64}) \|$', ticket.read_text(), re.M))
+assert len(pins) == 12, 'expected nine frozen inputs and three test files'
+def hashes():
+    return {p: hashlib.sha256((root / p).read_bytes()).hexdigest() for p in pins}
+before = hashes()
+assert before == pins, 'source hash mismatch'
+assert {p.name for p in (root / 'modern/accountstore').iterdir()} == {
+    'store_test.go', 'persistence_test.go', 'fuzz_test.go'}, 'unexpected package files'
+fs = subprocess.run(['findmnt', '-T', str(root / 'modern'), '-n', '-o', 'FSTYPE'],
+                    capture_output=True, text=True, check=True).stdout.strip()
+assert fs and fs not in ('tmpfs', 'ramfs'), 'disk-backed task directory required'
+def utc():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+base = root / 'modern/dist/acc002'
+run = base / ('red-' + stamp)
+run.mkdir(parents=True, exist_ok=False)
+for name in ('tmp', 'gocache'):
+    (base / name).mkdir(exist_ok=True)
+go = shutil.which('go')
+assert go, 'installed Go required'
+env = {'HOME': os.environ['HOME'], 'PATH': os.environ['PATH'], 'LANG': 'C.UTF-8',
+       'GOWORK': 'off', 'GOTOOLCHAIN': 'go1.27.0', 'GOPROXY': 'off', 'GOSUMDB': 'off',
+       'GOENV': 'off', 'GOFLAGS': '-mod=readonly',
+       'GOMODCACHE': str(pathlib.Path.home() / 'go/pkg/mod'),
+       'GOCACHE': str(base / 'gocache'), 'TMPDIR': str(base / 'tmp')}
+meta = {'started_utc': utc(), 'cwd': str(root / 'modern'), 'environment': env,
+        'filesystem': fs, 'before': before, 'go_launcher': go,
+        'go_launcher_sha256': hashlib.sha256(pathlib.Path(go).read_bytes()).hexdigest(),
+        'commands': []}
+commands = [('go-version', [go, 'version']), ('go-root', [go, 'env', 'GOROOT']),
+            ('expected-red', [go, 'test', './accountstore', '-count=1'])]
+for name, argv in commands:
+    entry = {'name': name, 'argv': argv, 'started_utc': utc()}
+    with (run / (name + '.log')).open('wb') as output:
+        try:
+            result = subprocess.run(argv, cwd=root / 'modern', env=env,
+                                    stdout=output, stderr=subprocess.STDOUT, timeout=180)
+            entry['returncode'] = result.returncode
+        except subprocess.TimeoutExpired:
+            entry['returncode'] = None
+            entry['failure'] = 'capture timeout after 180 seconds'
+    entry['finished_utc'] = utc()
+    entry['log_sha256'] = hashlib.sha256((run / (name + '.log')).read_bytes()).hexdigest()
+    meta['commands'].append(entry)
+    if name == 'go-root' and entry['returncode'] == 0:
+        compiler = pathlib.Path((run / 'go-root.log').read_text().strip()) / 'bin/go'
+        meta['selected_go'] = str(compiler)
+        meta['selected_go_sha256'] = hashlib.sha256(compiler.read_bytes()).hexdigest()
+    if entry['returncode'] is None or (name != 'expected-red' and entry['returncode'] != 0):
+        break
+meta['after'] = hashes()
+meta['source_unchanged'] = meta['after'] == before
+meta['finished_utc'] = utc()
+(run / 'metadata.json').write_text(json.dumps(meta, indent=2) + '\n')
+report = root / 'docs/testing/BBGO-ACC-002-EXECUTION-01.md'
+assert not report.exists(), 'retain existing report; do not overwrite'
+lines = ['# BBGO-ACC-002 execution 01', '',
+         'Expected-red capture only; reviewer acceptance pending.',
+         'Local path prefixes are labeled in this report; raw logs/metadata retain exact values.', '',
+         'Artifacts: `' + str(run.relative_to(root)) + '` (retained locally).',
+         'Filesystem: `' + fs + '`. Source unchanged: `' + str(meta['source_unchanged']) + '`.', '',
+         '## Captured commands', '']
+for entry in meta['commands']:
+    display = json.dumps(entry, indent=2)
+    output = (run / (entry['name'] + '.log')).read_text(errors='replace').rstrip()
+    for local, label in ((str(root), '<repo>'), (str(pathlib.Path.home()), '<home>')):
+        display, output = display.replace(local, label), output.replace(local, label)
+    display = display.replace(go, '<go-launcher>')
+    lines += ['```json', display, '```', '', '```text', output, '```', '']
+lines += ['## Metadata', '', 'Full environment/tool identities and before/after pins',
+          'are retained in `metadata.json`. SHA-256: `' +
+          hashlib.sha256((run / 'metadata.json').read_bytes()).hexdigest() + '`.', '']
+report.write_text('\n'.join(lines))
+print(report.relative_to(root))
+print(run.relative_to(root))
+ACC002_CAPTURE
+```
+
+The runner's own successful exit means capture completed, not that the package
+passed. Review the captured go-test returncode and output. Do not rerun merely to
+change formatting. Cached-toolchain/dependency absence must be recorded as a gap;
+this phase authorizes no dependency download or changes to go.mod/go.sum.
+
+### Reviewer publication for review 01
+
+Exact reviewer-only scope: this ticket, `docs/handoff/CURRENT_TASK.md` and
+`tickets/BBGO-NET-001.md`, based on HEAD above. NET-001 records the concurrent owner
+direction to use the public IPFS swarm; it is queued and does not alter this isolated
+storage contract. Preserve the untracked Sol test drop and all unrelated work.
+
+Publication checks: all 12 source pins match; 39 local document links resolve;
+scoped whitespace checks pass. The embedded capture snippet parses as Python; it
+was not executed. The staging scope contains only the three reviewer documents.
