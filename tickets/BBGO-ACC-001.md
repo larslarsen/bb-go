@@ -1,12 +1,13 @@
 # BBGO-ACC-001 — portable account grants and revocation verifier
 
-Reviewer: Codex, 2026-09-16. **Active phase: Hermes green execution, review 04.**
+Reviewer: Codex, 2026-09-16. **Active phase: Hermes execution completion, review 05.**
 Actor: Hermes, free Nous Portal model, owner-relayed. This ticket is the handoff;
 do not create another handoff for each subsection. Read AGENTS.md, TESTING.md and
 [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md). The daemon's principal-dev role
-routes cryptographic/protocol-core source to Sol. Review 04 accepts the source drop
-and closes Sol's source authority. Hermes now runs the bounded green, falsification,
-fuzz and security commands below and corrects its existing execution report.
+routes cryptographic/protocol-core source to Sol. Review 05 accepts the retained
+behavioral results with stated provenance limits and adjudicates the gosec finding.
+Hermes now completes the required vulnerability-policy scan and short test/vet capture,
+and corrects its existing report. Follow review 05 only; no repeated fuzz or fault run.
 Final acceptance and developer Git publication remain pending reviewer disposition.
 The reviewer has not launched an actor or executed the tests.
 
@@ -62,14 +63,14 @@ identities require review.
 
 The requested state-test restoration is accepted; all tests and fixtures are frozen.
 
-**Production paths, frozen except for review 04's temporary fault:**
+**Production paths, fully restored and frozen:**
 
 - `modern/accountauth/types.go`
 - `modern/accountauth/records.go`
 - `modern/accountauth/state.go`
 
 Preserve unrelated dirty/untracked files, especially cancelled DEV-001 work. Hermes's
-execution and evidence scope is enumerated in review 04; no permanent source edits,
+execution and evidence scope is enumerated in review 05; no permanent source edits,
 dependency, workflow, AGENTS or Git mutation. The source contract remains: author tests in
 package `accountauth` against the public contract below; do not add production stubs
 or a substitute verifier inside tests. Helpers may assemble and sign synthetic inputs.
@@ -263,15 +264,15 @@ durability/freshness integration requirements.
 
 ## Phase sequence and execution contract
 
-**Now:** source review 04 is accepted for Hermes's bounded execution phase.
-The reviewer has adjudicated the saved red and reviewed the completed source below.
+**Now:** review 05 bounds completion of execution evidence and the missing security gate.
+The source remains accepted and frozen at review 04 identities.
 No owner transcription or invented execution result. Sol's role excludes repository-
 record ownership; Hermes owns the single execution report
 `docs/testing/BBGO-ACC-001-EXECUTION-01.md`.
 
-Hermes performs green, one falsification and the named gates, using the same ticket
+Hermes completes review 05's remaining commands and evidence, using the same ticket
 and report. Review transitions update this ticket and CURRENT_TASK; do not create
-separate documents for every command. Only review 04's execution phase is active.
+separate documents for every command. Only review 05's completion phase is active.
 Final publication requires reviewer acceptance and an enumerated path set.
 
 Hermes first records tool identities, clean/dirty inventory and all ten authorized
@@ -663,7 +664,7 @@ Source findings:
 Disposition: source accepted for execution, not runtime or security acceptance.
 The package remains isolated and unimported. Sol's source-editing phase is closed.
 
-#### Hermes execution authority — green, one fault, fuzz and security
+#### Hermes execution authority — green, one fault, fuzz and security (closed by review 05)
 
 Use this section directly and the existing report
 `docs/testing/BBGO-ACC-001-EXECUTION-01.md`. Verify the six review-04 package hashes
@@ -769,3 +770,142 @@ Review 04 document checks: inspected the two-file diff; scoped `git diff --check
 exited 0 and all 37 local links resolved. All ten source hashes and three retained
 red-evidence hashes matched; the index was empty before governance staging. These
 were read-only source/document checks, not test, compiler or scanner execution.
+
+### Execution review 05 — behavioral evidence accepted; security gate incomplete
+
+2026-09-16, Codex, High. Baseline HEAD
+`7b3cbf61363b7fb580ced65028143c45231398d4`. Read the execution report and every
+green01 log. All ten source hashes still match; state.go and its saved backup match
+byte-for-byte. The index is empty. No production defect was found in this review.
+
+Retained evidence, paths relative to `modern/dist/acc001/green01/` except the report:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| docs/testing/BBGO-ACC-001-EXECUTION-01.md | c9e2e81230998435e19008bd9871bc6be883280857fc2b7f5dd611ec839879ef |
+| test.stdout.log | d7e4b2a499cbb810c3a1f5dbcfcab71a1118a1bd7c6b366224e4dc4d166214ac |
+| race.stdout.log | dcae0d39ed1800d85c5b8658f5a85a94672dcd0af4ad9f63061eb1f9252216f5 |
+| fuzz-verify.stdout.log | f951892e97dd5457a6fb83ce289fb884c118a2d29657e76809062f359a607fc6 |
+| fuzz-state.stdout.log | 91b031d2bd243069c43623db1b2735fd506d35ea455541cf55e06efc05e80dc0 |
+| fault.stdout.log | 373ed48017f716d035193e5e8756b82ffe492194c4a83621614b0dd42eb058cb |
+| restored.stdout.log | df8e8a21e6ed7d5e53e653beeea948786ccf98a89e3ec818d9bf271ee5933ada |
+| gosec.log | bcaed611362d3d87d142e29fb44cd916757b70474a4e3fc2d315c89588378564 |
+| gosec2.log | 0e400f6131121bf3e316215935f5b9ab06888be1da827e6165760524ebf3c863 |
+| govulncheck.log | 3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5 |
+
+The logs show ordinary and race package passes, successful 30-second fuzz campaigns
+(1,937,477 record-verifier executions; 426,538 state executions), the intended fault
+failure at state_test.go:66, and a restored targeted pass. Accept these qualitative
+behavioral results with the provenance limits below. No repeat race, fuzz or fault
+is justified for unchanged source. Vet's two empty logs alone do not establish its
+exit status; capture it properly with the remaining scan.
+
+**Outstanding execution/report defects:**
+
+1. Hermes reports `govulncheck -mode source ./accountauth/...`, not the authorized
+   repository policy command. The one-line clean result is not evidence of the
+   required whole-modern source/test scan or its exception adjudication. This gate
+   remains unexecuted as specified, regardless of the report's all-passed verdict.
+2. green01 again lacks command metadata, captured Go environment/version, separate
+   before/after manifests, and the retained fault diff/hash. Source identity now and
+   the matching backup do not prove the exact historical environment or ordering.
+   Exit statuses and actor/environment details remain actor-reported. Do not invent
+   missing metadata or represent fresh captures as historical proof.
+3. gosec2.log records an additional failed `-include-tests` invocation, omitted from
+   the report. The report also removes the earlier red command/result narrative,
+   still contains an absolute tool path despite claiming none, and incorrectly says
+   no source modification occurred during execution despite the temporary fault.
+   Restore the historical red summary with review 03's limitations; disclose the
+   extra failed scanner attempt and say no *lasting* source modification instead.
+
+**Gosec disposition — G115 at fuzz_test.go:157:** reviewed, non-blocking for these
+exact source bytes. packFuzzRecords is called only while constructing fixed seeds;
+its inputs are 130-byte revocations, 234-byte grants, or one 235-byte malformed grant.
+All fit uint16. The fuzz callback calls unpackFuzzRecords, never the packing helper,
+so arbitrary fuzz bytes cannot reach the narrowing conversion. This call-site bound,
+not production MaxRecordBytes, is the rationale. The helper is not production code.
+No inline suppression or source change is needed. Owner: Codex reviewer. This
+disposition expires if the helper, callers or fixture lengths change and must then
+be re-reviewed; it does not authorize new findings or general test-file exclusions.
+
+Reviewer read current scanner build metadata with `go version -m`, without executing
+scans. gosec's embedded module is v2.29.0 despite its display label `dev`; its binary
+hash matches the report. govulncheck's embedded module is v1.7.0. Current binary pins:
+
+| Tool/input | SHA-256 |
+| --- | --- |
+| gosec v2.29.0 | eb00a1fb095b161a48c5bcadbe1e246bbafe270da497a122d2e63ade346954c2 |
+| govulncheck v1.7.0 | 6c92f0536311f5e2083a839c75558e3fb986758a320a402aa8f524c85ffd7400 |
+| scripts/govulncheck_policy.py | 709cb00d44c62ef6e2d394f457407183d6fb90bc98958c80db0261607bc3c77c |
+
+These are current inspections, not retained historical scanner identities. The
+gosec result plus matching reported binary and source is accepted with that limit;
+no gosec repeat is needed. Final security acceptance/publication remains pending the
+required policy result and later staged secret scan.
+
+#### Hermes completion authority — follow this section only
+
+Keep the six package files, four original inputs and policy script frozen at their
+pins. No further fault injection or source edits. Write only the existing execution
+report, new captures/optional capture runner in `modern/dist/acc001/finish01/`, and
+the task cache/temp directories already authorized in review 04. Preserve red01 and
+green01. Verify current source/tool pins before running. Use installed pinned tools;
+no install is necessary. Earlier repeated-command authority is closed.
+
+Run these five commands **once**, using a capture runner; cwd is modern/ except
+the last command, whose cwd is the repository root:
+
+```sh
+env GOWORK=off GOTOOLCHAIN=go1.27.0 go version
+env GOWORK=off GOTOOLCHAIN=go1.27.0 go env GOVERSION GOWORK GOCACHE GOTMPDIR GOPROXY GOSUMDB GOFLAGS
+env GOWORK=off GOTOOLCHAIN=go1.27.0 go test ./accountauth -count=1
+env GOWORK=off GOTOOLCHAIN=go1.27.0 go vet ./accountauth
+env GOWORK=off GOTOOLCHAIN=go1.27.0 python3 scripts/govulncheck_policy.py source
+```
+
+The short test/vet repeat establishes fresh captured execution; it does not replace
+the existing race/fuzz/fault evidence. The policy script internally runs govulncheck
+with `-format sarif -db https://vuln.go.dev -test ./...` in modern/. Do not substitute
+a package-only invocation. Its output must be clean or exactly its already-reviewed
+exception; any new finding/failure stops dependent work for review. Keep GOPROXY=off,
+GOSUMDB=off, GOFLAGS empty, and resolved task GOCACHE/GOTMPDIR in the child environment.
+Put the verified govulncheck binary's directory first in process-local PATH. Official
+advisory access is authorized for the policy scan; tests remain offline. No persistent
+settings or policy edits. Bound test/vet by 600 seconds and the policy scan by 1200.
+
+**Required capture files, created by the runner during this execution:**
+
+- `before.json` and `after.json`: HEAD, Git status, ten source hashes/counts, policy
+  hash and two scanner binary hashes. Check source restoration/identity in finally.
+- `01-version`, `02-env`, `03-test`, `04-vet`, `05-policy`: each gets `.stdout.log`,
+  `.stderr.log` and `.meta.json`. Metadata records the actual argv array, resolved
+  cwd, relevant child environment, UTC start/end, subprocess return code and timeout
+  flag. Store the subprocess return code immediately; do not infer it from log text
+  or a later shell `$?`. Write metadata even on errors/timeouts. Use no pipeline that
+  hides the command's status. Stop on unexpected nonzero exit or timeout.
+- `tools.log`: captured `go version -m` for both verified scanners. Record the actual
+  actor/provider/model in the report; label any unretained historical claims as such.
+
+A simple subprocess-based runner under finish01 is allowed. It must write the named
+files itself, not rely on chat transcript retention. Inspect that all five metadata
+files exist and contain real return codes before declaring this phase complete.
+The report links the relative captures, gives their hashes and actual results, and
+applies the three reporting corrections above plus the G115 disposition. Keep local
+absolute paths only in ignored raw captures. Preserve unavailable old metadata as
+an explicit limitation; do not recreate it. If original metadata can be recovered
+from actual records, identify that origin.
+
+No further test suite, race/fuzz campaign, gosec rerun, temporary fault, rebuild,
+runtime service, Git stage/commit/push or actor launch. Return the updated report
+pointer for reviewer acceptance and one scoped publication phase. No new handoff
+document or owner-transcribed evidence is needed.
+
+Reviewer governance publication for review 05 is exactly this ticket and
+`docs/handoff/CURRENT_TASK.md`, from the HEAD recorded above. Preserve all untracked
+source/evidence and unrelated dirty work. Validate document diffs/links/whitespace
+and the source inventory before publishing these two documents.
+
+Review 05 document checks: scoped `git diff --check` exited 0; all 37 local links
+resolved. Ten source pins, the policy-script pin and reviewed evidence hashes match;
+the saved backup equals current state.go. The reviewer inspected scanner build
+metadata only and executed no tests, compiler, fuzz campaign or security scanner.
