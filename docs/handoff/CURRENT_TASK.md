@@ -1,16 +1,17 @@
 # Current Task
 
 ACTIVE: [BBGO-ACC-001](../../tickets/BBGO-ACC-001.md), portable account grants and
-revocation verifier. This ticket is the sole handoff. Owner relays it to Codex Sol
-(`gpt-5.6-sol`, High) under the daemon's principal-dev role. Active phase: test-source
-correction under the ticket's review 01, in the same three test files only. The first
-drop has 17 top-level tests and two fuzz targets; no execution is claimed. Review found
-missing forged/foreign revocation cases, a capability mutation that only exercises an
-unknown-bit error, and incomplete retained-fact counting checks. The ticket pins the
-drop and gives the bounded correction. No production edits, execution, records or
-Git for Sol. Codex has not launched an actor; Hermes execution remains unauthorized.
-The owner confirms reviewer effort High. Review and phase evidence remain in the
-same ticket; no separate correction handoff is needed.
+revocation verifier. This ticket is the sole handoff. Owner relays its review 02
+expected-red section to Hermes on its configured free Nous Portal model. The corrected
+drop has 18 top-level tests and two fuzz targets and is source-accepted for that bounded
+run. Hermes verifies the seven pinned inputs, captures the one missing-implementation
+red and writes `docs/testing/BBGO-ACC-001-EXECUTION-01.md`. No execution is claimed yet.
+Sol's source phase is closed. Production, source edits, formatting, broader tests/scans,
+Git mutations and runtime integration remain unauthorized. One small capacity-test restoration
+is reserved for the next source phase in the ticket; it does not require another
+correction handoff before red. Codex has not launched an actor.
+The owner confirms reviewer effort High. Review and phase evidence remain in the same
+ticket; no separate execution handoff is needed.
 
 Account architecture: a backed-up controller and independent revocable device keys.
 The ticket freezes record bytes, capabilities, known-revocation rules, bounds and

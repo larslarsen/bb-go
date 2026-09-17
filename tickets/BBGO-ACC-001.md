@@ -1,12 +1,13 @@
 # BBGO-ACC-001 — portable account grants and revocation verifier
 
-Reviewer: Codex, 2026-09-16. **Active phase: Sol test-source correction, review 01.**
-Actor: Codex Sol, `gpt-5.6-sol`, High, owner-relayed. This ticket is the handoff;
+Reviewer: Codex, 2026-09-16. **Active phase: Hermes expected-red execution, review 02.**
+Actor: Hermes, configured free Nous Portal model, owner-relayed. This ticket is the handoff;
 do not create another handoff for each subsection. Read AGENTS.md, TESTING.md and
 [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md). The daemon's principal-dev role
-routes cryptographic/protocol-core source to Sol. The first test drop is present;
-the reviewer has not launched an actor. Read the correction requirements in the
-phase record below before editing. Production and execution remain unauthorized.
+routes cryptographic/protocol-core source to Sol. Its corrected test drop is reviewed;
+Sol's source phase is now closed. Read review 02 and its bounded execution authority
+below. Production source, green/security gates and developer Git remain unauthorized.
+The reviewer has not launched an actor.
 
 ## Result and boundaries
 
@@ -40,8 +41,8 @@ Daemon source baseline: `cd497749a771b063300e2c3edf8748fe285b06c4`. Reviewer gov
 commits may descend from it without changing source. Desktop decision baseline:
 `58c854dbeda3031a57ac18ee601f1a588496d28d`, plus its linked authority-selection revision.
 Before editing, verify these frozen source inputs. All six target files were absent
-at initial authorization. For the active correction, the phase record pins the three
-existing test files; preserve and amend that drop. The three production files must
+at initial authorization. For active execution, review 02 pins the three existing test
+files; preserve their exact bytes. The three production files must
 remain absent. Unexpected source identities require review, not an overwrite.
 
 | Frozen input | SHA-256 |
@@ -51,7 +52,7 @@ remain absent. Unexpected source identities require review, not an overwrite.
 | modern/network/identity.go | b43f6ad90149ce41526aa3b0f85329dbbf847feaaf0442529a204c637833b4fa |
 | modern/payment/signature.go | 9573cecec02e0df951ccb08d70ed98ca112019f72ab94827846ffc2179ac9613 |
 
-**Writable now, test source only:**
+**Test-source paths, now frozen at review 02 identities:**
 
 - `modern/accountauth/records_test.go`
 - `modern/accountauth/state_test.go`
@@ -63,9 +64,10 @@ remain absent. Unexpected source identities require review, not an overwrite.
 - `modern/accountauth/records.go`
 - `modern/accountauth/state.go`
 
-Preserve unrelated dirty/untracked files, especially cancelled DEV-001 work. No
-dependency, workflow, AGENTS, other source, record, Git, formatting-command or test
-execution authority for Sol. Read-only inspection/hashing is allowed. Author tests in
+Preserve unrelated dirty/untracked files, especially cancelled DEV-001 work. Sol's
+source authority is closed. Hermes may write only the execution record and temporary
+artifacts named in review 02; no source, dependency, workflow, AGENTS or Git mutation.
+The source contract for subsequent reviewer-authorized work remains: author tests in
 package `accountauth` against the public contract below; do not add production stubs
 or a substitute verifier inside tests. Helpers may assemble and sign synthetic inputs.
 
@@ -258,23 +260,22 @@ durability/freshness integration requirements.
 
 ## Phase sequence and execution contract
 
-**Now:** Sol corrects the three test files under review 01 below, then stops without
-execution or production edits. Its completion notice points to the files and this
-ticket. The reviewer reads the drop and records its actual paths, hashes, line/test
-counts and disposition in the
-phase record below; no owner transcription and no invented execution result. Sol's
-role excludes repository-record ownership, so Hermes owns the eventual single report
+**Now:** Hermes records the targeted red under review 02, using the frozen corrected
+test source. The reviewer has recorded its paths, hashes, line/test counts and source
+disposition below. No owner transcription or invented execution result. Sol's role
+excludes repository-record ownership; Hermes owns the single execution report
 `docs/testing/BBGO-ACC-001-EXECUTION-01.md`.
 
-Next, after reviewer test-source acceptance, Hermes records the targeted red. Only
-then can the reviewer activate Sol's three production paths. After source review,
+After reviewer acceptance of the actual red, the reviewer can activate Sol's three
+production paths and the small test restoration recorded in review 02. After source review,
 Hermes performs green, one falsification and the named gates, using the same ticket
 and report. Review transitions update this ticket and CURRENT_TASK; do not create
-separate documents for every command. No execution or developer Git phase is active
-yet. Final publication requires reviewer acceptance and an enumerated path set.
+separate documents for every command. Only review 02's expected-red execution is
+active. Final publication requires reviewer acceptance and an enumerated path set.
 
-Hermes will first record tool identities, clean/dirty inventory and all six source
-hashes. Use Go 1.27.0, `GOWORK=off`, and a task-owned disk-backed cache/artifact directory
+Hermes will first record tool identities, clean/dirty inventory, available authorized
+source hashes and the absence of not-yet-authored production files. Use Go 1.27.0,
+`GOWORK=off`, and a task-owned disk-backed cache/artifact directory
 under `modern/dist/acc001/`, after checking that repository filesystem type with
 `stat -f -c %T .`. Do not put substantial caches in RAM-backed temporary storage.
 Record actual expanded paths locally in the evidence, without publishing local
@@ -344,7 +345,7 @@ No tests, security scans, builds, actor launches or runtime integration performe
 Future source identities, execution evidence and acceptance must be recorded from
 actual files/results here and in Hermes's named report; this entry claims none.
 
-### Test-source review 01 — correction required
+### Test-source review 01 — historical correction, source phase closed
 
 2026-09-16, Codex. Owner confirms reviewer effort High and directs continuation.
 Reviewed the complete three-file drop against this contract and TESTING.md at daemon
@@ -421,3 +422,106 @@ still matched all three test hashes with the three production targets absent.
 Reviewer governance publication scope for this authorization is exactly this ticket
 and `docs/handoff/CURRENT_TASK.md` in bb-go, plus the six desktop documents enumerated
 in the [research scope](../../bb-desktop/docs/architecture/BB-TRUST-RESEARCH-SCOPE-01.md).
+
+### Test-source review 02 — accepted for bounded expected-red execution
+
+2026-09-16, Codex. Reviewed all three corrected files at daemon HEAD
+`cd8bd1e856f41c3857bd0dc4a2de92078a824817`. Frozen source inputs still match the four
+hashes above; production remains absent. This is source acceptance for the missing-
+implementation red, not a test pass or production acceptance.
+
+| Test path under modern/accountauth/ | Lines | Top-level entry points | SHA-256 |
+| --- | ---: | --- | --- |
+| records_test.go | 564 | 10 tests | 11d8cbafd031454d176ef743480f071f4e674920d445a49e25ae3e7a459488ad |
+| state_test.go | 525 | 8 tests | 6145fe6183ed258b86482da8ef6d4338720fe3911c51032a7d9aed2eca08842d |
+| fuzz_test.go | 277 | 2 fuzz targets | 08245bcfdc8d2620f0499c69c2eacdd2033c47beec68959b080bd2d9f960b833 |
+
+Total: 1366 lines, 18 top-level tests and two fuzz targets. Counts are static source
+inventory, not executed cases. Findings disposition:
+
+- R1: both revocation kinds have valid controls followed by corrupted/zero signatures,
+  device-key forgeries, changed valid targets and wrong domains. Failures require
+  zero Records. Both forged kinds are fuzz seeds.
+- R2: state tests positively verify foreign-signed revocations, then require Apply
+  rejection while two local grants remain authorized. Forged local revocations are
+  rejected too. Valid local revocations subsequently remove the intended authority.
+  Foreign revocation fuzz seeds include sequences with a live local grant.
+- R3: changed permissions stay within the valid mask; stale proofs and each single-
+  signature renewal fail, while renewing both succeeds. All five wire bits are pinned.
+- R4: the bound fixture retains an existing grant and its separate tombstone, repeats
+  both revocation kinds at capacity, rejects invalid/foreign input just below capacity,
+  then fits the last valid fact and denies permanently on the next valid revocation.
+
+One small remaining source obligation: the R4 edit moved the earlier invalid/foreign
+checks below capacity. Restore those same rejection/non-saturation checks **also at
+exactly 4096**, after the duplicate checks and before the valid overflow, during the
+next reviewer-authorized source phase, before production authoring. Reuse the current
+invalid/foreign fixtures; no new suite or fixture is needed. This catches an early
+capacity guard that saturates on unverified traffic. It does not prevent capturing
+the existing missing-implementation red; it must be present before green acceptance.
+Sol has no present authority to make this change. The production-phase activation
+will include it, preserving the normal test-first/source-review sequence.
+
+#### Hermes execution authority — expected red only
+
+Use this section directly; no new handoff document. Record the actual Hermes version,
+provider and model. Verify the seven input hashes (three corrected tests plus four
+frozen source inputs), the absence of `types.go`, `records.go`, `state.go`, and current
+Git status/HEAD. The three tests already exist in this working tree; no copy, patch,
+stub, formatting, staging or commit is needed. Unexpected inputs stop execution for
+review. Earlier Sol correction permissions are closed.
+
+Writable scope is exactly:
+
+- `docs/testing/BBGO-ACC-001-EXECUTION-01.md`, created or appended without overwriting
+  any existing evidence;
+- task-owned captures under `modern/dist/acc001/red01/`;
+- task-owned compiler cache and temporary files under `modern/dist/acc001/go-cache/`
+  and `modern/dist/acc001/go-tmp/`.
+
+First inspect the repository filesystem with `stat -f -c %T .`. Use these disk-backed
+directories only; do not move large work to RAM-backed temporary storage. Configure
+the named directories as needed without altering other task artifacts. Set
+GOCACHE and GOTMPDIR to their resolved paths in the child process environment, and
+GOPROXY=off/GOSUMDB=off for this offline phase. Do not change persistent Go settings.
+Use the already installed/cached Go 1.27.0; unavailable tooling is a setup failure,
+not permission to install tools, download dependencies or claim the expected red.
+
+From `modern/`, capture the following exact commands with the above environment:
+
+```sh
+env GOWORK=off GOTOOLCHAIN=go1.27.0 go version
+env GOWORK=off GOTOOLCHAIN=go1.27.0 go env GOVERSION GOWORK GOCACHE GOTMPDIR GOPROXY GOSUMDB
+env GOWORK=off GOTOOLCHAIN=go1.27.0 go test ./accountauth -count=1
+```
+
+Run the test command once, bounded by 300 seconds in the capture runner. Expected:
+nonzero compile failure reporting the absent public contract names, such as Kind,
+AccountID, GrantID, Capability, Record and KnownState. A parser/import/toolchain/cache
+error or timeout is not the intended red. Do not repair failures, add temporary
+production declarations, run a copied substitute package or proceed to green.
+Compiler diagnostic truncation does not prove absence of other compile issues;
+record the actual output. No test bodies are expected to run yet, and the report
+must not describe this as behavioral regression evidence.
+
+Retain separate stdout/stderr captures, exact argv/cwd/environment, exit status and
+before/after hashes, with source line/top-level test counts. The repository report
+must link the relative capture paths and distinguish setup, expected compile failure,
+unexpected failures and unexecuted future gates. Keep local absolute paths out of
+published text. Finish by checking all seven hashes and production-file absence
+again. No source mutation, scan, fuzz campaign, live daemon/wallet, Git publication
+or actor launch is authorized. Hermes stops with the report pointer; Codex reviews
+the retained evidence and activates the next source phase in this same ticket.
+
+Reviewer publication for review 02 is limited to this ticket and
+`docs/handoff/CURRENT_TASK.md` in bb-go, and `docs/handoff/CURRENT_TASK.md` in
+bb-desktop. Baselines: daemon `cd8bd1e856f41c3857bd0dc4a2de92078a824817`, desktop
+`9e6834bbf7507d07d90ba31c2472aa854b6b5ec2`. Validate scoped diffs/links/whitespace and
+commit each repository separately. The reviewer does not integrate the test files,
+create execution evidence or execute the authorized Hermes commands.
+
+Review 02 documentation checks: 64 local links resolved across the three scoped
+documents; scoped `git diff --check` exited 0 in both repositories. A second source
+inventory matched all three corrected test hashes and counts; production files and
+the execution report remain absent. No implementation, compiler or test execution
+is claimed by this review.
