@@ -1,10 +1,12 @@
 # BBGO-ACC-001 — portable account grants and revocation verifier
 
-Reviewer: Codex, 2026-09-16. **Active phase: Sol test-source authoring only.**
+Reviewer: Codex, 2026-09-16. **Active phase: Sol test-source correction, review 01.**
 Actor: Codex Sol, `gpt-5.6-sol`, High, owner-relayed. This ticket is the handoff;
 do not create another handoff for each subsection. Read AGENTS.md, TESTING.md and
 [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md). The daemon's principal-dev role
-routes cryptographic/protocol-core source to Sol. No actor has been launched.
+routes cryptographic/protocol-core source to Sol. The first test drop is present;
+the reviewer has not launched an actor. Read the correction requirements in the
+phase record below before editing. Production and execution remain unauthorized.
 
 ## Result and boundaries
 
@@ -37,8 +39,10 @@ migration. No signature library establishes freshness of unseen revocations.
 Daemon source baseline: `cd497749a771b063300e2c3edf8748fe285b06c4`. Reviewer governance
 commits may descend from it without changing source. Desktop decision baseline:
 `58c854dbeda3031a57ac18ee601f1a588496d28d`, plus its linked authority-selection revision.
-Before editing, verify these frozen source inputs and that all six target files are
-absent. An existing target is a drop to inspect, not permission to overwrite it.
+Before editing, verify these frozen source inputs. All six target files were absent
+at initial authorization. For the active correction, the phase record pins the three
+existing test files; preserve and amend that drop. The three production files must
+remain absent. Unexpected source identities require review, not an overwrite.
 
 | Frozen input | SHA-256 |
 | --- | --- |
@@ -254,9 +258,10 @@ durability/freshness integration requirements.
 
 ## Phase sequence and execution contract
 
-**Now:** Sol authors the three test files, then stops without execution or production
-edits. Its completion notice points to the files and this ticket. The reviewer reads
-the drop and records its actual paths, hashes, line/test counts and disposition in the
+**Now:** Sol corrects the three test files under review 01 below, then stops without
+execution or production edits. Its completion notice points to the files and this
+ticket. The reviewer reads the drop and records its actual paths, hashes, line/test
+counts and disposition in the
 phase record below; no owner transcription and no invented execution result. Sol's
 role excludes repository-record ownership, so Hermes owns the eventual single report
 `docs/testing/BBGO-ACC-001-EXECUTION-01.md`.
@@ -332,11 +337,86 @@ not imported by bitbookd, and the running executable gains no behavior from this
 
 ## Phase record
 
-2026-09-16, Codex: authority choice and first contract frozen after source/specification
-review. The six target source files are absent. Only Sol's test-source phase is active.
+Initial authorization, 2026-09-16, Codex: authority choice and first contract frozen
+after source/specification review. The six target source files are absent. Only Sol's
+test-source phase is active.
 No tests, security scans, builds, actor launches or runtime integration performed.
 Future source identities, execution evidence and acceptance must be recorded from
 actual files/results here and in Hermes's named report; this entry claims none.
+
+### Test-source review 01 — correction required
+
+2026-09-16, Codex. Owner confirms reviewer effort High and directs continuation.
+Reviewed the complete three-file drop against this contract and TESTING.md at daemon
+HEAD `27571cd65b18ff59598883f79f2555d7027fdb0b`. No production files are present and
+all four frozen source-input hashes still match. The index was empty. Source inventory:
+
+| Test path under modern/accountauth/ | Lines | Top-level entry points | SHA-256 |
+| --- | ---: | --- | --- |
+| records_test.go | 472 | 9 tests | 18c6dcaa57cc3d772bf232428e5f66f01d4f324d225bd8dda57b1f45c93e95ce |
+| state_test.go | 429 | 8 tests | 82ca2eb49baaa72d468784e1352a3d92b9ae77a55f3f30180f0a847534a98473 |
+| fuzz_test.go | 265 | 2 fuzz targets | 02678cea8f776d8f4d0b6894c179afc5470e8cbb1364ae59de35e4d956e09a7f |
+
+Total: 1166 source lines, 17 top-level tests and two fuzz targets, not an executed
+test count. Two hash reads matched during review. The drop includes independent
+fixture bytes/hash preimages, valid record cases, device replacement/revocation,
+permission separation, 120 record-order permutations, capacity boundaries, owned-byte
+checks and bounded fuzz loops. Retain this useful coverage.
+
+**Disposition: not yet accepted for execution.** These are test-source coverage
+findings, not reproduced defects in a production implementation (none exists yet).
+Complete this single bounded correction in the same three authorized test files:
+
+1. **R1 — authenticate both revocation kinds explicitly.** The signature/binding
+   mutation table in `records_test.go:300` covers grants only. The revocation negative
+   cases at lines 356–375 cover zero targets and one RevokeGrant domain mismatch;
+   no direct case rejects a forged signature on an otherwise well-formed RevokeDevice.
+   For each revocation kind, start with a positively verified record, then reject a
+   corrupted/zero signature, a signature made by the device instead of the declared
+   controller, a changed nonzero valid target retaining the old signature, and the
+   other revocation domain. Assert zero Record on each failure. Keep keys/targets,
+   kind, version and length valid so schema rejection cannot mask the crypto check.
+   Add forged-revocation seeds for both kinds to the existing fuzz coverage. Fuzz
+   determinism and calling VerifyRecord as the state fuzzer's oracle do not replace
+   these independent known-invalid assertions.
+2. **R2 — reject another account's revocations without changing local authority.**
+   `state_test.go:248` and the state fuzz seeds currently use foreign grants only.
+   Add validly signed foreign-controller RevokeGrant and RevokeDevice records whose
+   targets are a live local grant/device. Prove VerifyRecord accepts their signatures,
+   then Apply rejects their account and preserves local authorization. Also reject
+   the forged local-controller revocations from R1 without changing state. Retain a
+   positive local-controller revocation path that actually removes authority. Seed
+   the state fuzzer with the valid foreign revocations as well.
+3. **R3 — test a valid permission change and pin the wire bits.** The capability
+   mutation at `records_test.go:329` XORs 0x80 into the mask, setting an unknown bit.
+   It can fail schema validation without proving signature binding. Add a change
+   between two nonzero allowed masks while retaining old signatures; also exercise
+   the changed payload with only the controller signature renewed and with only the
+   device signature renewed. Both incomplete re-signings must fail; renewing both
+   for that allowed mask must succeed. Assert the five named capability constants
+   equal 1, 2, 4, 8 and 16 respectively; tests using only the same symbolic constants
+   on both sides cannot detect a wire-level permission swap.
+4. **R4 — count retained and repeated revocation facts at the existing limit.**
+   `TestKnownStateRecordLimit` currently uses an absent grant target and repeats only
+   a grant at capacity. Adjust this existing fixture to revoke an already stored,
+   non-probe grant; the original grant and its tombstone must consume two facts.
+   Keep the unaffected first-grant probe and all three record kinds. Replay both
+   tombstone kinds at capacity without saturation. Attempt invalid and foreign
+   records just below capacity, then prove the last distinct valid fact still fits.
+   Preserve the valid overflowing-revocation and permanent-denial checks. No new
+   large fixture or separate saturation test project is needed.
+
+Sol High may amend only the existing three test files from the hashes above. No
+production stubs, test execution, formatter execution, dependencies, records or Git.
+Do not replace the existing suite, expand the protocol or create another handoff.
+Return a pointer to this ticket and the corrected files; Codex reads them directly
+and records the new inventory before activating Hermes. No owner log transcription.
+The previously specified red/green/falsification/scans remain future phases, not
+execution authority. Reviewer work here was read-only source inspection and hashing;
+no test, compiler, fuzz, formatter, security scan or runtime command was executed.
+Review-document checks: inspected the two-file diff; scoped `git diff --check`
+returned exit 0, all 37 local document links resolved, and the final source inventory
+still matched all three test hashes with the three production targets absent.
 
 Reviewer governance publication scope for this authorization is exactly this ticket
 and `docs/handoff/CURRENT_TASK.md` in bb-go, plus the six desktop documents enumerated
