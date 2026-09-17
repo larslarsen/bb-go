@@ -1,10 +1,10 @@
 # BBGO-ACC-002 — durable account grants and revocations
 
-Reviewer: Codex, 2026-09-17, High. **Active: Hermes green/falsification/security; review 03.**
+Reviewer: Codex, 2026-09-17, High. **Active: Hermes scan completion/publication; review 04.**
 Actor: Hermes on a free Nous Portal model, owner-relayed. This ticket is the sole
 handoff. Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
-Production source is accepted for execution, not final acceptance. All source is
-frozen. Run only review 03's capture; no Git/publication or source correction yet.
+Behavior is accepted; gosec findings are adjudicated in review 04. All source is
+frozen. Review 04 authorizes the remaining scan and conditional scoped publication.
 
 ## Result and scope
 
@@ -562,7 +562,7 @@ Records are copied, Close does not own the backend, and no runtime imports were 
 The lock/order review directly addresses review 01's opportunistic reader-test limit.
 No compiler, test, fuzz or scanner was executed by Codex.
 
-### Active Hermes execution
+### Historical Hermes execution — reviewed in review 04
 
 Run the exact capture below from bb-go root, unchanged. It uses the installed,
 hash-pinned Go 1.27.0 executable directly with `GOTOOLCHAIN=local`, avoiding the
@@ -745,3 +745,241 @@ Publication checks: all 15 source pins and the four tool/policy pins match. Both
 embedded Python snippets parse without execution. The fault substitution has one
 exact match and its proposed bytes are hash-pinned; no source file was modified or
 compiled to check it. Local document links and scoped whitespace checks pass.
+
+
+## Review 04 — behavior accepted; finish dependency scan and publication
+
+Reviewer: Codex, 2026-09-17, High. Baseline
+`80ebc114072eb995b800bb3568f284086006b98b`. All 15 source pins, four tool/policy
+pins, every captured command's after-source hashes and stdout/stderr hashes, and all
+artifact hashes match. Exactly six accountstore source/test files remain. No source
+correction is needed. Codex inspected evidence without executing tests or scanners.
+
+Reviewed report SHA-256:
+`2ba7ced51bbfe441bacb9658c0274febf47680e154e36b54cba10ae67527c033`.
+Capture: `modern/dist/acc002/green-20260917T192111797366Z`.
+Metadata SHA-256: `9486b54bdcba586516f5102f7afc093864a3ce795d6d117e225296eaa061c19d`.
+Actual capture: 2026-09-17 19:21:11–19:23:07 UTC; no timeout/capture failure.
+
+### Accepted results
+
+| Check | Result |
+| --- | --- |
+| Accountstore ordinary tests | exit 0, 3.973s |
+| Race suite | exit 0; accountauth 7.630s, accountstore 33.155s |
+| Vet | exit 0, no diagnostics |
+| FuzzOpenSnapshot | exit 0; 15 seeds, 1,302,391 executions in 30s |
+| Pinned fault | exit 1 at persistence_test.go:146: revoked authority restored after reopen |
+| Original-source targeted test | exit 0, 0.033s |
+
+The exact fault diagnostic was `device revocation after reopen = true, <nil>`.
+All source bytes remained unchanged through the overlay experiment. This is accepted
+falsification of the restart regression. Do not rerun these passing checks.
+
+### Gosec disposition — exact findings only
+
+Gosec v2.29.0 exited 1 with 10 reports at seven unique rule/location pairs (the two
+production locations were each reported twice for normal/test package variants).
+The embedded module identity, not its display string `dev`, establishes the version.
+After inspecting the exact expressions and callers, these are non-blocking:
+
+- G115, `codec.go:46`: len(records) is nonnegative and checked at lines 28–30 against
+  MaxStoredRecords=4097 before conversion to uint16; no overflow is possible.
+- G115, `codec.go:49`: each record length is checked at lines 33–36 to equal 130 or
+  234 before this encoding loop. Records here are privately owned and serialized.
+- G115, `store_test.go:143,146,158,923`: fixture counts are at most 4098; signed
+  record lengths are 130/234; malformed-length literals are 0/129/131/233/235. These
+  builders prepare bounded ordinary fixtures or fixed fuzz seeds; arbitrary fuzz
+  bytes are passed to Open, not to these conversion helpers.
+- G702 and G204, `persistence_test.go:605`: a Go test launches its own test executable
+  using os.Args[0] and fixed test arguments, with no shell or application-controlled
+  command. Only the Go-test runner chooses that executable. The environment marker
+  and fresh t.TempDir path select the isolated child; timeout/cleanup bound it.
+
+Owner: Codex reviewer. Scope is exactly these locations at the source hashes in
+reviews 01/03. Re-review on changes to these helpers/callers, numeric limits,
+ownership/locking or executable selection, or scanner-rule changes. No source
+suppression, scanner exclusion, baseline or CI-policy change is authorized. Retain
+the nonzero scan and findings; do not call the scan clean. This manual disposition
+does not change the repository's automated security-workflow exit behavior.
+
+### Dependency-scan gap and repair
+
+Govulncheck policy exited 1 because the source loader found the generated
+`store-fault.go` beneath modern/dist and treated it as a separate incomplete package.
+SARIF is empty; this is not a completed vulnerability scan. The reviewer-supplied
+capture's artifact filename caused it. Go's package search does not honor .gitignore.
+
+Rename only that artifact to `store-fault.go.txt`, preserving its bytes and hash
+`f9f5b359b8f7414d28cc9bfcf45b35cd3236735a03e4767615fc8468480e2849`.
+Keep the old metadata and overlay manifest unchanged as historical records; the new
+capture records the relocation. The old manifest is not executable after relocation
+and must not be reused. Future fault artifacts must use non-Go filenames or a Go-ignored
+directory. No production/test/go.mod changes are needed.
+
+### Active Hermes task and conditional publication
+
+Run the exact command below from bb-go root. It preserves the passing results and
+reuses the captured environment/tool pins. It runs the existing focused DHT-diversity
+test immediately before the dependency scan, as required by SEC-001's exception.
+This is the exception's prerequisite, not another accountstore test sweep.
+
+Publication is authorized only if the existing pinned govulncheck policy passes,
+there are no warning-level results or new note-level advisories, and the staged
+secret scan exits 0. The only allowed existing notes are GO-2026-5932, GO-2026-6303,
+GO-2026-6354 and GO-2026-6355, previously reviewed under ACC-001. The only allowed
+reachable result is the existing policy-adjudicated GO-2024-3218 DHT v0.42.2 exception,
+expiring 2026-11-29. Any other finding/failure stops before commit for reviewer
+assessment. No manual overrides, suppressions or retries are authorized.
+
+Exact feature publication: the six pinned `modern/accountstore/*.go` files and
+`docs/testing/BBGO-ACC-002-EXECUTION-01.md`, seven paths total. The report is completed
+before staging. The script binds the secret scan to full staged blob IDs, commits
+those exact bytes, and pushes without editing the scanned report afterward. Scan,
+commit and push evidence remain in task-owned `publication.json` and raw logs for
+reviewer closeout; no follow-up report edit/commit is required just to quote its own
+commit hash. A failed push may be retried unchanged; do not repeat tests/scans for a
+transport failure if the committed tree remains identical.
+
+Writable scope: that report, artifact relocation and captures under modern/dist/acc002,
+plus Git operations for the enumerated seven-path feature set. Source bytes are frozen.
+No binary rebuild/restart: accountstore still has no runtime import. Preserve unrelated
+work. Do not launch actors. Read the generated report/capture; stop with this ticket
+pointer when complete. A script completion/failure is not a blanket acceptance result.
+
+```sh
+python3 - <<'ACC002_PUBLISH'
+import ast, datetime, hashlib, json, os, pathlib, re, signal, subprocess, sys
+root = pathlib.Path.cwd().resolve()
+ticket = root / 'tickets/BBGO-ACC-002.md'
+text = ticket.read_text()
+sha = lambda p: hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+prior = root / 'modern/dist/acc002/green-20260917T192111797366Z'
+assert sha(prior / 'metadata.json') == '9486b54bdcba586516f5102f7afc093864a3ce795d6d117e225296eaa061c19d'
+old = json.loads((prior / 'metadata.json').read_text())
+pins = dict(re.findall(r'^\| (modern/[^ |]+) \| ([0-9a-f]{64}) \|$', text, re.M))
+hashes = lambda: {p: sha(root / p) for p in pins}
+assert len(pins) == 15 and hashes() == pins == old['after']
+assert all(sha(p) == h for p, h in old['tools'].items())
+report = root / 'docs/testing/BBGO-ACC-002-EXECUTION-01.md'
+assert sha(report) == '2ba7ced51bbfe441bacb9658c0274febf47680e154e36b54cba10ae67527c033'
+gitleaks = root.parent / '.security-tools/bbgo-sec-tools-20260829/gitleaks'
+assert sha(gitleaks) == '444a87409b36e0c330caf3fa61f354dd13e66987ecc9db63d787db761641541a'
+env = dict(old['environment'])
+go = pathlib.Path.home() / 'go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/bin/go'
+fs = subprocess.run(['findmnt', '-T', str(prior), '-n', '-o', 'FSTYPE'], capture_output=True, text=True, check=True).stdout.strip()
+assert fs == old['filesystem'] and fs not in ('tmpfs', 'ramfs')
+assert subprocess.check_output(['git', 'diff', '--cached', '--name-only'], cwd=root) == b'', 'preserve existing staging'
+utc = lambda: datetime.datetime.now(datetime.timezone.utc).isoformat()
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+run = prior.parent / ('publication-' + stamp)
+run.mkdir(exist_ok=False)
+meta = {'started_utc': utc(), 'filesystem': fs, 'environment': env, 'before': hashes(),
+        'tools': dict(old['tools'], **{str(gitleaks): sha(gitleaks)}), 'commands': [],
+        'base_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root).decode().strip()}
+def save():
+    (run / 'publication.json').write_text(json.dumps(meta, indent=2) + '\n')
+def capture(name, argv, cwd=None):
+    argv = list(map(str, argv)); cwd = cwd or root
+    entry = {'name': name, 'argv': argv, 'cwd': str(cwd), 'started_utc': utc()}
+    print('Starting ' + name, flush=True)
+    with (run / (name + '.stdout')).open('wb') as out, (run / (name + '.stderr')).open('wb') as err:
+        proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=out, stderr=err, start_new_session=True)
+        try:
+            entry['returncode'] = proc.wait(timeout=900)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            entry['returncode'] = proc.wait(); entry['timed_out'] = True
+    entry.update(finished_utc=utc(), stdout_sha256=sha(run / (name + '.stdout')),
+                 stderr_sha256=sha(run / (name + '.stderr')), after=hashes())
+    meta['commands'].append(entry); save()
+    assert entry['after'] == pins, 'source changed'
+    print(name + ': exit ' + str(entry['returncode']), flush=True)
+    return entry['returncode']
+feature = ['modern/accountstore/' + n for n in ('types.go', 'store.go', 'codec.go', 'store_test.go', 'persistence_test.go', 'fuzz_test.go')]
+feature += ['docs/testing/BBGO-ACC-002-EXECUTION-01.md']
+try:
+    fault = prior / 'store-fault.go'; archive = prior / 'store-fault.go.txt'
+    assert sha(fault) == old['fault_sha256'] and not archive.exists()
+    fault.rename(archive)
+    meta['artifact_relocation'] = {'from': str(fault), 'to': str(archive), 'sha256': sha(archive)}
+    save()
+    assert capture('dht-diversity', [go, 'test', './network', '-run', '^TestDHTRoutingTableEnforcesIPDiversity$', '-count=1', '-timeout=3m'], root / 'modern') == 0
+    # Use the exact previously reviewed raw-SARIF capture wrapper, not a new policy.
+    code = text.split("python3 - <<'ACC002_GREEN'\n", 1)[1].split('\nACC002_GREEN', 1)[0]
+    wrappers = [ast.literal_eval(n.value) for n in ast.walk(ast.parse(code)) if isinstance(n, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == 'policy_capture' for t in n.targets)]
+    assert len(wrappers) == 1
+    policy_rc = capture('govulncheck-policy', [sys.executable, '-c', wrappers[0], root / 'scripts/govulncheck_policy.py', run])
+    meta['dependency_gate'] = False
+    if policy_rc == 0:
+        doc = json.loads((run / 'govulncheck.sarif').read_text())
+        allowed_notes = {'GO-2026-5932', 'GO-2026-6303', 'GO-2026-6354', 'GO-2026-6355'}
+        results = doc['runs'][0].get('results', [])
+        meta['dependency_gate'] = all((r.get('level') == 'error' and r.get('ruleId') == 'GO-2024-3218') or
+            (r.get('level') == 'note' and r.get('ruleId') in allowed_notes) for r in results)
+    save()
+    public = lambda value: value.replace(str(root), '<repo>').replace(str(pathlib.Path.home()), '<home>')
+    lines = ['', '## Review 04 scan completion', '',
+             'Review 04 accepts prior behavior and adjudicates the exact gosec findings.',
+             'The temporary fault artifact was archived with identical bytes as store-fault.go.txt.',
+             'Prior metadata/overlay are historical and retain the original filename.', '',
+             'Capture: `' + str(run.relative_to(root)) + '`.',
+             'Dependency gate satisfied: `' + str(meta['dependency_gate']) + '`.',
+             'Staged secret scan and Git evidence will be retained in publication.json.',
+             'The report is frozen before that scan; publication remains conditional.', '',
+             '```json', public(json.dumps(meta, indent=2)), '```', '']
+    for entry in meta['commands']:
+        lines += ['### ' + entry['name'], '']
+        for stream in ('stdout', 'stderr'):
+            lines += [stream + ':', '', '```text', public((run / (entry['name'] + '.' + stream)).read_text(errors='replace').rstrip()), '```', '']
+    with report.open('a') as out: out.write('\n'.join(lines))
+    assert meta['dependency_gate'], 'dependency scan/finding requires reviewer assessment'
+    assert capture('stage', ['git', 'add', '--'] + feature) == 0
+    staged_names = subprocess.check_output(['git', 'diff', '--cached', '--name-only', '-z'], cwd=root).decode().split('\0')
+    assert set(filter(None, staged_names)) == set(feature), 'unexpected staged paths'
+    assert capture('staged-whitespace', ['git', 'diff', '--cached', '--check']) == 0
+    blobs = subprocess.check_output(['git', 'ls-files', '--stage', '--'] + feature, cwd=root).decode()
+    meta['scanned_staged_blobs'] = blobs; meta['report_sha256'] = sha(report); save()
+    assert capture('gitleaks', [gitleaks, 'git', '--pre-commit', '--staged', '--redact=100', '--no-banner', '.']) == 0
+    assert subprocess.check_output(['git', 'ls-files', '--stage', '--'] + feature, cwd=root).decode() == blobs
+    assert sha(report) == meta['report_sha256'] and hashes() == pins
+    assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root).decode().strip() == meta['base_commit']
+    assert set(filter(None, subprocess.check_output(['git', 'diff', '--cached', '--name-only', '-z'], cwd=root).decode().split('\0'))) == set(feature)
+    assert capture('commit', ['git', 'commit', '-m', 'feat: persist verified account grants and revocations']) == 0
+    meta['feature_commit'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root).decode().strip()
+    meta['committed_tree'] = subprocess.check_output(['git', 'ls-tree', '-r', 'HEAD', '--'] + feature, cwd=root).decode()
+    def blob_map(lines):
+        return {line.split('\t', 1)[1]: line.split()[1] for line in lines.splitlines()}
+    expected = blob_map(blobs)
+    actual = {line.split('\t', 1)[1]: line.split()[2] for line in meta['committed_tree'].splitlines()}
+    assert actual == expected, 'committed blobs differ from scanned staging'
+    changed = subprocess.check_output(['git', 'diff-tree', '--no-commit-id', '--name-only', '-r', '-z', 'HEAD'], cwd=root).decode().split('\0')
+    assert set(filter(None, changed)) == set(feature), 'unexpected committed paths'
+    save()
+    assert capture('push', ['git', 'push', 'origin', 'HEAD']) == 0
+except Exception as exc:
+    meta['failure'] = str(exc)
+finally:
+    meta.update(after=hashes(), finished_utc=utc())
+    meta['artifacts'] = {p.name: sha(p) for p in run.iterdir() if p.is_file() and p.name != 'publication.json'}
+    save()
+    print(run.relative_to(root), flush=True)
+    print('Failure: ' + str(meta.get('failure')), flush=True)
+ACC002_PUBLISH
+```
+
+If preflight/capture stops before appending the report, Hermes may append only the
+actual failure and raw-artifact pointer to the existing report, without inventing
+missing output. If a staged scan or Git step fails, preserve the index and captured
+evidence for review; do not reset unrelated work. Never edit scanned bytes and then
+commit them without a new authorized scan. Successful publication requires the
+captured push result, not merely script exit 0. Reviewer will verify the commit and
+CI before closing the ticket.
+
+### Reviewer publication for review 04
+
+Only `tickets/BBGO-ACC-002.md` and `docs/handoff/CURRENT_TASK.md`, based on the
+baseline above. The separate seven-path feature publication belongs to Hermes under
+the conditions above. Reviewer does not integrate source/tests/reports or execute
+acceptance commands. All unrelated work remains untouched.

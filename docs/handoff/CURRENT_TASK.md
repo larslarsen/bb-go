@@ -1,12 +1,14 @@
 # Current Task
 
-ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), review 03. Sol's three
-production files are source-accepted for execution (453 lines); all 12 prior input
-and test pins match. Owner relays this same ticket to Hermes on a free Nous Portal
-model for its exact automatic green/falsification/security capture. It includes a
-build-only fault overlay and appends to the existing execution report. All source
-is frozen. No Git/publication, source correction or daemon restart is authorized.
-Reviewer has not run tests/scans or launched an actor. Effort stays High.
+ACTIVE: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md), review 04. Behavior is
+accepted: ordinary/race tests, vet, 30-second fuzzing and the pinned restart fault
+all produced the required results. Exact gosec findings are reviewed as non-blocking.
+The dependency scan stopped on the reviewer's generated fault artifact; no source
+fix is needed. Owner relays the same ticket to Hermes to run review 04's exact scan
+completion and conditional seven-path publication. Passing tests are not repeated.
+All source is frozen; any unexpected finding stops publication. Reviewer closeout
+awaits dependency/secret-scan evidence and the actual published commit. No actor
+has been launched by Codex and no acceptance command was run by Codex. High remains.
 
 QUEUED NETWORK DIRECTION: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), use the
 public IPFS swarm/bootstrap infrastructure without a required BitBook seed fleet.
@@ -35,7 +37,7 @@ integration. Existing v1 peer-ID/signature bindings remain frozen. Naming is pro
 and is not a gate. Read the
 [account decision](../../../bb-desktop/docs/architecture/BB-ACCOUNT-RECIPIENT-PROPOSAL-01.md).
 Current reviewer governance publication is limited to this file and ACC-002 in bb-go;
-review 03 records the scope, execution authorization and source pins. Preserve unrelated work.
+review 04 records the scope, evidence disposition and conditional publication. Preserve unrelated work.
 
 BBGO-PAY-003 — ACCEPTED AND PUBLISHED. Its authorizations below are historical and
 do not restrict or expand ACC-001's explicit scope. DEV-001 remains cancelled.
