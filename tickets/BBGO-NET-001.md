@@ -1,6 +1,7 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, test source only.** Reviewer: Codex, High.
+Status: **ACTIVE — Sol High, test-source correction under review 01 below.**
+Reviewer: Codex, High. The initial drop is not accepted for execution.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
 ACC-002 is accepted and closed. No NET-001 executor is active yet.
@@ -46,7 +47,7 @@ review; do not overwrite another actor's changes.
 | modern/cmd/bitbookd/main.go | b7b72438c3e41131a5fb9578bc0e22ca12bef11baeac2f3d6a0cdd9429631a20 |
 | modern/cmd/bitbookd/payment_test.go | f3e2188ebd2b3706e27903c26f6f8064dc5bf97e84d14b5015b82ef91b5314a2 |
 
-**Authorized now — test source only:**
+**Initial test-source scope — narrowed by review 01 below:**
 
 - Modify `modern/network/node_test.go`, `modern/network/open_test.go` and
   `modern/api/handler_test.go` for the assertions below; retain existing coverage.
@@ -277,14 +278,15 @@ Immediately follow the diversity regression with this from repository root:
 python3 scripts/govulncheck_policy.py source
 ```
 
-Falsification: in a disposable copy of pinned source, suppress the outbound hello
-validation error so the false advertiser's invalid response reaches confirmation. Run:
+Falsification (corrected by review 01): in a disposable copy of pinned source,
+suppress outbound hello validation so an invalid response reaches confirmation. Run
+the completed-probe regression from modern:
 
 ```sh
-go test ./api -run '^TestNET001PeerAPIRequiresHandshake$' -count=1 -timeout=90s
+go test ./network -run '^TestNET001OutboundHelloRequiresValidation$' -count=1 -timeout=90s
 ```
 
-It must fail because the false advertiser appears. Record the exact one-site mutation
+It must fail because the invalid responder is accepted. Record the exact one-site mutation
 and output, restore pinned source byte-for-byte, then rerun successfully. Reviewer
 pins the exact fault site after source review. Hermes cannot invent a substitute
 fault or rewrite tests.
@@ -330,3 +332,145 @@ Passing tests alone does not authorize an unreviewed source push.
 This activation supersedes the queued/bootstrap-only proposal. Reviewer publication
 is limited to `tickets/BBGO-NET-001.md` and `docs/handoff/CURRENT_TASK.md`. It includes no
 developer source, tests, acceptance execution or unrelated working-tree changes.
+
+## Review 01 — initial test-source drop; correction required
+
+Reviewer: Codex, 2026-09-17, at HEAD
+18eb873bb47666fe59b91a2c883d9b4c391527bf. Source inspection only: no tests, builds,
+fuzzing or scanners executed. Production/module pins match the original baseline;
+discovery.go remains absent. Eighteen TestNET001 declarations (including the guarded
+daemon-child entry) and one fuzz target are present across the eight scoped files.
+Existing tests are retained apart from replacing the obsolete isolation assertion.
+The payment fixture change is exactly the authorized no-bootstrap argument.
+
+The independent upstream Bitswap/IPNS fixture, literal protocol assertions, parser
+fuzzer and persisted-block/public-private control are useful and retained.
+The drop is **not accepted for Hermes red execution** because several tests can pass
+without the mechanism they claim to prove or fail on a valid asynchronous startup.
+
+### Reviewed drop identities
+
+These replace the original pre-edit test hashes for the next source turn; original
+production/module pins remain mandatory. Line numbers below refer to this drop.
+
+| Test path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/network/node_test.go | 548 | 9abc12fc479252c390f78802c9df546e6c4a4e78d71b09acf9db20ba815ab000 |
+| modern/network/open_test.go | 92 | 29feea3dfb533bd28e2b1c46a37bf33515787b35867fdc732d72d578cad2ef3d |
+| modern/network/bootstrap_test.go | 83 | 43d17cb74bcaa8230bfae6d295f65b285bf7a243c0bade97f9a6c9eba6cb664c |
+| modern/network/discovery_test.go | 702 | bd8d88a3a0abac4d5a76106de99b10eaac819a73d33dd853e6ae3426d3fddab7 |
+| modern/network/discovery_fuzz_test.go | 46 | c4f15be93af81e4d732fedafc80275aadf16b3bdc401bdcc0d3ca0acfcde8b0e |
+| modern/api/handler_test.go | 594 | 7e6e65dcfb6d14685c247d130983adf37f41809568c769a0f5a272af393a198a |
+| modern/cmd/bitbookd/bootstrap_test.go | 252 | 1fc439e5a58d897a420d70e6c1ea563f01738dfdbc2769397544e55e6fac1e84 |
+| modern/cmd/bitbookd/payment_test.go | 734 | f1ac520574b48f22e41b8700d7852214479ccf3cf4b919ffd8be0deaf06eea31 |
+
+### Required corrections
+
+1. **Prove handler admission/rejection, not timeout.** In discovery_test.go:319-340,
+   opening 16 streams without I/O does not establish 16 running hello handlers.
+   Pinned BasicHost.NewStream uses lazy negotiation for known protocols. The 17th
+   read accepts any error, including its own five-second timeout; an unlimited or
+   queued implementation can pass. Force negotiation with partial hello writes and
+   observe actual admitted-handler occupancy. Verify prompt remote reset for excess
+   admission, explicitly rejecting local deadline errors, then release a slot and
+   prove a valid exchange succeeds. Cover below/at/above the 16 limit. Likewise
+   establish that the stalled stream at lines 277-296 entered production I/O before
+   Close, and observe handler/loop completion rather than host disconnection alone.
+   Keep a small private admission/lifecycle seam if needed; it must be called by the
+   real production handler, not a copied test implementation.
+
+2. **Remove startup and response-completion races.** Lifecycle lines 169-178 start
+   discovery before background bootstrap is observed, with a 20-second test deadline
+   but a one-minute retry interval. A correct first round can find no routing peers
+   or advertisements and the test then cannot recover. Wait for seed routing, start
+   one advertiser, observe its provider record through the independent seed, then
+   start the discovering node. Do not directly dial the two BitBook nodes.
+   The retry case at lines 382-395 needs the same readiness plus a completed first
+   attempt before changing the handler or invoking another round.
+   Both discovery_test.go:366 and handler_test.go:317 signal before the invalid
+   response is even written; an empty peer snapshot at that point is not validation
+   evidence. Retain the API integration case, but establish rejection at a completed
+   production probe boundary in a new TestNET001OutboundHelloRequiresValidation.
+   Use the private production seam:
+   Node.probeBitBookPeer(ctx context.Context, id peer.ID) error.
+   Its return covers response validation and the confirmation decision. The test
+   must observe invalid input rejection and no confirmation after return, then a
+   valid response positively confirms the same controlled peer. Manual transport
+   setup is allowed for this isolated probe test, not the discovery test.
+   This becomes the planned falsification target above; no public API is added
+   merely to expose a test completion hook.
+
+3. **Observe bootstrap behavior and owned copies.** bootstrap_test.go:28 checks zero
+   connected peers immediately after New; it misses background dial attempts entirely.
+   CLI lines 140-143 check only a disabled log. Replace these negative-only oracles
+   with controlled dial/default-selection evidence, covering nil and empty library
+   config and actual disabled daemon wiring. Keep all possible defaults loopback in
+   executing fixtures (a scoped, restored test replacement of the upstream default
+   address list is permitted, including inside the child), so a regression cannot
+   dial public services. Include an explicit-seed positive control and a completed
+   bootstrap/configuration observation; a zero-length snapshot or sleep alone is
+   insufficient.
+   For dead-plus-healthy seeds, demonstrate New/local service remains usable while
+   an owned stalled seed is still pending, then healthy connection succeeds. A
+   refused port alone does not exercise a blocked dial. Use bounded observation
+   shorter than the 10-second dial timeout, without changing production timing.
+   Current mutations replace slice fields; they do not exercise address backing-array
+   ownership. Test outer and inner-slice ownership after the relevant production
+   configuration/copy boundary is observed, without racing unowned shared inputs.
+
+4. **Cover daemon discovery wiring and early errors.** The CLI test currently proves
+   explicit seed connectivity and selection logs, but passes if run() never calls
+   StartDiscovery. Observe the child advertise the BitBook namespace through the
+   controlled DHT after actual startup. This is distinct from manually calling
+   StartDiscovery in a library fixture or probing the handler installed by New.
+   Exercise invalid/conflicting CLI flags through the child and prove they fail
+   before creating a previously nonexistent owned data directory. Keep test-owned
+   processes reaped on every outcome and surface cleanup failures.
+
+5. **Make concurrency/cancellation tests finish and prove the real bound.** The loop
+   test has unbounded receives at lines 428/438 and blocked callbacks without failure
+   cleanup; the probe test has analogous release/receive paths. Add bounded receives,
+   context-aware callbacks, unconditional cancellation/release and joins even on
+   t.Fatal. Immediate select/default is not proof that another goroutine could not
+   start later. Use barriers/controlled scheduling and assert maximum concurrency
+   after all work joins. For independent round tasks, block advertisement and require
+   lookup to start before releasing it; an immediate advertise error currently permits
+   a sequential implementation. Exercise cancellation with active outbound I/O,
+   not only a pre-cancelled context. Cover 31/32/33 candidate limits, each source's
+   allowance, and 127/128/129 confirmed entries; assert invalid/self/duplicate behavior
+   before capacity eviction can hide it. The fake-clock/private helpers must serve
+   production code, with the actual startup/stream cases retained as wiring controls.
+
+### Same-machine Keel coexistence check
+
+Owner asked whether joining the public DHT would conflict with Keel on the same
+machine. Read-only source check at Keel c42ccd910c8f01691d8c6db3869625784a4db625:
+daemon/swarm/swarm.go requests OS-assigned TCP/QUIC ports (port 0), whereas BitBook's
+defaults use 4001. Keel's daemon/swarm/rendezvous.go derives its discovery CID from
+keel/rendezvous/1 plus its own protocol/key-scheme version; this ticket's BitBook
+namespace is distinct. Both retain their own keys and application protocols.
+No default port/namespace conflict was found, and no Keel change is required.
+This is a configuration/source finding, not a live two-application acceptance run.
+The existing ordinary-IPFS-peer exclusion tests cover the applicable BitBook boundary;
+do not add a dependency on running Keel or widen the source correction scope.
+
+### Current source authorization
+
+Return this same ticket to **Sol High**. Modify only:
+
+- modern/network/bootstrap_test.go
+- modern/network/discovery_test.go
+- modern/api/handler_test.go
+- modern/cmd/bitbookd/bootstrap_test.go
+
+The other four test files in the table are frozen. Preserve useful assertions and
+fixtures; correct the listed proofs rather than rewriting the suite. Private helper
+declarations may be referenced by test source as future production requirements; do
+not add production stubs or implementations to make the tests compile. Their eventual
+real-path use will be reviewed with production. Missing planned symbols alone remain
+limited expected-red evidence, as specified above.
+
+No execution, production/dependency edits, report writing, Git or publication by Sol.
+No Hermes phase is active. Reviewer will inspect the corrected files, then authorize
+red in this ticket. Publication of this review is reviewer-only and limited to this
+ticket and CURRENT_TASK.md; developer tests remain uncommitted and untouched.
