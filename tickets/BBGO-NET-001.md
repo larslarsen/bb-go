@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Hermes, remaining acceptance and conditional local rebuild under review 15.**
-Reviewer: Codex, High. Source and targeted tests accepted; broader acceptance remains open.
+Status: **ACCEPTED — Hermes scoped publication and CI closeout under review 16.**
+Reviewer: Codex, High. Source, runtime/security gates and local rebuild accepted.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. All production, tests and modules are frozen at review 15 pins.
+ACC-002 is accepted and closed. Source/tests remain frozen; review 16 authorizes exact-scope publication.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — remaining gates active under review 15
+## Execution plan — completed; publication active under review 16
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1705,3 +1705,127 @@ No source repair, user-data operations or developer Git staging/commit/push. Ret
 for acceptance/publication review after this combined phase; no intermediate owner
 approval is needed between passing stages. Reviewer publication is only this ticket
 and CURRENT_TASK.md.
+
+
+## Review 16 — acceptance and local rebuild verified; publish exact scope
+
+Reviewer: Codex, 2026-09-18, at HEAD 633d31e8. Read retained source, runner, logs,
+metadata and SARIF; independently read binary build metadata. No tests/build/scans
+executed by reviewer. All nine acceptance06 command output hashes and every recorded
+19-entry source after-manifest match retained logs/current files and developer05.
+
+Accepted results: full ./... tests and race pass in all nine maintained packages;
+vet passes; native FuzzPeerHello passes 222,817 executions in 30 seconds; the DHT
+diversity regression passes immediately before the vulnerability-policy check.
+Policy exits 0 with the existing GO-2024-3218 exception for kad-dht v0.42.2, expiry
+2026-11-29, and four non-reachable x/crypto notes. The SARIF identifies the pinned
+v1.7.0 scanner, Go 1.27.0 and official advisory database. No new vulnerability
+exception is introduced. Prior targeted/regression/falsification acceptance stands.
+
+### Gosec adjudication
+
+The full scoped scan exits 1 with ELEVEN findings (27 files / 8,777 lines), not merely
+G115 findings. Reviewer inspected the actual sites:
+
+| Findings | Sites | Disposition |
+| --- | --- | --- |
+| 1 G115 | network/discovery_test.go:966 | Same bounded synthetic candidate-count conversion accepted in review 11. |
+| 2 G204 | cmd/bitbookd/payment_test.go:285; bootstrap_test.go:243 | Re-execute os.Executable with a fixed test filter/count, no shell or untrusted executable/arguments. Payment was already adjudicated; the NET001 harness has the same safe structure. |
+| 2 G304 | network/identity_test.go:84; cmd/bitbookd/localclient_test.go:110 | Previously adjudicated owned temporary sentinel/descriptor reads; input assumptions unchanged. |
+| 6 G104 | api/handler_test.go:591,596,602,620,625,631 | Best-effort Node.Close in fixture setup-error branches, immediately followed by t.Fatal on the original failure. Ignoring the secondary cleanup error cannot turn the failed test into success. No production error handling is suppressed. |
+
+These exact test sites are nonblocking. Owner: Codex reviewer; re-review if inputs or
+control flow change. No scanner suppression or blanket test-code exception. New
+findings were not yet adjudicated when Hermes built; that premature continuation
+was outside the conditional build rule. This review now adjudicates the findings and
+accepts the verified artifact, without authorizing future bypasses.
+
+### Build and capture limitations
+
+modern/bitbookd is rebuilt: 44,001,199 bytes, SHA-256
+b885b1d23fe3da0b7ec7de2b1817a4f9827ac45a32be1386bca3dfaa3af3ef6e.
+Independent go version -m agrees with capture: Go 1.27.0, maintained daemon module,
+VCS 633d31e86360f9c4e7069cc00007301f46d90a94, modified=true. This is the expected
+pre-integration source build; Git commit alone does not change its contents. The
+accidental cmd/bitbookd/bitbookd binary remains unchanged. No restart is claimed.
+
+Hermes again retained only end-of-phase metadata, not pre-launch records/environment
+snapshots. The retained runner shows the pinned/offline environment and tool checks;
+actual commands, outputs, after-identities and binary agree. Preserve the historical
+capture gap explicitly; do not invent missing metadata. Govulncheck was invoked through
+a wrapper rather than the prescribed CLI. Reviewer inspected it: it calls unchanged
+policy main(['source']), passes the real subprocess result through unchanged and only
+retains the scan output; no exception bypass. The real scanner command/SARIF and policy
+output support acceptance. No rerun solely for these capture deviations is required.
+
+Hermes also replaced the entire consolidated execution report with a 30-line summary,
+losing the previous Sol sections. Raw artifacts and ticket reviews remain intact.
+Reconstruct a concise consolidated report from those retained records during the
+publication phase below; do not claim to restore verbatim lost text.
+
+| Evidence beneath modern/dist/net001/acceptance06 | SHA-256 |
+| --- | --- |
+| acceptance.json | 0d0bddb58f1c5e2c36400102680d850c7ce32a0bfa6f799405bb4a7c90ef37ab |
+| 05-gosec.stdout | c307829316db79e12962acba24f32f5f7bb2eefaf80d9d7cd45037bf73a0fe0e |
+| govulncheck.sarif | df26b4ee62a31229aa39ccc161104e14bda75085523fece9bb9931649aa88d4c |
+| 07-govulncheck.stdout | 05234cec3775b7be8a52ab2326ce83935c9f60cc4e78ae00d016dafd5e6bbf7d |
+| 09-build-identity.stdout | fa3834cedab1e58845d3d79ec6db49cffb99f43418fe664e69ef178ea58dadf5 |
+
+### Hermes — final publication and CI, no repeat acceptance
+
+Source is frozen. Exactly these thirteen files plus
+`docs/testing/BBGO-NET-001-EXECUTION-01.md` may be staged/committed/pushed:
+
+| Source/test path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/network/node.go | 284 | ee15f7a120468679a7f52a8e0fa73aa38aa86813ea5a62a493bfd990daf13555 |
+| modern/network/protocols.go | 26 | a17f85edf8bb8dd52a12f6d826d1637ad32cd5d27daf534bac672943f1eafd03 |
+| modern/network/discovery.go | 768 | 4ba9e0b795872301e4350cfb4a43868c2206fb7b1539de85726d9533161b300c |
+| modern/api/handler.go | 652 | 678511fee172b1b9f0aef0c85eb5e724f162aa233d65e535bcbe8708630054fd |
+| modern/cmd/bitbookd/main.go | 287 | fe2d3b2c07d3ddc0948889dc37158b90f5aecda79bd83d0974d1f61548f1caea |
+| modern/network/node_test.go | 548 | 9abc12fc479252c390f78802c9df546e6c4a4e78d71b09acf9db20ba815ab000 |
+| modern/network/open_test.go | 92 | 29feea3dfb533bd28e2b1c46a37bf33515787b35867fdc732d72d578cad2ef3d |
+| modern/network/bootstrap_test.go | 273 | cc1376f0f8dec262c460c06b40a8283b74b5e8381cccc4bd1fe4a88a559792ad |
+| modern/network/discovery_test.go | 1223 | c8b0a9890509691a2d488066c0040d9ce87e39885436627457a44ea703d0ea66 |
+| modern/network/discovery_fuzz_test.go | 46 | c4f15be93af81e4d732fedafc80275aadf16b3bdc401bdcc0d3ca0acfcde8b0e |
+| modern/api/handler_test.go | 656 | 92460e5731b2e41e5d70d1c81e96d90036408e9813a38d0df90059170a22c09b |
+| modern/cmd/bitbookd/bootstrap_test.go | 407 | b348eabe4afcef497200767dac8e4a39743441b88cefb0be98d299d1dcd50ef5 |
+| modern/cmd/bitbookd/payment_test.go | 734 | f1ac520574b48f22e41b8700d7852214479ccf3cf4b919ffd8be0deaf06eea31 |
+
+1. Reconstruct the existing report with current source identities, original red,
+   diagnostic01 red / diagnostic02 green, acceptance04 regression/falsification and
+   limitations, developer01–04 failures, developer05 targeted green, acceptance06
+   commands/results, these eleven finding dispositions, actual build identity and
+   capture deviations. Use retained raw artifacts and reviews 11–16; retain references
+   and hashes. Correct claims rather than invent missing data. No test/scanner/build
+   reruns except the publication secret scan below.
+2. Verify the source pins above and an empty starting index. Preserve all unrelated
+   dirty work. Stage ONLY the thirteen listed files and the completed report by exact
+   path; no git add ., binaries, dist artifacts, modules, README, AGENTS/roles changes,
+   cancelled DEV001 files or new handoff documents. Verify staged path set and source
+   blob hashes against this table. Ticket/CURRENT_TASK are already reviewer-published.
+3. Capture these exact publication checks from repository root using pinned Gitleaks
+   v8.30.1 (hash in original execution plan):
+
+   ```sh
+   ../.security-tools/bbgo-sec-tools-20260829/gitleaks git --pre-commit --staged --redact=100 --no-banner .
+   git diff --cached --check
+   ```
+
+   Require both exits 0; retain raw redacted output and per-command metadata written
+   before launch and finalized afterward. No source edits or suppression on failure.
+   If report content changes after scanning, restage and scan the final staged bytes.
+4. Commit this exact feature/report set, push master to origin, and verify the remote
+   commit identity. No force push. Record the exact commit, commands and results.
+   Observe the Go 1.27 workflow for THAT feature commit through completion using gh;
+   retain run URL, head SHA and conclusion. If CI fails, retain logs and stop without
+   repairs or retry-to-green. No local acceptance rerun or rebuild merely due to commit.
+5. Append actual publication scan/commit/push and CI results to the SAME report.
+   Stage only that report, repeat the exact staged secret/whitespace checks, and
+   commit/push this evidence closeout in the same assignment. Retain those command
+   captures locally; no third report commit just to name its own hash. Verify origin.
+
+No process restart, binary cleanup or additional implementation. This is the final
+integration assignment, including evidence repair and CI; no intermediate owner
+approval between successful steps. Reviewer will verify publication and close the
+ticket. Reviewer-only publication now remains this ticket and CURRENT_TASK.md.

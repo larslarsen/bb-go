@@ -1,20 +1,20 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes, remaining acceptance
-and conditional local rebuild under review 15**. Source and targeted tests are
-accepted: focused fixtures passed 20 normal and 10 race runs; full TestNET001 passed
-five runs in network/api/daemon. Reuse those captures and prior accepted regression/
-falsification evidence. No further Sol task is active.
+ACCEPTED: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes final publication
+and CI closeout under review 16**. Full tests/race/vet/fuzz and vulnerability policy
+pass; eleven test-code gosec findings are adjudicated. The correct modern/bitbookd
+binary is rebuilt and independently verified; no restart is claimed.
 
-Freeze source/tests/modules at developer05's manifest. Hermes runs the exact remaining
-full-suite/race/vet/fuzz/security commands, corrects the same report, and rebuilds
-modern/bitbookd if all gates pass. Use the reviewed developer capture pattern with
-fresh artifacts and scanner PATH verified; do not reuse the flawed old acceptance
-runner. Stop on unexpected failures. No source edits, restart or developer Git.
-The complete assignment and accepted scanner dispositions are in review 15.
+Source, targeted and broader acceptance are complete. Do not repeat them. Hermes
+reconstructs the overwritten consolidated report from retained captures, stages the
+exact thirteen source/test files plus that report, runs staged secret/whitespace
+checks, commits/pushes, verifies feature-commit Go CI, and publishes the report
+closeout in the same assignment. Review 16 is the complete publication contract and
+records evidence limitations. No source repair, further build, restart or unrelated
+Git changes. Preserve both binaries, all captures and unrelated dirty work.
 
-Reviewer stays High and publishes only this file and NET-001. Preserve unrelated
-work and all prior captures. No extra owner approval between passing stages.
+Reviewer stays High and publishes only this file and NET-001. No intermediate owner
+approval is needed between successful publication steps.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with
