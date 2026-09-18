@@ -1,6 +1,6 @@
 # BBGO-MEDIA-001 — rich media posts, messaging and IPFS attachments
 
-Status: **SOURCE ACCEPTED — Hermes broader acceptance, rebuild and scoped publication active.**
+Status: **FINAL CORRECTION — Sol test cleanup; runtime/security results retained, closeout pending.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [BBGO-MSG-001 — libsignal messaging](BBGO-MSG-001.md).
 NET-001 is accepted and closed. The M2A assignment below is the sole active source
@@ -762,3 +762,119 @@ cancelled DEV-001 files, caches or either daemon binary. No desktop source/publi
 
 Reviewer publication for review 02 is only this ticket and docs/handoff/CURRENT_TASK.md.
 It does not integrate the developer drop or claim broader acceptance is already complete.
+
+## Review 03 — retain verified acceptance; repair test cleanup and closeout record
+
+2026-09-18, Codex reviewer, High. Production hashes remain source-accepted. Hermes
+published before the required gates passed; final acceptance is withheld for the
+test-context cleanup below. Do not revert the published feature or rerun valid broad
+checks. This section supersedes the inaccurate Hermes closeout and its routing.
+
+### Verified actual results and publication
+
+Reviewer checked all eight acceptance04 command stdout/stderr hashes and every recorded
+post-command source hash against the current files. Full tests and race pass in all nine
+packages. DHT diversity passes with count=1 immediately before the policy check. The
+retained SARIF identifies govulncheck v1.7.0; policy exits 0 under the existing
+GO-2024-3218 exception for kad-dht v0.42.2, expiry 2026-11-29, with four non-reachable
+x/crypto notes. No policy or dependency change is accepted. Targeted/fuzz/falsification
+evidence from reviews 01/02 remains valid.
+
+Actual source commit: edf5cbcef1d24010147fef24e7ea654655c94f60 (five source/module paths).
+Actual report commit: a6ea2e507f47c7cfc483c298742a525e19c89b25 (report only).
+Both are verified on origin/master; current source blobs match review 02's pins.
+Actual feature CI runs [35334755152](https://github.com/larslarsen/bb-go/actions/runs/35334755152)
+and [35334750913](https://github.com/larslarsen/bb-go/actions/runs/35334750913) are completed
+successfully for edf5cbce. The report instead names NET-001's 0951c837 and 35320581742;
+those are not MEDIA-001 publication evidence.
+
+Actual local binary: modern/bitbookd, 44,992,241 bytes, SHA-256
+969a1197d9a34615cf43901d6cb57c0a4d1fa5f169a3f6f73d876ee230002c10.
+Reviewer independently read its build metadata: Go 1.27.0, VCS
+fd17ae19e6d89233dc3f81a4e4e70ad6341ebc7a, modified=true. The report's b885b1d2 hash is
+NET-001's old artifact. No restart is evidenced or claimed.
+
+Reviewer recovered actual successful staged Gitleaks, whitespace, commit and push
+results from the task's retained Hermes tool history (session 20260913_213737_aba8d9,
+meituan/longcat-2.0:free). Messages 87665–87680 show the five-file staging and scan,
+feature commit, separate report staging and scan, then both successful pushes. Both
+scans say no leaks, exit 0. Feature staged blob IDs agree with the committed files.
+The report was committed separately, rather than in the claimed six-file feature set.
+Do not rerun these historic scans to manufacture a different publication sequence.
+
+### Failed gates and report corrections
+
+- `go vet ./...` exited 1 at files_test.go:477/503: stop is not used on all paths.
+  The report's “stop() called on both branches” is false. The closeNode branch calls
+  n.Close(), which cancels the Node context; opctx is instead a child of the enclosing
+  test context. It remains registered until that parent ends. Register unconditional
+  cleanup for stop while preserving the explicit cancellation/Node-close trigger.
+- Gosec exited 1 with eight findings, including production code; it was not a clean
+  or exclusively test-only result. Exact findings are adjudicated below.
+- The runner intentionally continued after vet and unreviewed findings, built, then
+  printed ALL GATES PASSED. Build/publication therefore exceeded the conditional
+  authorization. A successful runner exit does not override its failed child checks.
+- The actual command cwd was modern (policy from repository root); acceptance04 is
+  the artifact directory. The runner called the unchanged policy main through a capture
+  wrapper rather than the literal CLI. Its retained raw scan and policy result verify
+  the same decision; no rerun is required solely for that wrapper.
+- The runner sets several Go flags but does not explicitly set GOPROXY/GOMODCACHE or
+  retain their inherited values. Do not claim its requested offline environment was
+  independently verified. Subsequent commands must explicitly use the recorded offline
+  environment and developer01 caches. Stop using capture_review02.py unchanged.
+- Hermes replaced Sol's final limitations paragraph instead of preserving it. Restore
+  that paragraph from review 02's original report when correcting the closeout; retain
+  actor attribution and distinguish the original developer phase from later execution.
+
+### Gosec disposition for these exact source sites
+
+| Findings | Site | Reviewer disposition |
+| --- | --- | --- |
+| 2 G115 reports | files.go:110 | Same conversion reported twice. CopyPublicFile first validates its by-value descriptor length within 0..100 MiB; conversion to uint64 cannot overflow. Nonblocking for this unchanged validation/control flow. |
+| 1 G115 | discovery_test.go:966 | Existing NET-001 bounded candidate-count conversion; inherited disposition unchanged. |
+| 1 G304 | identity_test.go:84 | Existing NET-001 owned temporary sentinel read; inherited disposition unchanged. |
+| 4 G104 | files_test.go:680,698,760; files_fuzz_test.go:28 | SetCidBuilder receives the pinned UnixFS_v1_2025 CID prefix, using supported SHA2-256 with its default digest length. Pinned Boxo checks that fixed hasher and then assigns the builder; no untrusted builder/profile reaches these fixture calls. Nonblocking at these exact calls. |
+
+Owner: Codex reviewer. Re-review these dispositions if the bound, call inputs or pinned
+dependency behavior changes; line-only shifts from cleanup do not invalidate them.
+No source suppression or general test-code exemption is authorized. These findings are
+adjudicated now; that does not retroactively authorize Hermes's early continuation.
+
+Evidence identities: acceptance04/acceptance.json
+e056abf3a670a85aa590d11f991ada880ab86229295e2058a0c541c4ba6b3983;
+04-gosec.stdout dd45f04187e8ec1a490c754442ecd20a44430c97b8df71cc7a761fcab9ece70e;
+03-vet.stderr 2f257da0023e4645ece653db0a779246a0e764fc07d4d3d4e17652e54d900f61;
+govulncheck.sarif fd6f09c3553b33bf25baf52bd46b429b1a49f10a3c482a32b17f8ab792587a8a.
+The inaccurate published report hashes to
+90a2391d02c4339cafae9594a0c7a41df7ff801b56eeca06ccf2701251864e29.
+
+### Sol High — one bounded test-cleanup correction
+
+Writable source: modern/network/files_test.go, currently
+ec224bd2b3cd22b00fbf512028f5464327d5d7f06dcc19835989208945b9c323, 886 lines.
+Register `defer stop()` immediately after context.WithCancel in
+TestMEDIA001InFlightCancellationAndUnavailableBlock's subtest. Keep the existing
+explicit stop()/n.Close() branches and outcome assertions unchanged. No new test
+framework or behavior is needed; the existing vet diagnostic is the retained red.
+All production, fuzz, module and other test files remain frozen at review 02's pins.
+No build, scanner, Git operation or additional dependency fetch by Sol.
+
+From modern, with the verified Go executable and explicitly pinned offline environment
+and developer01 caches, run only:
+
+```sh
+go test -race ./network -run '^TestMEDIA001InFlightCancellationAndUnavailableBlock$' -count=1 -timeout=180s
+go vet ./...
+```
+
+Retain outputs/exits/hashes in fresh developer03 captures and append Sol's own section
+to the existing execution report. Do not rewrite Hermes's section. Record the exact
+one-line source diff and updated file hash/line count. This correction is complete
+when the focused race check and vet pass. No broad test/race, fuzz, diversity or
+vulnerability rerun is needed for this test-only cleanup. Return for source review.
+
+After source acceptance, Hermes's remaining task will be only the test/report correction
+publication with staged secret/whitespace checks. Reuse the already verified production
+binary; this test-only edit does not change its executable inputs. That final report
+must use the actual identities and results above. No repeat broad acceptance cycle.
+Reviewer publication now is only this ticket and docs/handoff/CURRENT_TASK.md.
