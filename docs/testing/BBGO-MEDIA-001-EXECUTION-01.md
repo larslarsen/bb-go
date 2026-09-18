@@ -386,3 +386,83 @@ No source suppression or general test-code exemption is authorized.
 Staged: `modern/network/files_test.go` + `docs/testing/BBGO-MEDIA-001-EXECUTION-01.md`.
 Secret scan: 0 leaks.
 Whitespace check: clean.
+
+## Sol High correction — review 05 API reconnect fixture synchronization
+
+Date: 2026-09-18. Actor: Principal Dev, Codex Sol High. This section records the
+bounded review 05 correction of the inherited NET-001 API reconnect fixture.
+
+The writable source matched its required baseline before editing:
+`modern/api/handler_test.go`, 656 lines, SHA-256
+`92460e5731b2e41e5d70d1c81e96d90036408e9813a38d0df90059170a22c09b`.
+No production, dependency or media test source was changed.
+
+### Fixture correction
+
+`TestNET001PeerAPIRequiresHandshake` now starts the subject and real-peer discovery
+loops with separate cancellable contexts. After the original real DHT discovery and
+invalid-advertiser proofs complete, it cancels both loops and waits until each node's
+public `StartDiscovery` lifecycle reports that the already-started loop has fully
+returned. This joins any in-flight discovery round before the deliberate disconnect;
+cancellation alone is not treated as completion.
+
+The disconnect closes both peers' current connection views and waits until both live
+`ConnsToPeer` sets are empty and both sides report non-connected state. This live-set
+barrier accounts for connections created after the pre-disconnect ID snapshot. Only
+then does the fixture prove the confirmed peer and API status are absent. The existing
+manual reconnect must produce a live connection whose ID was not in the old snapshot,
+and the existing fresh discovery hello/response must complete before API confirmation
+returns. The initial DHT/discovery proof, ordinary-peer exclusion, invalid-advertiser
+exclusion, invalid-ID response and every positive/negative API assertion remain.
+
+### Environment and exact commands
+
+Commands ran from `modern` with Go 1.27.0 (`linux/amd64`), executable SHA-256
+`1db869c560a193573a71be466a34e0d4abb7792d78165c6102cdda069276a3a8`,
+`GOTOOLCHAIN=local`, `GOWORK=off`, `GOENV=off`, `GOPROXY=off`, `GOSUMDB=off`,
+`GOFLAGS='-mod=readonly -p=2'`, and the existing disk-backed developer01 module and
+build caches under `dist/media001/developer01/`. The first command used
+`GOMAXPROCS=8`; the remaining commands used `GOMAXPROCS=2`. Captures are under
+`modern/dist/media001/developer04/raw/`.
+
+```sh
+GOMAXPROCS=8 go test ./api -run '^TestNET001PeerAPIRequiresHandshake$' -count=20 -timeout=180s
+go test -race ./api -run '^TestNET001PeerAPIRequiresHandshake$' -count=10 -timeout=180s
+go test ./api -count=1 -timeout=180s
+go vet ./api
+```
+
+The runner used a pipe only to retain each command's combined output and recorded the
+Go command's `PIPESTATUS` separately.
+
+| Command | Exit/result | Raw output and SHA-256 |
+| --- | --- | --- |
+| handshake, `-count=20`, `GOMAXPROCS=8` | 0; package passed in 0.975s | `api-handshake-count20.txt`; `2cb315371ec66bac118c32d1deaebcf82ea17d710c29a11c53251fa8d9d09abb` |
+| handshake race, `-count=10` | 0; package passed in 2.645s | `api-handshake-race-count10.txt`; `292fc53334f5199a684a4b7b43b3b1ecd54244ced61800ff91be5708470d987b` |
+| full `api` package, `-count=1` | 0; package passed in 0.079s | `api-package.txt`; `8f7681418d17514b9ddb717d0a5ca4bbb45fb54eeb5a16c02d2809e2aa076ac9` |
+| `go vet ./api` | 0; no diagnostic output | `api-vet.txt`; `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+
+Each `.exit` capture contains `0` plus a newline and has SHA-256
+`9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+The retained Go-version capture has SHA-256
+`76227025cc0bc2be7067aa45d11e09cacfd49c58f498f4c2e4f6a9872a607bf9`.
+
+### Final source identity and limitations
+
+`modern/api/handler_test.go` is 672 lines, SHA-256
+`d98a96a5416b83a59c26f18b880185c5ac57b280207bd240db045bfadf883bc4`.
+Its diff is 57 insertions and 41 deletions; the retained diff capture SHA-256 is
+`1579ff958fb0f100919d06c757135f8feb9bad385a407c00719b19b384f3bb65`.
+Formatting and `git diff --check` are clean.
+
+The fixture observes discovery completion through the public non-restartable
+`StartDiscovery` lifecycle because `network.Node` exposes no separate discovery wait
+method. This couples the helper to the current documented lifecycle error. DHT and
+libp2p maintenance remain live, but both-side live connection-set checks ensure such a
+connection cannot be mistaken for the required transport gap; the subsequent fresh-ID
+and hello checks continue to fail if another connection wins the reconnect race.
+
+The retained final-commit CI failure is the accepted red; no local lucky-failure claim
+is made. No media/full-module cycle, fuzz, scanner, dependency fetch, build, daemon
+restart or Git mutation was performed. The bounded source and report drop is ready
+for reviewer source review and scoped publication.

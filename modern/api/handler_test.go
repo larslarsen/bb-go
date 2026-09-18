@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -330,7 +329,9 @@ func TestNET001PeerAPIRequiresHandshake(t *testing.T) {
 	if _, err := falseDiscovery.Advertise(ctx, network.DiscoveryNamespace); err != nil {
 		t.Fatal(err)
 	}
-	if err := realPeer.StartDiscovery(ctx); err != nil {
+	realDiscoveryCtx, stopRealDiscovery := context.WithCancel(ctx)
+	defer stopRealDiscovery()
+	if err := realPeer.StartDiscovery(realDiscoveryCtx); err != nil {
 		t.Fatal(err)
 	}
 	seedDiscovery := routingdiscovery.NewRoutingDiscovery(seedDHT)
@@ -345,7 +346,9 @@ func TestNET001PeerAPIRequiresHandshake(t *testing.T) {
 	if err := ordinary.Connect(ctx, peer.AddrInfo{ID: subject.ID(), Addrs: slices.Clone(subject.Host.Addrs())}); err != nil {
 		t.Fatal(err)
 	}
-	if err := subject.StartDiscovery(ctx); err != nil {
+	subjectDiscoveryCtx, stopSubjectDiscovery := context.WithCancel(ctx)
+	defer stopSubjectDiscovery()
+	if err := subject.StartDiscovery(subjectDiscoveryCtx); err != nil {
 		t.Fatal(err)
 	}
 	responseWrittenForSubject := false
@@ -360,6 +363,10 @@ func TestNET001PeerAPIRequiresHandshake(t *testing.T) {
 		}
 	}
 	waitForAPIBitBookPeer(t, ctx, subject, realPeer.ID())
+	stopSubjectDiscovery()
+	stopRealDiscovery()
+	waitForAPIDiscoveryStopped(t, ctx, subject)
+	waitForAPIDiscoveryStopped(t, ctx, realPeer)
 
 	store, err := social.NewStore(subject)
 	if err != nil {
@@ -418,49 +425,15 @@ func TestNET001PeerAPIRequiresHandshake(t *testing.T) {
 	for _, connection := range connections {
 		oldConnectionIDs[connection.ID()] = struct{}{}
 	}
-	realPeerDisconnected := make(chan string, len(oldConnectionIDs))
-	reportedDisconnects := make(map[string]struct{}, len(oldConnectionIDs))
-	var disconnectMu sync.Mutex
-	realPeerObserver := &lp2pnet.NotifyBundle{
-		DisconnectedF: func(_ lp2pnet.Network, connection lp2pnet.Conn) {
-			if connection.RemotePeer() != subject.ID() {
-				return
-			}
-			id := connection.ID()
-			if _, old := oldConnectionIDs[id]; !old {
-				return
-			}
-			disconnectMu.Lock()
-			if _, reported := reportedDisconnects[id]; !reported {
-				reportedDisconnects[id] = struct{}{}
-				realPeerDisconnected <- id
-			}
-			disconnectMu.Unlock()
-		},
-	}
-	realPeer.Host.Network().Notify(realPeerObserver)
-	defer realPeer.Host.Network().StopNotify(realPeerObserver)
-
 	if err := subject.Host.Network().ClosePeer(realPeer.ID()); err != nil {
 		t.Fatal(err)
 	}
+	if err := realPeer.Host.Network().ClosePeer(subject.ID()); err != nil {
+		t.Fatal(err)
+	}
+	waitForAPITransportGap(t, ctx, subject, realPeer)
 	waitForAPINoBitBookPeer(t, ctx, subject, realPeer.ID())
 	assertPeerAPI(false)
-	remaining := make(map[string]struct{}, len(oldConnectionIDs))
-	for id := range oldConnectionIDs {
-		remaining[id] = struct{}{}
-	}
-	for len(remaining) > 0 {
-		select {
-		case id := <-realPeerDisconnected:
-			delete(remaining, id)
-		case <-ctx.Done():
-			t.Fatalf("real peer did not observe all old connections close (%d remain): %v", len(remaining), ctx.Err())
-		}
-	}
-	if realPeer.Host.Network().Connectedness(subject.ID()) == lp2pnet.Connected {
-		t.Fatalf("real peer did not observe a transport gap: %v", realPeer.Host.Network().ConnsToPeer(subject.ID()))
-	}
 	if err := realPeer.Host.Connect(ctx, peer.AddrInfo{ID: subject.ID(), Addrs: slices.Clone(subject.Host.Addrs())}); err != nil {
 		t.Fatal(err)
 	}
@@ -542,6 +515,49 @@ func waitForAPINoBitBookPeer(t testing.TB, ctx context.Context, node *network.No
 		select {
 		case <-ctx.Done():
 			t.Fatalf("waiting to remove confirmed peer %s: %v", want, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForAPIDiscoveryStopped(t testing.TB, ctx context.Context, node *network.Node) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		err := node.StartDiscovery(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				t.Fatalf("waiting for discovery to stop: %v", ctx.Err())
+			}
+			if err.Error() != "discovery cannot be restarted" {
+				t.Fatalf("waiting for discovery to stop: %v", err)
+			}
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting for discovery to stop: %v", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForAPITransportGap(t testing.TB, ctx context.Context, a, b *network.Node) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		aConnections := a.Host.Network().ConnsToPeer(b.ID())
+		bConnections := b.Host.Network().ConnsToPeer(a.ID())
+		if len(aConnections) == 0 && len(bConnections) == 0 &&
+			a.Host.Network().Connectedness(b.ID()) != lp2pnet.Connected &&
+			b.Host.Network().Connectedness(a.ID()) != lp2pnet.Connected {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting for transport gap between %s and %s: a=%v b=%v: %v", a.ID(), b.ID(), aConnections, bConnections, ctx.Err())
 		case <-ticker.C:
 		}
 	}
