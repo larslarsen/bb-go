@@ -40,12 +40,11 @@ authorized by this queued record.
   to run this DOM editor unchanged.
 - Bundle Emoji Mart and its data locally. Emoji picker, keyboard navigation, skin-tone
   selection and insertion must work without a remote script/data CDN.
-- Provide a GIF-picker popover with search, recents and favorites over locally indexed
-  IPFS GIF packs and user imports. Include a small redistributable sample pack with
-  provenance. Giphy is an example from the owner's prompt, not a required service.
-  An optional external search adapter may be added after checking its import/rehosting
-  terms and privacy behavior; no credentials or provider calls by default. Selected
-  GIF bytes go through the attachment pipeline, never a required hotlinked CDN URL.
+- Use **Klipy** for GIF-picker search in both posts and messages, with recents and
+  favorites (owner update, 2026-09-17). Keep locally retained GIFs and user imports
+  available offline. Review Klipy's integration requirements, import/rehosting terms
+  and privacy behavior when activating the UI slice. Selected GIF bytes go through
+  the attachment pipeline and IPFS, never a required hotlinked CDN URL.
 - Provide an accessible shared MediaViewer/lightbox: full-screen image preview,
   zoom/pan, next/previous, Escape/back dismissal and focus restoration. Use native
   video controls, poster frames and explicit playback. GIF animation respects reduced
@@ -250,3 +249,6 @@ Reviewer-only publication for these two owner requests:
 
 Validate document links/formatting and commit each repository's exact document set.
 No source, dependency installation, acceptance execution, app launch or restart.
+
+Owner's Klipy provider update is a reviewer-only publication of
+tickets/BBGO-MEDIA-001.md.
