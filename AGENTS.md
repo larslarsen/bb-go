@@ -37,11 +37,13 @@ This file governs agent work in the `bb-go` repository.
   reviewer-bounded boilerplate, fixture/table plumbing, schema scaffolding, and API/UI
   wiring whose semantics are already fixed. It does not make architecture, protocol,
   privacy, cryptography, concurrency, or persistence-design decisions. It does not
-  execute tests or own integration, repository records, Git, commits, or pushes.
+  own integration, acceptance records, Git, commits, or pushes. It may run the active
+  ticket's targeted tests and write its own results in the designated report.
 - **Principal Dev — Codex Sol:** agentic, using `gpt-5.6-sol` at High. Authors the
   highest-risk trust-boundary, cryptography, concurrency, persistence, protocol-core,
   and release-gate source and test source bounded by the active ticket. It does not
-  execute tests or own integration, repository records, Git, commits, or pushes.
+  own integration, acceptance records, Git, commits, or pushes. It may run the active
+  ticket's targeted tests and write its own results in the designated report.
 - **Sr Dev — Grok Build:** agentic, using Grok 4.6 High. Authors bounded protocol,
   transport, corrective, and other senior source and test source after the reviewer has
   fixed sensitive schemas and trust semantics. It may run focused tests within the
@@ -66,10 +68,12 @@ result. See `docs/engineering/DEVELOPMENT_ROLES.md`.
    test-falsification rules.
 3. Verify the exact source baseline before editing.
 4. Modify only the ticket's authorized paths.
-5. The authorized source actor authors test source before production source. Sr Dev
-   may run focused tests authorized by the active ticket or reviewer handoff; other
-   source actors stop without test execution. Explicit source-only phases still require
-   review before execution. All source actors stop without Git operations.
+5. The authorized source actor authors test source before production source. All
+   implementation developers may run the active ticket's targeted test commands and
+   record exact results and retained output in its designated report. This is the
+   default, including correction work; no separate execution handoff is needed. A
+   source-only exception must state a concrete reason in the current ticket. Broader
+   acceptance and integration remain with Hermes. Developers stop without Git work.
 6. Hermes integrates the drop, runs only the explicitly authorized commands, records
    evidence, and performs the corresponding Git operations.
 7. Report changed paths, hashes, line counts, test counts, and exact command results for

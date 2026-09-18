@@ -1,21 +1,26 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, local block retrieval fix**
-under review 09. Hermes's diagnostic is now captured and verified: fresh-node IPFS
-interop passes; the reopened node times out reading its own block before peer
-retrieval. Node.Get goes directly to Bitswap and omits the local blockstore lookup.
-Sol may correct only Node.Get and necessary imports in network/node.go. All tests,
-other production files and modules stay frozen. The existing captured failure is
-accepted regression red. No source execution, records or Git by Sol; reviewer pins
-the drop before authorizing Hermes green and remaining acceptance. No executor is
-active. Previous acceptance/build claims remain rejected; preserve both binaries.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes, captured green and
+remaining acceptance under review 10**. Sol's local-first Node.Get correction is
+source-reviewed; all other diagnostic inputs match. Production/tests/modules are
+frozen. Run the retained two-test capture helper, then on green continue the complete
+captured acceptance sequence and conditional build to modern/bitbookd. Use the same
+execution report; stop on unexpected failures. No source repair, restart or developer
+Git work. Previous uncaptured acceptance/build claims remain rejected.
+
+Owner-directed standing rule: all implementation developers may run the active
+ticket's targeted tests and record exact results/raw-output references in its
+specified report. No separate targeted-test handoff is needed. This completed Sol
+drop goes directly to Hermes. Broader acceptance remains with Hermes and acceptance
+with Codex. Reviewer effort stays High.
+
 The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
 plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
 must not appear as BitBook peers in the API. Existing daemon keys remain stable;
 portable-account integration remains subsequent work. No naming or trust-policy change.
-Only review 09's Sol source correction is active. Runtime acceptance and developer publication remain
-pending review of Hermes's evidence. Reviewer effort stays High. Reviewer publication is
-limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
+Reviewer publication: only new governance/review hunks in AGENTS.md, TESTING.md,
+docs/engineering/DEVELOPMENT_ROLES.md, this file and NET-001. Preserve all pre-existing
+unrelated changes, including cancelled DEV-001 work.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with

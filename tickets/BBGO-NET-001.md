@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, local block retrieval fix under review 09.**
-Reviewer: Codex, High. Captured local-retrieval regression accepted as red.
+Status: **ACTIVE — Hermes, captured green and remaining acceptance under review 10.**
+Reviewer: Codex, High. Local-first source correction accepted for execution.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Only review 09's node.go correction is writable.
+ACC-002 is accepted and closed. Production and tests are frozen at review 10 pins.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — paused pending review 09's source correction
+## Execution plan — active under review 10
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1191,3 +1191,88 @@ Reviewer will pin the correction and authorize captured green and the remaining
 acceptance sequence in this same ticket. Preserve all prior captures and both local
 binaries. No executor phase is currently active. Reviewer publication is limited to
 this ticket and CURRENT_TASK.md.
+
+
+## Review 10 — local-first correction reviewed; resume captured acceptance
+
+Reviewer: Codex, 2026-09-17, at HEAD f8a7c593. Source/evidence inspection only;
+no tests, builds or scanners executed by reviewer.
+
+Sol changed only Node.Get and the ipld import: local Blockstore.Get returns an owned
+copy on success; ipld.IsNotFound alone permits Bitswap fallback; other local errors
+are wrapped and returned. Both reads receive the caller context. Removing exactly
+that change reconstructs review 09's node.go hash. All other 20 inputs from the
+retained diagnostic manifest still match, including all eight tests, other production
+files, modules, retained old discovery fixture and both binaries. This accepts source
+for execution; no corrected passing result has been recorded yet. Sol's prior task
+prohibited execution and report writing, so neither is retroactively required.
+
+| Path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/network/node.go | 284 | ee15f7a120468679a7f52a8e0fa73aa38aa86813ea5a62a493bfd990daf13555 |
+
+### Standing developer test permission
+
+The owner authorizes targeted developer tests. Spark, Sol and Grok may run the active
+assignment's targeted commands and write their results/raw-output references in its
+designated report by default, including corrections. No separate execution handoff
+is needed. Future source-only exceptions require a concrete reason. Hermes retains
+broader acceptance/integration; Codex retains review. Valid captured targeted results
+can be reused when inputs match. AGENTS.md, TESTING.md and DEVELOPMENT_ROLES.md now
+record this default. This completed source drop proceeds directly to Hermes; there
+is no extra Sol task just to run tests.
+
+### Hermes assignment — green, remaining gates and conditional local rebuild
+
+Read the ticket and current task. Freeze real production/tests/modules at the current
+pins: use diagnostic01/command.json's input manifest with only node.go replaced by
+the review-10 hash above. Preserve prior captures and the old discovery fixture.
+Correct the existing execution report's stale hash table and historical descriptions
+as listed in review 09 during this same phase. No separate report-only handoff.
+
+1. Inspect filesystem type/space and use the existing disk-backed artifact root.
+   From repository root run `python3 modern/dist/net001/capture_diagnostic.py`.
+   The retained helper reads the ticket's last pin for node.go and already overrides
+   discovery.go with the current repaired hash. Verify those inputs before execution;
+   it creates a fresh numbered diagnostic directory without overwriting diagnostic01.
+   It runs the exact two-test command below with the established cached toolchain,
+   offline/read-only module environment and raw-output/metadata capture. Require both
+   tests to pass; on failure record the actual result and stop.
+
+   ```sh
+   go test ./network -run '^TestNET001(IndependentPublicIPFSInterop|ReopenPreservesPublicContentAndKeepsPrivateDatastorePrivate)$' -v -count=1 -timeout=90s
+   ```
+
+2. If green, continue review 06's complete steps 1–6 in a fresh numbered acceptance
+   directory, using review 07's int64-only normalization of the old discovery fixture.
+   The corrected discovery hash remains
+   4ba9e0b795872301e4350cfb4a43868c2206fb7b1539de85726d9533161b300c;
+   the corrected node.go hash is review 10's. Capture the old reconnect regression
+   failure, restored success, targeted TestNET001 suite, outbound-validation
+   falsification/restored success, broad/race/vet/fuzz and security gates in that
+   order. Previous uncaptured success claims remain unaccepted.
+3. Reuse the diagnostic helper's capture pattern for every command: create output
+   files and start metadata before launching; retain actual argv/cwd/environment,
+   timestamps/exit, before/after input identities and output hashes even on failure.
+   Helpers and disposable module copies are allowed under the artifact root. Do not
+   substitute a later prose report for raw evidence. Preserve actual nonzero results;
+   stop on unexpected test/tool failures under review 06's rules. Scanner findings
+   may be collected for review but block the build unless already within policy.
+4. Only if all required gates pass, from modern run
+   `go build -o bitbookd ./cmd/bitbookd`, then `go version -m bitbookd`; record the
+   correct output path, hash and actual build identity. Preserve the accidental
+   cmd/bitbookd/bitbookd binary. No running-daemon restart.
+
+Append commands, results and retained artifact references to
+`docs/testing/BBGO-NET-001-EXECUTION-01.md`. No production/test repair, dependency
+change, user-data operation or developer Git staging/commit/push is authorized.
+Only the two specified disposable-copy faults may change source during execution.
+Return for review after this combined phase; no intermediate owner approval is needed
+between successful stages. Publication of source and execution evidence remains
+pending reviewer acceptance.
+
+Reviewer governance publication for this owner-directed update is exactly
+AGENTS.md, TESTING.md, docs/engineering/DEVELOPMENT_ROLES.md,
+docs/handoff/CURRENT_TASK.md and this ticket. Publish only the reviewer-authored test
+permission and review hunks; preserve pre-existing unrelated changes in these files
+and all developer work.

@@ -64,13 +64,15 @@ can change, the ticket must also name the applicable security scans, their exact
 and the finding threshold that blocks acceptance.
 
 The ticket-authorized implementation developer authors bounded test source before
-production source. Sr Dev — Grok Build may execute focused tests using the exact commands
-authorized by the active ticket or reviewer handoff and report the commands and results.
-Explicit source-only phases still require review before execution; other source actors
-do not execute tests. Jr Dev — Hermes integrates the test-only drop first, records the
-expected red result, integrates the production drop, runs the targeted and broader
-acceptance commands, and publishes the implementation evidence. Sr Dev's focused test
-results support development and review; they do not replace integrated acceptance evidence.
+production source. All implementation developers may execute the active ticket's
+targeted tests by default, including corrections, and record exact commands, results
+and retained raw output in its designated report. No separate execution handoff is
+needed. A source-only exception must state a concrete reason in the current ticket.
+Hermes integrates drops, verifies retained developer evidence, runs outstanding
+targeted checks and broader acceptance, and publishes implementation evidence.
+Valid retained targeted results need not be repeated merely because the actor changes;
+changed inputs or unresolved failures can require a rerun. Developer test results do
+not replace broader acceptance or the reviewer's acceptance decision.
 The reviewer independently inspects the tests, rejects tautological or shortcut proofs,
 and accepts or rejects the integrated evidence.
 

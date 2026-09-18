@@ -12,12 +12,14 @@ only and changes no code, protocol, data, or acceptance state.
 - **Implementation Dev — Codex Spark:** uses GPT-5.3-Codex-Spark High for bounded
   boilerplate, fixture/table plumbing, schema scaffolding, and API/UI wiring whose
   semantics are already fixed. It does not decide architecture, protocol, privacy,
-  cryptography, concurrency, or persistence and does not execute tests, integrate,
-  maintain records, or use Git.
+  cryptography, concurrency, or persistence. It may run the active ticket's targeted
+  tests and record its own results in the designated report; it does not integrate,
+  maintain acceptance records, or use Git.
 - **Principal Dev — Codex Sol:** uses `gpt-5.6-sol` at High for the highest-risk
   trust-boundary, cryptography, concurrency, persistence, protocol-core, and release-gate
-  source and test-source work. It does not execute tests, integrate, maintain records, or
-  use Git.
+  source and test-source work. It may run the active ticket's targeted tests and record
+  its own results in the designated report; it does not integrate, maintain acceptance
+  records, or use Git.
 - **Sr Dev — Grok Build:** uses Grok 4.6 High for bounded protocol, transport,
   corrective, and other senior source and test-source work after the reviewer fixes
   sensitive schemas and trust semantics. It may run focused tests using commands
@@ -30,6 +32,14 @@ only and changes no code, protocol, data, or acceptance state.
   does not design or author tests.
 - **Owner:** makes product decisions and relays one-way prompts, reports, repository
   hashes, URLs, and source drops. The owner is not an engineering acceptance authority.
+
+## Targeted developer tests
+
+All implementation developers may run the active ticket's targeted test commands by
+default, including during corrections, and retain exact commands, results and raw
+output in its designated report. No separate execution handoff is needed. A
+source-only exception must explain its concrete reason in the current ticket.
+Hermes owns broader acceptance and integration; the reviewer owns acceptance.
 
 ## Routing
 
