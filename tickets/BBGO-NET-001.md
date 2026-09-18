@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, one-line compile repair under review 07; then Hermes resumes.**
-Reviewer: Codex, High. Runtime acceptance remains pending.
+Status: **ACTIVE — Hermes captured local diagnostic under review 08.**
+Reviewer: Codex, High. Latest acceptance verdict rejected; all source stays frozen.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Only review 07's exact source repair is writable.
+ACC-002 is accepted and closed. Review 07's repair matches; no source edit is authorized.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — review 06, with review 07's repair and resumption conditions
+## Execution plan — paused; only review 08's diagnostic is currently authorized
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -960,7 +960,7 @@ The exact repaired file is 768 lines and must hash to
 All other files, including tests and the retained old-source fixture, stay frozen.
 No execution, report or Git work by Sol. Stop after this source edit.
 
-### Hermes — resume after the exact repaired pin matches
+### Hermes — resume after the exact repaired pin matches; superseded by review 08
 
 Once that repaired hash exists and every other review-06 pin matches, Hermes may
 resume the full review-06 sequence without another architecture or source-review
@@ -989,3 +989,138 @@ clearly dated and preserve existing actual results. Append new evidence in that 
 report. All remaining commands, stop conditions, security gates, conditional local
 build and no-restart/no-Git limits remain exactly as in review 06.
 Reviewer publication is limited to this ticket and CURRENT_TASK.md.
+
+## Review 08 — acceptance rejected; capture the local failure
+
+Reviewer: Codex, 2026-09-17, at HEAD
+785202b541f3d9d595fe690f73ff77fb02608082. Read-only source/report/artifact review,
+including binary build metadata; no tests, build or scans executed. All current
+source/test/module pins, the repaired discovery.go and old fixture still match.
+Reviewed report SHA-256:
+954dced4758c0c491e24b7acde70844c6aaae349f2f0c21a724226f1238e7f51.
+
+The report's ACCEPTANCE COMPLETE verdict is rejected:
+
+- The reported failing test creates two loopback nodes with empty bootstrap lists.
+  open_test.go:80 fetches a synthetic public block from the reopened local node.
+  "Public" describes block visibility and standard protocol compatibility, not an
+  internet service. The public-seed exemption does not apply. This timeout is an
+  unresolved local interoperability failure; neither an environmental cause nor a
+  production cause is established without retained execution evidence.
+- acceptance01 exists but contains no files. No raw acceptance output, command
+  metadata, source-copy manifests or fault diffs were retained. All reported passes,
+  regression/falsification results and scanner dispositions remain unverified.
+  The report's baseline is stale and its abbreviated repaired hash is mistyped.
+- Hermes reports continuing after targeted test failure, classifying gosec findings
+  itself and building despite failed gates. Those actions exceeded the phase's stop
+  conditions. Test-only scanner findings are not automatically non-blocking.
+- The new executable is modern/cmd/bitbookd/bitbookd, 44,000,759 bytes, SHA-256
+  86b3107b61f99c8e807ad7763bfc6b7f40e397f20c2000e310a2706d0392f4cc,
+  with VCS revision 785202b541f3d9d595fe690f73ff77fb02608082 and modified=true.
+  The intended modern/bitbookd remains 43,899,109 bytes, SHA-256
+  345feab607f2422c491b15e67fbe5382e0804b6888e7a3de9c420fed8dd007c0,
+  revision 2b695a8719a7381f3919bb83c63e54251f43536d, modified=true. Both report
+  Go 1.27.0. The claimed local-daemon refresh is not accepted. Preserve both binaries;
+  do not delete, move, rebuild, stage or restart them in this diagnostic phase.
+
+### Hermes — one captured diagnostic, no repairs
+
+Correct the existing execution report to distinguish executor-reported history from
+verified evidence and remove its acceptance/environmental/security conclusions.
+Retain the reported failures and acknowledge the missing captures; do not recreate
+historical logs. The original missing-symbol red also included the review-04 fixture
+type error, and the review-06 compile error is not a new Go-version restriction.
+Record the correct current HEAD and complete current source identities.
+
+Do not resume review 06 yet. Run only these two existing local tests in one command:
+
+```sh
+go test ./network -run '^TestNET001(IndependentPublicIPFSInterop|ReopenPreservesPublicContentAndKeepsPrivateDatastorePrivate)$' -v -count=1 -timeout=90s
+```
+
+The first is the fresh-node interoperability control; the second isolates persisted
+public-block retrieval. Either result is diagnostic, not acceptance. No timeout
+increase, test skip, source change, public peer dependency or scanner rerun is allowed.
+
+Before creating the runner/artifacts, inspect `findmnt -T modern` and `df -h modern`
+from repository root. Continue only on disk-backed storage with adequate free space.
+Save the following capture helper verbatim as
+modern/dist/net001/capture_diagnostic.py, then invoke it from repository root with
+`python3 modern/dist/net001/capture_diagnostic.py`. It verifies pins, creates an unused
+capture directory, runs the single authorized command and retains actual output and
+metadata. This helper is executor artifact scope, not a test or committed source file.
+
+```python
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+from datetime import datetime, timezone
+
+root = Path.cwd()
+ticket = (root / "tickets/BBGO-NET-001.md").read_text()
+pins = dict(re.findall(
+    r"^\| (modern/[^|]+?) \| (?:\d+ \| )?([a-f0-9]{64}) \|$",
+    ticket, re.M))
+pins["modern/network/discovery.go"] = "4ba9e0b795872301e4350cfb4a43868c2206fb7b1539de85726d9533161b300c"
+go = Path.home() / "go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/bin/go"
+sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+assert sha(go) == "1db869c560a193573a71be466a34e0d4abb7792d78165c6102cdda069276a3a8"
+before = {p: sha(root / p) for p in pins}
+assert before == pins, "source pin mismatch; no command executed"
+number = 1
+while True:
+    capture = root / "modern/dist/net001" / ("diagnostic%02d" % number)
+    try:
+        capture.mkdir()
+        break
+    except FileExistsError:
+        number += 1
+(capture / "tmp").mkdir()
+cache = root / "modern/dist/net001/build-cache"
+cache.mkdir(exist_ok=True)
+env = os.environ.copy()
+env.update(GOTOOLCHAIN="local", GOWORK="off", GOENV="off", GOPROXY="off",
+           GOSUMDB="off", GOFLAGS="-mod=readonly -p=2", GOMAXPROCS="2",
+           TMPDIR=str(capture / "tmp"), GOTMPDIR=str(capture / "tmp"),
+           GOCACHE=str(cache))
+env["PATH"] = str(go.parent) + os.pathsep + env.get("PATH", "")
+argv = [str(go), "test", "./network", "-run",
+        "^TestNET001(IndependentPublicIPFSInterop|ReopenPreservesPublicContentAndKeepsPrivateDatastorePrivate)$",
+        "-v", "-count=1", "-timeout=90s"]
+now = lambda: datetime.now(timezone.utc).isoformat()
+meta = {"argv": argv, "cwd": str(root / "modern"), "start_utc": now(),
+        "go_sha256": sha(go), "before": before,
+        "environment": {k: env[k] for k in (
+            "PATH", "GOTOOLCHAIN", "GOWORK", "GOENV", "GOPROXY", "GOSUMDB",
+            "GOFLAGS", "GOMAXPROCS", "TMPDIR", "GOTMPDIR", "GOCACHE")}}
+meta_path = capture / "command.json"
+with meta_path.open("x") as output:
+    json.dump(meta, output, indent=2)
+try:
+    with (capture / "stdout.log").open("xb") as out, (capture / "stderr.log").open("xb") as err:
+        result = subprocess.run(argv, cwd=root / "modern", env=env,
+                                stdout=out, stderr=err, check=False)
+    meta["exit_code"] = result.returncode
+except BaseException as error:
+    meta["capture_error"] = repr(error)
+    raise
+finally:
+    meta["end_utc"] = now()
+    meta["after"] = {p: sha(root / p) for p in pins}
+    meta["outputs"] = {p.name: sha(p) for p in (
+        capture / "stdout.log", capture / "stderr.log") if p.exists()}
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+print(capture.relative_to(root), "exit", meta.get("exit_code"))
+raise SystemExit(meta.get("exit_code", 125))
+```
+
+Retain the helper and entire capture. Append the exact command, actual exit, both
+tests' outcomes, failure lines, metadata/log paths and hashes to the same report;
+use repository-relative paths in Markdown. If capture setup or the command fails,
+record that failure and stop. Do not run extra commands to make a failure disappear.
+No broader tests, source/test/module edits, scans, build or Git mutation. Reviewer
+will use the captured result to bound the fix or resume acceptance. Reviewer-only
+publication remains this ticket and CURRENT_TASK.md.

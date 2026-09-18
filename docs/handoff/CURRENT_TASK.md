@@ -1,19 +1,18 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, one-line compile repair**
-under review 07. Add the specified int64 conversion in discovery.go; everything else
-stays frozen. Hermes reported a compiler failure but retained no acceptance capture;
-no runtime result or rebuild is accepted. Review 07 pins the exact repaired bytes.
-Once that hash and all other pins match, Hermes is already authorized to resume
-review 06 from step 1, with the same conversion only in its disposable old-source
-copy. Create captures before execution and correct the existing report first.
-All test/security gates and conditional local rebuild remain required; no restart
-or Git mutation. No additional source-review handoff is required for this exact repair.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes captured local diagnostic**
+under review 08. The latest acceptance verdict is rejected: a loopback public-block
+retrieval test timed out, acceptance01 is empty, and execution continued past failed
+gates. Public-IPFS availability is not this test's dependency. The new binary was
+built in cmd/bitbookd, not the intended modern/bitbookd; no refresh is accepted.
+All source/tests/modules stay frozen. Hermes must correct the same report and run
+only the two-test local diagnostic using review 08's supplied capture helper.
+Broader acceptance, scans, rebuild/restart and Git mutation are paused.
 The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
 plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
 must not appear as BitBook peers in the API. Existing daemon keys remain stable;
 portable-account integration remains subsequent work. No naming or trust-policy change.
-Sol may make only review 07's repair. Runtime acceptance and developer publication remain
+No Sol source task is active. Runtime acceptance and developer publication remain
 pending review of Hermes's evidence. Reviewer effort stays High. Reviewer publication is
 limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
 
