@@ -1,14 +1,15 @@
 # Current Task
 
-ACCEPTED, FINAL PUBLICATION PENDING: [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md),
-review 04. The one-line cleanup, focused race pass and clean vet are verified; all
-implementation checks are accepted. Sol is finished. Relay the same ticket to Hermes
-to correct its report and publish exactly the test file plus execution report, with
-staged secret/whitespace checks and retained actual commit/push output.
-No source edit, runtime rerun, dependency scan, rebuild or daemon restart. Reuse the
-accepted broader results and binary. Review 03 supplies verified identities/security
-dispositions; review 04 defines the complete remaining two-file publication scope.
-No separate handoff or owner-transcribed evidence is needed.
+MEDIA PUBLISHED; CI FIXTURE CORRECTION ACTIVE:
+[BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), review 05. Final two-file commit
+3303d7cd is verified on origin/master; media source/checks/binary remain accepted.
+Its final Go CI failed in the unchanged NET-001 API reconnect fixture, while network
+and media tests passed. Relay the same ticket to Sol High for the bounded API test
+synchronization correction and targeted commands in review 05. Production and media
+tests stay frozen. Append evidence to the existing execution report; no developer Git.
+Historical publication evidence is recovered and residual report typos are resolved
+in review 05; no further report-only handoff is needed. Do not rerun media acceptance,
+rebuild, restart or change product reconnect behavior to satisfy the test.
 
 Uploaded files use IPFS; Klipy-selected GIFs use the provider's supplied media URLs
 through the unified JSON adapter. Klipy rehosting is not a prerequisite. Public posts

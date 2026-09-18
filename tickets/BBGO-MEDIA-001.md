@@ -1,6 +1,6 @@
 # BBGO-MEDIA-001 — rich media posts, messaging and IPFS attachments
 
-Status: **ACCEPTED — Hermes two-file correction publication pending; no further runtime checks.**
+Status: **MEDIA PUBLISHED — final CI exposed an inherited API test race; Sol fixture correction active.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [BBGO-MSG-001 — libsignal messaging](BBGO-MSG-001.md).
 NET-001 is accepted and closed. The M2A assignment below is the sole active source
@@ -939,3 +939,96 @@ The execution report before Hermes correction hashes to
 
 Reviewer governance publication for review 04 is only this ticket and
 docs/handoff/CURRENT_TASK.md. Sol's source assignment is complete.
+
+## Review 05 — final publication verified; inherited reconnect test fails CI
+
+2026-09-18, Codex reviewer, High. Media source, local checks and publication remain
+accepted. Final integration CI is not green: the unchanged NET-001 API test failed.
+The bounded test-fixture assignment below is now active. Do not reopen media production,
+repeat its accepted checks, or treat the failed CI as a media implementation failure.
+
+### Publication and evidence disposition
+
+Final commit 3303d7cdb51d655203509ca3b0c8ca2e8e024a64 is verified on origin/master.
+It contains exactly modern/network/files_test.go and the execution report. All five
+source/module hashes and the existing binary hash match review 04's accepted inputs.
+The correction report now records the actual feature, report, CI and binary identities
+and the earlier vet/security failures. Its current SHA-256 is
+da6b5c970cb64cc46e7e3d97b565783ede951daf628767006e7ce6e3734ea736.
+
+Hermes did not create the required publication01 capture directory. Reviewer instead
+recovered the actual staged checks and publication from retained tool history, session
+20260913_213737_aba8d9: messages 87735/87736 verify the accepted test hash, exact two-file
+staging, whitespace check and successful Gitleaks (6,313 bytes scanned, no leaks, exit 0);
+87737/87738 record commit 3303d7cd and successful push. No further capture-only handoff
+or historical scan rerun is needed.
+
+Two residual record errors are resolved here without another report-only task: Hermes
+mistyped developer02's targeted-output checksum; the verified value remains
+f5be19131d5754a6c93bd7e3b7ffc6e032e083818df1f7e2e026447020bb0f2c.
+It also restored the developer limitations paragraph under the initial Sol phase rather
+than the requested review 01 section, and shortened the later Sol preamble. Neither
+changes retained results or source. This reviewer record governs those discrepancies.
+
+### Actual final-commit CI failure
+
+[Go 1.27 run 35393144851](https://github.com/larslarsen/bb-go/actions/runs/35393144851)
+failed on 3303d7cd. Reviewer read the actual failed job log. Maintained network/media
+tests passed (network 4.981s); the sole reported test failure was
+TestNET001PeerAPIRequiresHandshake at modern/api/handler_test.go:462:
+“real peer did not observe a transport gap”, with a live connection still present.
+This is the unchanged API test accepted under NET-001; its SHA-256 is still
+92460e5731b2e41e5d70d1c81e96d90036408e9813a38d0df90059170a22c09b.
+
+Source review: both discovery loops run on the enclosing test context while the test
+closes one side, waits for a snapshot of old-connection notifications, then asserts
+disconnection. Those notifications do not exclude later/in-flight connections. The
+pinned swarm removes a closed connection before dispatching its asynchronous close
+notification, so waiting for those notifications alone does not isolate the deliberate
+disconnect/reconnect phase from autonomous activity. This is a fixture-ordering issue
+to reproduce/repair, not authorization to suppress real reconnects in production.
+
+### Sol High — complete the API fixture synchronization in one task
+
+Writable source: modern/api/handler_test.go, only
+TestNET001PeerAPIRequiresHandshake and narrowly necessary fixture helpers/imports.
+Baseline: 656 lines, SHA-256 above. All production, dependencies and media test files
+remain frozen at their accepted hashes. Completion evidence belongs in a new Sol
+section of docs/testing/BBGO-MEDIA-001-EXECUTION-01.md. No Git or other actor's report
+rewrite. This is an explicit source-scope extension for the observed integration failure.
+
+Keep the initial real DHT/discovery proof, invalid-advertiser exclusion and every API
+positive/negative assertion. Before the deliberate disconnect stage, isolate/quiesce
+fixture-owned discovery/redial activity with explicit lifecycle/event synchronization.
+Use separately cancellable discovery contexts where appropriate; cancellation alone
+must not be mistaken for proof that in-flight work has finished. Account for connections
+created after the initial snapshot. Establish a real last-connection gap, prove API
+confirmation is absent, then a fresh live connection and fresh hello before confirmation
+returns. Do not replace the initial discovery proof with manual dialing or fake state.
+
+No arbitrary sleeps, larger deadlines, skipped assertions, retry-until-pass or production
+hooks. No forced single-connection assumption. Any fixture observer/worker/context must
+be bounded and cleaned up on every exit. Sol may iterate synchronization and targeted
+checks until the whole fixture works; do not return for each intermediate failure.
+The retained CI failure is the accepted red; do not require a lucky local failure or
+invent a reproduction. Add a deterministic in-scope ordering case if needed to prove
+the repair under in-flight reconnect activity.
+
+Use the existing Go 1.27.0 toolchain and explicitly offline developer01 module/build
+caches, with fresh developer04 captures. From modern:
+
+```sh
+GOMAXPROCS=8 go test ./api -run '^TestNET001PeerAPIRequiresHandshake$' -count=20 -timeout=180s
+go test -race ./api -run '^TestNET001PeerAPIRequiresHandshake$' -count=10 -timeout=180s
+go test ./api -count=1 -timeout=180s
+go vet ./api
+```
+
+The first command intentionally exercises more scheduling concurrency than the prior
+GOMAXPROCS=2 runs; the other commands retain that original environment. Report exact
+commands, exits, raw outputs/hashes, source diff/hash/line count and any remaining
+limitation. No media/full-module test cycle, fuzz, scanner, dependency fetch, build or
+restart. If the failure requires a product behavior change, report the concrete boundary
+rather than changing production. Source review and scoped publication follow this drop.
+
+Reviewer publication for review 05 is only this ticket and docs/handoff/CURRENT_TASK.md.
