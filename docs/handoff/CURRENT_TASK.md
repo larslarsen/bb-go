@@ -1,20 +1,19 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, discovery correction**
-under review 05. The production drop needs a connection-lifetime fix so delayed
-disconnects or old hello completions cannot confirm a fresh connection, plus atomic
-handler-slot release/occupancy notification. Only discovery.go and discovery_test.go
-may change, with the one pinned old-source fixture specified in the ticket. Bootstrap,
-protocol, CLI and API edits and the two test comparison repairs are retained/frozen.
-Add the bounded reconnect regression first; its old-source reproduction and green run
-will join Hermes's next execution phase after source review. No execution is active.
-Review 04's report corrections remain due in that same phase.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes regression and acceptance**
+under review 06. Corrected source and the reconnect regression are accepted for
+execution. First reproduce stale confirmation against the pinned old source, then
+prove corrected green, targeted green, outbound-validation falsification/restored
+green, broad tests/race/vet/fuzz and security checks. Refresh modern/bitbookd only if
+all gates pass; no restart. All thirteen implementation/test paths are frozen.
+Hermes records actual results and review 04's report corrections in the same existing
+execution report. No source repairs, module changes or Git mutation are authorized.
 The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
 plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
 must not appear as BitBook peers in the API. Existing daemon keys remain stable;
 portable-account integration remains subsequent work. No naming or trust-policy change.
-Sol has no execution, records or Git authority. Reviewer reads the source drop before
-authorizing Hermes acceptance. No executor phase is active. Reviewer effort stays High. Publication is
+Sol's source authority is closed. Runtime acceptance and developer publication remain
+pending review of Hermes's evidence. Reviewer effort stays High. Reviewer publication is
 limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
 
 QUEUED OWNER REQUESTS (2026-09-17):

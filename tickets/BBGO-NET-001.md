@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, discovery correction under review 05.**
-Reviewer: Codex, High. Initial production drop needs the bounded corrections below.
+Status: **ACTIVE — Hermes regression reproduction and acceptance under review 06.**
+Reviewer: Codex, High. Corrected source accepted for execution; runtime acceptance pending.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Hermes's red phase is closed; no execution is active.
+ACC-002 is accepted and closed. Sol's source authority is closed; all source is frozen.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — red reviewed; further execution awaits production review
+## Execution plan — activated and bounded by review 06
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -790,7 +790,7 @@ Multiaddr.Equal method expression. No further repair to that test is needed.
    excess reset. Release the token and publish the updated occupancy consistently
    under the same synchronization, preserving immediate rejection of excess work.
 
-### Sol High correction scope and regression evidence
+### Sol High correction scope and regression evidence — closed by review 06
 
 Only modern/network/discovery.go and modern/network/discovery_test.go may change.
 Freeze the other five paths in the table and every other test/module input. Keep
@@ -831,3 +831,95 @@ execution, dependency changes, other source edits, report writing or Git by Sol.
 No extra report/handoff document: use this ticket and the existing execution report.
 Reviewer publication is limited to this ticket and CURRENT_TASK.md. The production
 drop is not accepted for broader execution, build or publication yet.
+
+## Review 06 — corrected source accepted for Hermes execution
+
+Reviewer: Codex, 2026-09-17, at HEAD
+f72b96f4da3a5de211fb2a66aa741bd03acccb23. Static review only; no tests, build or scans.
+The two review-05 paths changed. All other source/module/test pins match. Removing
+only the new reconnect test, its delayed-callback wrapper and hello helper reconstructs
+the original 1052-line discovery_test.go hash exactly. The suite now contains 22
+TestNET001 declarations (including the guarded child), plus FuzzPeerHello.
+
+Confirmation now reconciles live connection IDs under the confirmation mutex, rejects
+closed/obsolete hello connections and applies that check to snapshots and candidate
+filtering. Both connection callbacks reconcile current state. Slot admission, release
+and occupancy notification now share the same lock. The new real-transport regression
+delays only the old disconnect callback, forwards other events, checks fresh transport
+identity and rejects inherited confirmation before/after delivery, then completes a
+valid hello as its positive control. The preserved old source supports a behavioral
+failure check. These source findings authorize execution, not a claim the tests pass.
+
+### Updated pins
+
+| Path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/network/discovery.go | 768 | 16dc9bed61362501b01195cbdb34dcf9748cdf478e3e37ff5321a5be80ae5971 |
+| modern/network/discovery_test.go | 1191 | 41a61114b09785f090652f7ef2cbd33bc2fbd2ace1ba7caca6168445f0a361d4 |
+| modern/dist/net001/review05/discovery.go.txt | 652 | 781e937f1a3d348baaf191b8163fa0f6d45a76f8d283ceaf8b6f6a1cc2a6a832 |
+
+Use review 05's other five pins, review 03's other seven test pins (with review 05's
+bootstrap_test.go override), and the original unchanged module/open/identity/protocol
+test pins. The thirteen implementation/test files are frozen. Sol may not edit them.
+
+### Hermes assignment — one execution/report phase
+
+Read this full ticket, AGENTS.md and TESTING.md. Verify all applicable pins before
+execution and again afterward. Correct review 04's identified errors/gaps in the
+existing docs/testing/BBGO-NET-001-EXECUTION-01.md, preserving the original red logs.
+Append the actual new results to that same report. Do not invent missing earlier
+timestamps or declare compilation failures behavioral proof.
+
+Use the execution plan's cached Go and pinned security tools, verifying binary hashes
+and versions. GOFLAGS may be `-mod=readonly -p=2`; retain the other stated environment
+settings. Inspect filesystem type/space before creating disk-backed artifacts under
+modern/dist/net001/acceptance01; choose a new numbered directory if it exists. Set
+TMPDIR/GOTMPDIR to its owned tmp directory. No dependency/tool installation or upgrade.
+Only the vulnerability scanner may access official advisory data; tests stay offline.
+
+For every command retain full stdout/stderr plus machine-readable metadata containing
+exact argv, cwd, relevant environment, start/end UTC timestamps and actual exit code.
+Capture metadata as the process runs, including failures; do not pipe away the exit
+status or fabricate it afterward. Retain source manifests and output hashes. Report
+paths relative to this repository, static versus executed test counts separately,
+and every skipped/interrupted stage explicitly. Read-only Git/tool/source metadata,
+disposable source copies, command-capture helpers and the designated report are allowed.
+
+Execute in this order, stopping on an unexpected test result, compile error, race,
+panic, cleanup failure or tool/environment failure. Do not repair source or tests.
+
+1. Assemble an isolated module copy from the repository's tracked modern inputs plus
+   the thirteen pinned implementation/test files, including their untracked files.
+   Exclude dist, generated binaries, caches and unrelated untracked work; never copy
+   a directory into itself. In this copy only, replace network/discovery.go with the
+   pinned review05/discovery.go.txt bytes. Run review 05's exact reconnect regression
+   command. Require an assertion failure about confirmation surviving the connection
+   gap; compilation, fixture setup failure or timeout is not the expected result.
+2. Restore the corrected discovery.go in that copy and verify its review-06 hash.
+   Run the same reconnect command; require success. Retain both outputs and source
+   identities. No change to the real working-tree source is allowed.
+3. From the real modern directory, run the execution plan's exact targeted TestNET001
+   command. Require success before proceeding.
+4. In a separate disposable copy of corrected inputs, falsify outbound validation.
+   Inside probeBitBookPeer only, change the single condition
+   `if err := readPeerHello(stream); err != nil {` to
+   `if err := readPeerHello(stream); false {`. Keep reading the entire response; this
+   fault suppresses rejection while preserving I/O and the confirmation path. Do not
+   change the inbound parser branch. Run the execution plan's exact
+   TestNET001OutboundHelloRequiresValidation command. Require the invalid-response
+   acceptance assertion to fail. Restore the pinned file byte-for-byte, verify its
+   hash, and rerun that same command successfully. Record the exact fault diff.
+5. From real modern, run the execution plan's broad test, race, vet, bounded fuzz,
+   gosec and diversity commands, followed immediately by the policy command from
+   repository root. Retain nonzero scanner findings for reviewer adjudication; do
+   not suppress or label them clean. Scanner findings alone need not prevent capturing
+   the other authorized security results, but block the conditional build below.
+6. If all tests and security gates pass, run the existing build and build-identity
+   commands to refresh modern/bitbookd. Record its hash and actual build identity;
+   preserve any dirty flag. This refresh does not authorize a process restart.
+
+No source mutation outside the two explicitly described disposable-copy faults,
+test authoring, module changes, real user data, restart or Git staging/commit/push.
+Do not publish developer files or the report yet. Return after recording results;
+reviewer will accept or reject them and enumerate publication scope in this ticket.
+Reviewer publication now contains only this ticket and CURRENT_TASK.md.
