@@ -1,10 +1,10 @@
 # BBGO-MEDIA-001 — rich media posts, messaging and IPFS attachments
 
-Status: **API FIXTURE CORRECTION ACCEPTED — Hermes exact two-file publication and CI check active.**
+Status: **M2A ACCEPTED, PUBLISHED AND CLOSED — later media/UI slices remain queued.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [BBGO-MSG-001 — libsignal messaging](BBGO-MSG-001.md).
-NET-001 is accepted and closed. The M2A assignment below is the sole active source
-authorization. This ticket is the handoff; no separate developer handoff is needed.
+NET-001 is accepted and closed. Review 07 closes M2A; its earlier actor assignments
+are historical. No implementation or executor task is currently active.
 
 ## Goal and existing foundation
 
@@ -1089,3 +1089,42 @@ Do not rerun local tests, vet, fuzz, dependency scans or builds; no daemon resta
 
 Reviewer governance publication for review 06 is only this ticket and
 docs/handoff/CURRENT_TASK.md. No additional source or execution assignment is active.
+
+## Review 07 — M2A accepted, published and closed
+
+2026-09-18, Codex reviewer, High. Final correction commit
+`4912d942c495a9468bee5f11cdcc489721c44b9c` is verified on origin/master.
+Its complete path list is the two files frozen in review 06; both committed blobs
+and working files match those SHA-256 pins. Media source, tests, module files and
+the local daemon binary also match their accepted pins. No production change or
+binary rebuild was part of this final test-fixture publication.
+
+[Automatic Go CI, run 35396588657](https://github.com/larslarsen/bb-go/actions/runs/35396588657)
+completed successfully for that exact commit. This supersedes the failed fixture
+run on 3303d7cd, without reclassifying that earlier failure as a pass. Accepted
+runtime/security evidence and finding dispositions from earlier reviews remain
+in force, together with review 06's repeated handshake, race, API and vet results.
+
+Publication evidence recovery: the requested publication02 directory exists but
+is empty. Reviewer read the retained Hermes tool history, session
+`20260913_213737_aba8d9`, rather than requesting another evidence-only handoff.
+Call/result 87747/87748 shows exactly the two authorized staged paths, a clean
+`git diff --cached --check`, and pinned Gitleaks reporting no leaks across about
+6,513 bytes with captured `EXIT=0`. The current executable hash matches the
+previously pinned Gitleaks hash. Call/result 87749/87750 records the two-file commit
+and successful normal push from f8891d62 to 4912d942, exit 0. Reviewer independently
+verified the committed bytes, remote branch and exact CI head/conclusion. Missing
+standalone captures remain an evidence-retention deviation; no replacement capture
+or unperformed staged-hash check is claimed. Actual tool results and committed-byte
+verification suffice for this publication. No report rewrite or test rerun is needed.
+
+M2A is closed: the daemon now has the bounded public UnixFS file import/copy
+primitive. Retention, authenticated upload/media serving, post/message attachment
+integration and visible UI remain subsequent slices; the rich-media ticket as a
+whole is not complete. Klipy GIFs keep provider URLs through the unified adapter;
+public posts do not use libsignal. MSG-001 remains queued.
+
+All earlier M2A Sol/Hermes assignments are historical. No further source, executor,
+scan, rebuild, restart or report-correction task is active. Reviewer closeout
+publication is limited to this ticket and docs/handoff/CURRENT_TASK.md; preserve
+all unrelated dirty work and retained artifacts. Reviewer ran no tests or scanners.

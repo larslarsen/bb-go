@@ -1,14 +1,15 @@
 # Current Task
 
-API FIXTURE ACCEPTED; EXACT PUBLICATION ACTIVE:
-[BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), review 06. Sol's discovery-quiescence
-and live-connection-gap correction is accepted, with 20 repeated handshake runs, ten
-race runs, the full API package and vet passing. Sol is finished.
-Relay the same ticket to Hermes to publish the two frozen test/report files and inspect
-the new commit's automatic Go CI. No report rewriting, source edit, local test rerun,
-dependency scan, rebuild or restart. Review 06 pins the exact bytes and capture scope.
-Media production/checks/binary remain accepted; final CI/publication verification is
-the only remaining work for this slice.
+M2A ACCEPTED, PUBLISHED AND CLOSED:
+[BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), review 07. Final correction commit
+4912d942c495a9468bee5f11cdcc489721c44b9c is verified on origin/master; its exact
+[Go CI run](https://github.com/larslarsen/bb-go/actions/runs/35396588657) passed.
+Source, runtime/security evidence and local daemon binary are accepted. Review 07
+records recovered actual publication evidence and the missing standalone captures.
+No further Sol/Hermes assignment, report correction, test rerun, build or restart is
+needed for M2A. Earlier M2A assignments are historical. No implementation is active;
+the next media slice needs its bounded contract. Reviewer closeout publication is
+limited to this file and MEDIA-001.
 
 Uploaded files use IPFS; Klipy-selected GIFs use the provider's supplied media URLs
 through the unified JSON adapter. Klipy rehosting is not a prerequisite. Public posts
@@ -36,8 +37,9 @@ QUEUED OWNER REQUESTS (2026-09-17):
 IPFS attachments, shared Electron/Android UI, emoji/GIF selection and reactions; and
 [BBGO-MSG-001](../../tickets/BBGO-MSG-001.md), libsignal private messaging.
 Private attachment keys travel inside MSG-001 encrypted messages. Public posts use
-signed public content/IPFS and no libsignal. MEDIA-001 now has the active M2A assignment
-above; MSG-001 remains queued. NET-001 is closed. Reviewer documentation scope is in MEDIA-001.
+signed public content/IPFS and no libsignal. MEDIA-001 M2A is closed; later media/UI
+slices and MSG-001 remain queued. NET-001 is closed. Reviewer documentation scope is
+in MEDIA-001.
 
 ACCEPTED, PUBLISHED AND CLOSED: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md),
 review 05. Feature `84e3a26863ea5e230e3a737858719d62ad894c5e` is verified on
