@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Hermes captured local diagnostic under review 08.**
-Reviewer: Codex, High. Latest acceptance verdict rejected; all source stays frozen.
+Status: **ACTIVE — Sol High, local block retrieval fix under review 09.**
+Reviewer: Codex, High. Captured local-retrieval regression accepted as red.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Review 07's repair matches; no source edit is authorized.
+ACC-002 is accepted and closed. Only review 09's node.go correction is writable.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — paused; only review 08's diagnostic is currently authorized
+## Execution plan — paused pending review 09's source correction
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1023,7 +1023,7 @@ The report's ACCEPTANCE COMPLETE verdict is rejected:
   Go 1.27.0. The claimed local-daemon refresh is not accepted. Preserve both binaries;
   do not delete, move, rebuild, stage or restart them in this diagnostic phase.
 
-### Hermes — one captured diagnostic, no repairs
+### Hermes — one captured diagnostic, no repairs; completed by review 09
 
 Correct the existing execution report to distinguish executor-reported history from
 verified evidence and remove its acceptance/environmental/security conclusions.
@@ -1124,3 +1124,70 @@ record that failure and stop. Do not run extra commands to make a failure disapp
 No broader tests, source/test/module edits, scans, build or Git mutation. Reviewer
 will use the captured result to bound the fix or resume acceptance. Reviewer-only
 publication remains this ticket and CURRENT_TASK.md.
+
+## Review 09 — captured local-read failure accepted; bounded fix
+
+Reviewer: Codex, 2026-09-17, after GIF-contract governance commit b9038ef9.
+Read retained diagnostic output, command metadata, source and pinned Boxo v0.42.1
+implementation. No tests, builds or scanners executed by reviewer.
+
+The exact review-08 command ran from modern, starting
+2026-09-18T04:20:16.189248+00:00 and ending
+2026-09-18T04:21:13.708204+00:00, exit 1. The Go binary hash matches, all 21 retained
+input hashes match before/after and the present files, and output hashes verify.
+
+- TestNET001IndependentPublicIPFSInterop: PASS, 0.03 seconds.
+- TestNET001ReopenPreservesPublicContentAndKeepsPrivateDatastorePrivate: FAIL,
+  20.00 seconds, open_test.go:75, context deadline exceeded reading the reopened
+  node's own block through second.Get. The test has not reached upstream retrieval.
+
+This supersedes the earlier uncaptured report's failure-location claim. The captured
+result is accepted as the regression red, not as feature acceptance.
+
+| Retained evidence | SHA-256 |
+| --- | --- |
+| modern/dist/net001/diagnostic01/command.json | ddc7122d8d52458d553f3bef5fc994aa378f9e1189aca0b02e8781c7e6d7e82c |
+| modern/dist/net001/diagnostic01/stdout.log | 026109ff1dd88ea54c2aa9ab5a8c18b069204abef11334db1f6333e8166d9041 |
+| modern/dist/net001/diagnostic01/stderr.log | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+
+The report is 104 lines, SHA-256
+8bfe48420d3880dae2447c5761d7a00e1355c858af025e84d451f0ed8a8b0823.
+Its diagnostic outcome is accurate, but its source table still lists old values for
+node.go, protocols.go, handler.go, main.go and bootstrap_test.go. The retained machine
+manifest has the correct current identities. At the next execution phase Hermes
+must derive that table from the manifest, remove the duplicate diagnostic heading,
+and correct the historical claim that all previously reported runs passed. No
+separate report-only task or rerun of this accepted capture is needed.
+
+### Cause and Sol High source authorization
+
+network/node.go:208 calls Bitswap.GetBlock directly for every read. Pinned Boxo's
+bitswap/client/client.go:421-449 defines that operation as a peer fetch; it does not
+perform the local blockstore lookup expected by Node.Get's contract. Boxo's
+blockservice/blockservice.go:248-289 demonstrates the local-first pattern: read the
+blockstore and fall back to the exchange only for a genuine not-found result.
+After restart this test has no connected peers at second.Get, so the current path
+waits for network data instead of returning its persisted local block. This is a
+source diagnosis supported by the captured offline failure and passing fresh-peer
+control, not a claim that corrected green has already run.
+
+Sol High may edit only modern/network/node.go, starting at 275 lines, SHA-256
+044de22794980774d0268c902ed4a54441c8ab4f52e7af2ac25640f029cc94f9.
+Correct Node.Get and necessary imports only:
+
+- Read the public Blockstore first and return an owned byte copy on success.
+- Fall back to the existing Bitswap fetch only for the pinned blockstore's genuine
+  not-found error (use its established error predicate, not error-text matching).
+- Propagate other local storage errors without hiding them behind a network timeout;
+  preserve caller cancellation, error wrapping and owned returned bytes.
+- Keep the private datastore separate; do not expose private keys/records as blocks,
+  republish data or change bootstrap, discovery, persistence layout or dependencies.
+
+All eight tests and the other four production files remain frozen at their current
+pins. The already-captured reopen test is the regression; do not weaken it, replace
+second.Get with direct blockstore access, increase its timeout or add a bootstrap
+dependency. No tests/builds/scans, records or Git by Sol. Stop after the source drop.
+Reviewer will pin the correction and authorize captured green and the remaining
+acceptance sequence in this same ticket. Preserve all prior captures and both local
+binaries. No executor phase is currently active. Reviewer publication is limited to
+this ticket and CURRENT_TASK.md.
