@@ -43,8 +43,9 @@ authorized by this queued record.
 - Use **Klipy** for GIF-picker search in both posts and messages, with recents and
   favorites (owner update, 2026-09-17). Keep locally retained GIFs and user imports
   available offline. Review Klipy's integration requirements, import/rehosting terms
-  and privacy behavior when activating the UI slice. Selected GIF bytes go through
-  the attachment pipeline and IPFS, never a required hotlinked CDN URL.
+  and privacy behavior when activating the UI slice. Provider responses use the
+  adapter contract below. The target attachment delivery remains IPFS; Klipy's
+  current delivery restrictions require resolution before importing its media.
 - Provide an accessible shared MediaViewer/lightbox: full-screen image preview,
   zoom/pan, next/previous, Escape/back dismissal and focus restoration. Use native
   video controls, poster frames and explicit playback. GIF animation respects reduced
@@ -61,6 +62,109 @@ Component basis: [Tiptap React integration](https://tiptap.dev/docs/editor/getti
 [Emoji Mart local data and React picker](https://github.com/missive/emoji-mart), and
 [Capacitor native adapters](https://capacitorjs.com/docs). Pin reviewed versions and
 licenses at activation; do not install moving latest versions or paid editor services.
+
+### GIF provider adapters and unified JSON
+
+Owner requirement, 2026-09-17: normalize GIF APIs so feed/picker/message components
+do not depend on the source provider. Start with Klipy; adding another provider later
+requires an adapter and fixtures, with no provider-specific rendering branches.
+
+Flow: provider API -> adapter -> GifPage/GifItem -> common picker -> attachment
+pipeline -> existing common post/message attachment renderer. Keep raw API payloads,
+authentication, pagination translation, URL refresh and provider event callbacks
+inside the adapter/service. Provider identity is provenance, not rendering logic.
+
+Logical JSON contract (illustrative IDs and URLs, not an actual API response):
+
+```json
+{
+  "schema": "bitbook.gif-page/1",
+  "items": [{
+    "id": "klipy:example-id",
+    "kind": "gif",
+    "title": "Waving hello",
+    "altText": "A person waving hello",
+    "source": {"provider": "klipy", "itemId": "example-id"},
+    "attribution": {"label": "KLIPY", "url": null},
+    "poster": null,
+    "renditions": [{
+      "id": "gif",
+      "url": "https://media.example.invalid/hello.gif",
+      "mimeType": "image/gif",
+      "width": 320,
+      "height": 240,
+      "byteLength": null,
+      "durationMs": null,
+      "hasAudio": false
+    }]
+  }],
+  "nextCursor": null
+}
+```
+
+- Item IDs are stable provider-qualified strings, treated as opaque by the UI.
+  Identical native IDs from different providers must not collide. They are not CIDs;
+  the actual imported bytes determine the attachment CID.
+- Title/alt text/attribution are plain data. Missing optional metadata is null, not
+  fabricated zero dimensions or durations. A poster is null or a rendition-shaped
+  static preview. Keep at least one supported animated rendition; invalid results
+  become a normalized adapter error, never executable HTML.
+- Renditions carry their actual MIME type: a GIF result may offer image/gif,
+  video/mp4 or video/webm. Shared media selection uses format support, dimensions
+  and size limits. It never examines provider-specific format dictionaries.
+  Provider metadata remains untrusted until the attachment pipeline validates bytes.
+- Expose search(query, cursor, limit, locale, cancellation), trending, resolve(itemId)
+  and share(itemId) through one adapter interface. Return the same GifPage/GifItem
+  types, with errors normalized as unavailable, rate_limited, unauthorized,
+  invalid_response or cancelled, plus an optional retry delay. Keep provider-native
+  errors out of renderer branches. Debounce/cancel obsolete searches.
+- nextCursor is null at the end or an opaque service token bound to provider, query,
+  locale and filters. The UI never computes native page numbers or combines cursors.
+  Preserve each provider's returned order and expose section labels/branding as data.
+- Recents/favorites retain stable IDs and permitted metadata; resolve refreshes
+  expiring URLs. Do not persist API keys, tracking identifiers or raw responses in
+  posts/messages. Required provider events run through the adapter after the defined
+  user action, not as a side effect of rendering received messages.
+- On selection, pass the normalized item/rendition ID to the attachment service.
+  Feed and message renderers consume section 3's common attachment descriptors and
+  section 4's media handles. They never call Klipy or parse its API responses.
+  Preserve necessary attribution as generic metadata in the same visibility context.
+
+**Concrete Klipy mapping:** the documented v2 response supplies a usable initial
+adapter shape; pin the chosen endpoint/version and captured fixtures at activation.
+
+| Klipy v2 field | Unified field / conversion |
+| --- | --- |
+| results | items |
+| result.id | source.itemId as string; provider-qualified id |
+| result.title | title, default empty string |
+| result.content_description | altText; fall back to title |
+| result.itemurl | attribution.url; nullable |
+| result.media_formats | renditions; map supported format keys to MIME types |
+| media_formats.preview | poster when available |
+| media.url, dims, size | url, width/height, byteLength |
+| media.duration | seconds to durationMs; absent/unknown stays null |
+| result.hasaudio | hasAudio |
+| next | opaque nextCursor; end-of-results becomes null |
+
+Mapping source: [Klipy's documented response and media objects](https://docs.klipy.com/migrate-from-tenor/response-objects/content-formats).
+Another API version belongs inside its adapter; its native field names must not
+change this UI contract.
+
+**Delivery constraint found during mapping:** Klipy currently requires direct media
+URLs, restricts rehosting/caching, and requires approval for blending providers'
+results. Its standard integration therefore does not establish permission for this
+ticket's IPFS import. Obtain the required written approval or bring that delivery
+choice back to the owner before activation; do not silently replace IPFS delivery or
+assume approval. Unified data/rendering does not require combining search grids.
+[Klipy integration requirements](https://docs.klipy.com/#integration-requirements).
+
+Add adapter contract fixtures to M1/M3: Klipy plus a synthetic second provider with
+different field names, pagination and duration units must produce the same normalized
+shape and use the same UI. Cover absent previews/metadata, malformed URLs/dimensions,
+unsupported formats, duplicate native IDs across providers, pagination termination,
+expired URLs, cancellation and rate limits. No live credentials or API calls in tests.
+This remains queued specification work, not source implementation authorization.
 
 ## 2. Desktop and Android file ingestion
 
@@ -221,9 +325,9 @@ provider. Encrypted storage does not hide traffic/CID-provider metadata.
 
 | Slice | Deliverable | Required proof |
 | --- | --- | --- |
-| M1 — contract | Separate post/message schemas, private attachment encryption profile, limits, API/jobs and shared UI packaging | Independent vectors; malformed inputs rejected; public/private separation; private key binding agrees with MSG-001 |
+| M1 — contract | Separate post/message schemas, unified GIF adapter JSON, private attachment encryption profile, limits, API/jobs and shared UI packaging | Independent vectors; malformed inputs rejected; provider adapter fixtures; public/private separation; private key binding agrees with MSG-001 |
 | M2 — daemon pipeline | Public and encrypted-private imports, references, recovery, download and scoped media API | Two controlled nodes; public feed retrieval; private ciphertext-only exposure; corruption, cancellation, disk-full and restart |
-| M3 — desktop UI | Post/message composers, emoji/GIF pickers, paste/drop, inline feed/chat media, viewer and video | Actual intake-to-publication/delivery paths; keyboard/IME/accessibility; no injected HTML or sandbox weakening |
+| M3 — desktop UI | Post/message composers, provider-neutral GIF picker with Klipy adapter, emoji picker, paste/drop, inline feed/chat media, viewer and video | Same renderer for Klipy and a second-provider fixture; actual intake-to-publication/delivery paths; keyboard/IME/accessibility; no injected HTML or sandbox weakening |
 | M4 — reactions/live updates | Signed public-post reactions, encrypted message reactions, deduplication and reconciliation | Duplicate/reordered delivery converges; drafts/scroll survive; no cross-context leakage or manual refresh |
 | M5 — Android | Native pickers, shared components, secure daemon bridge and lifecycle handling | Actual emulator/device boundary; content URI/grant expiry, background/resume, memory/storage constraints |
 | M6 — acceptance | Offline end-to-end fixtures, security scans, dependency/license records and local rebuilds | Public posts work without libsignal; private media expose ciphertext only; no leaked keys; bounded checks; preserved text/payment UI |
@@ -250,5 +354,5 @@ Reviewer-only publication for these two owner requests:
 Validate document links/formatting and commit each repository's exact document set.
 No source, dependency installation, acceptance execution, app launch or restart.
 
-Owner's Klipy provider update is a reviewer-only publication of
+Owner's Klipy provider and unified GIF adapter updates are reviewer-only publication of
 tickets/BBGO-MEDIA-001.md.
