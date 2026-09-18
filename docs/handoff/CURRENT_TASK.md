@@ -1,17 +1,18 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes expected-red capture**
-under review 03. The corrected eight-file test drop is source-accepted and pinned:
-21 TestNET001 declarations (including the guarded child) and one fuzz target.
-Hermes may run only the targeted red command and write the ticket's single execution
-report. All test/production/module inputs are frozen; discovery.go remains absent.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, production source**
+under review 04. Missing-symbol compilation failures are accepted as limited red;
+no test bodies ran. A real address-comparison test defect is separately identified:
+Sol must repair the two specified comparisons, then implement the five reserved
+production paths. All other tests and modules stay frozen. Review 04 records the
+executor report's incorrect verdict and missing capture metadata without inventing
+evidence. Hermes's next phase will correct that same report; no extra relay now.
 The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
 plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
 must not appear as BitBook peers in the API. Existing daemon keys remain stable;
 portable-account integration remains subsequent work. No naming or trust-policy change.
-Sol's source authority is closed. Reviewer reads Hermes's repository report, then
-authorizes production in the same ticket after accepting red. No Hermes source edits,
-broader acceptance, build/restart or Git mutation. Reviewer effort stays High. Publication is
+Sol has no execution, records or Git authority. Reviewer reads the source drop before
+authorizing Hermes acceptance. No executor phase is active. Reviewer effort stays High. Publication is
 limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
 
 QUEUED OWNER REQUESTS (2026-09-17):

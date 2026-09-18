@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Hermes expected-red capture authorized by review 03 below.**
-Reviewer: Codex, High. Corrected test source is accepted for this run only.
+Status: **ACTIVE — Sol High, production source plus bounded test repair under review 04.**
+Reviewer: Codex, High. Missing-implementation red accepted with the limitations below.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Sol's source authority is closed pending red review.
+ACC-002 is accepted and closed. Hermes's red phase is closed; no execution is active.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — only review 03's red phase is currently authorized
+## Execution plan — red reviewed; further execution awaits production review
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -612,7 +612,7 @@ force. No source file may change during this phase.
 | modern/cmd/bitbookd/bootstrap_test.go | 403 | f338c4fe1b8cb96b21e14fdb0d1f0587d50021234816a7ed34ba4d4e0b8848c8 |
 | modern/cmd/bitbookd/payment_test.go | 734 | f1ac520574b48f22e41b8700d7852214479ccf3cf4b919ffd8be0deaf06eea31 |
 
-### Hermes assignment — expected red only
+### Hermes assignment — expected red only; closed by review 04
 
 Use this ticket as the complete assignment. Read AGENTS.md and TESTING.md. Verify
 the original production/module pins and review 03's eight test pins before and after
@@ -653,3 +653,87 @@ authorized for Hermes in this phase. Sol's prior edit authority is closed. Revie
 will read the report and authorize production in this same ticket after accepting red.
 Reviewer publication now includes only this ticket and CURRENT_TASK.md; the test drop
 remains uncommitted pending the later developer integration phase.
+
+## Review 04 — limited red accepted; production source authorized
+
+Reviewer: Codex, 2026-09-17, at HEAD
+f8c459c1218e84706d933bbd704d7a5356f4fa0e. Read the
+[execution report](../docs/testing/BBGO-NET-001-EXECUTION-01.md), both retained raw logs,
+test source and pinned multiaddr source. No tests, builds or scanners executed.
+All 17 distinct production/module/test inputs match their current pins; discovery.go
+remains absent. The installed Go binary matches its pinned hash.
+
+### Evidence and disposition
+
+Hermes reports exit 1 for the exact targeted command. Raw output shows all three
+packages failed to build, with missing discovery/parser/bootstrap-selection symbols.
+No test bodies ran. This is accepted only as evidence of absent implementation.
+
+The report's assertion that all failures are missing symbols is **rejected**.
+The compiler also reports a real test defect at bootstrap_test.go:398: slices.Equal
+requires comparable elements, but pinned go-multiaddr v0.16.1 defines Multiaddr as
+[]Component. This is not a Go-version exception. Static inspection finds the same
+invalid comparison at line 59, although that diagnostic is not in the raw log.
+Reviewer missed these two sites during source review and owns that oversight.
+
+This fixture error is not accepted as expected red. Its exact repair is authorized
+below, alongside production, because the independently reported missing production
+symbols already establish the limited pre-implementation failure. Removing the two
+invalid comparisons cannot implement those symbols or make the original baseline
+pass. No additional red-only relay is required. All later green, race, fuzz and
+falsification gates remain in force; no behavioral test validity is claimed here.
+
+Retained identities (SHA-256):
+
+| Evidence | Bytes | SHA-256 |
+| --- | --- | --- |
+| docs/testing/BBGO-NET-001-EXECUTION-01.md | 5248 | c655f46fe7ae92b29fce880f931986ae3dd0d193bc06e50b3ea295672458ac80 |
+| modern/dist/net001/red01/test.stdout.log | 195 | 2d9b4760cbeecb482e2749502b73f94aaeca3d7794051b72dbcd58a33eda9086 |
+| modern/dist/net001/red01/test.stderr.log | 2744 | b2fed211f6c1f5937886b92f32733ae7b22e98ebe44d7211a33a7963e17fb958 |
+
+Capture limitations: only stdout/stderr logs were retained. Start/end timestamps,
+execution-time tool identity, full relevant environment and before/after pin captures
+are missing. Current hashes verify the present files, not an independently retained
+execution-time snapshot. Exit 1 and the environment are executor-reported. The report
+adds -mod=readonly to GOFLAGS; this strengthens the no-module-edit restriction and is
+accepted. Do not reconstruct missing metadata from file times or invent captures.
+
+This review supersedes the report's erroneous verdict. At its next authorized phase,
+Hermes must correct the same report, record these gaps, include the static declaration
+counts from review 03, and replace its local absolute cwd with repository-relative
+modern before publication. Preserve the original raw logs. No separate report-only
+task or rerun is needed now; the report remains uncommitted.
+
+### Sol High assignment — exact source scope
+
+Read the full frozen behavior and accepted tests in this ticket. Verify original
+production/module pins and review 03's test pins before editing. First repair only
+the two address-slice comparisons at lines 59 and 398 of
+modern/cmd/bitbookd/bootstrap_test.go: use slices.EqualFunc with ma.Multiaddr.Equal
+as the element comparator. Preserve ordered address equality, peer-ID checks and
+all assertions. No other test changes are authorized; the other seven tests stay
+byte-identical. This repair is required even if compiler truncation hides one site.
+
+Then implement the frozen contract in exactly these five production paths:
+
+- modern/network/node.go
+- modern/network/protocols.go
+- modern/network/discovery.go (new)
+- modern/cmd/bitbookd/main.go
+- modern/api/handler.go
+
+Use upstream public DHT/Bitswap and background bootstrap, with CLI defaults and
+explicit empty library bootstrap options. Implement discovery/hello validation,
+resource limits, cancellation/Close joins and confirmed-peer API filtering exactly
+as specified above. Keep transport-based publication checks intact. The tests'
+private helpers must serve the real production handler/round/probe/lifecycle;
+disconnected test-only implementations do not satisfy the contract. Preserve the
+existing keys, private datastore boundary, direct/payment protocols and services.
+
+Sol may read dependencies/source and format only these six writable paths. No
+dependency changes, other source/test edits, execution, records, Git or publication.
+Do not change intervals, capacities or assertions to accommodate implementation.
+Stop after the source drop; reviewer reads it directly and authorizes Hermes's next
+execution phase in this same ticket. No actor has been launched by this review.
+Reviewer publication is limited to this ticket and CURRENT_TASK.md; preserve all
+unrelated work and the uncommitted developer source/report.
