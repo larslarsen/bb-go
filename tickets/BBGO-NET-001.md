@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, stalled-handler fixture synchronization and targeted tests under review 13.**
+Status: **ACTIVE — Sol High, complete both reconnect fixtures and targeted tests under review 14.**
 Reviewer: Codex, High. Local-first correction has captured green; acceptance remains open.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Only review 13's network fixture correction and report append are writable.
+ACC-002 is accepted and closed. Only review 14's two fixture scopes and report append are writable.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — broader acceptance paused pending review 13
+## Execution plan — broader acceptance paused pending review 14
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1544,3 +1544,65 @@ report. No broad/scanner execution, build/restart or Git by Sol. Retain accepted
 local-read, API and earlier regression/falsification evidence; remaining Hermes gates
 and report corrections are unchanged. Reviewer publication is only this ticket and
 CURRENT_TASK.md.
+
+
+## Review 14 — stalled-handler fix passes; handle multiple peer connections
+
+Reviewer: Codex, 2026-09-17, at HEAD 16225cd7. Read-only source/capture review; no
+execution. The four-line zero-handler barrier is the complete source change and
+reconstructs the preceding network test hash when removed. The other 18 captured
+inputs and both local binaries are unchanged.
+
+Developer04's exact review-12 focused count=20 command exited 1. Its 19 before/after
+input hashes, cached tool identity and log hashes verify. Network passed all 20 runs
+(0.217s); API failed at handler_test.go:414 with initial connection count 2, expected 1.
+Race and wider targeted commands were correctly not launched. Accept the stalled-
+handler correction and its focused green; full acceptance remains incomplete.
+
+Verified artifacts beneath modern/dist/net001/developer04:
+
+- 01-focused-count20.json: be7a80248d9f79b4229ee7ccf1806898ee93842197baae7368689a5863d0cae3
+- 01-focused-count20.stdout.log: 766ae7e6829c9874b7dc82f0d6cb14ace5f0fd124b0ec1eeaf9e4a4255953f87
+- Reviewed execution report: bd23fd7950a4d5d07236db8438ba51987b0304586893da151aba2e5f888fcef3
+
+The API test exercises both nodes' discovery. Multiple connections between the same
+peer pair are valid; a count of exactly one is not a product invariant. The fixture
+must prove a last-connection gap and fresh handshake across all old connections.
+This observed assertion failure is accepted pre-correction evidence. Simply replacing
+"!= 1" with "== 0" while continuing to track only connections[0] is insufficient.
+
+### Sol High — complete both fixtures without per-symptom handoffs
+
+Source scope is these two functions and narrowly necessary test helpers/imports:
+
+| Path / function | Baseline SHA-256 |
+| --- | --- |
+| modern/api/handler_test.go / TestNET001PeerAPIRequiresHandshake (631 lines) | fec216d6ec65a7d313c19fac45edaf82f209de8f473e1b2b7e81ad1c37248248 |
+| modern/network/discovery_test.go / TestNET001InboundHelloValidationDisconnectAndCloseCancellation (1223 lines) | c8b0a9890509691a2d488066c0040d9ce87e39885436627457a44ea703d0ea66 |
+
+Correct API synchronization to handle a nonempty set of old connections. Observe
+remote closure of the entire set, establish the actual transport gap, then verify
+that the new live connections share no IDs with that set before the fresh hello.
+Use bounded context-aware event/state synchronization, with observer/resource cleanup
+on all exits. Account for in-flight discovery activity if it affects ordering. Keep
+initial real discovery and every API positive/negative/invalid-advertiser assertion.
+Do not manufacture confirmation state or force single-connection production behavior.
+
+Sol may diagnose and correct further synchronization, lifecycle or connection-count
+assumptions within BOTH listed fixtures until all three targeted commands pass.
+Preserve each behavior under test, including malformed reset, absence of confirmation,
+fresh hello, stalled-handler admission, strict reset on Close, and joined cleanup.
+Retain the accepted zero-handler barrier and unconditional cleanup unless replacing
+with an equally explicit ordering proof. No arbitrary sleeps, increased deadlines,
+retry-until-pass without source correction, weakened assertions, production/module
+changes or edits to other tests. Stop only when correction requires leaving this
+scope or changing a product invariant, rather than after each in-scope fixture failure.
+
+The exact commands remain review 12's focused network/API count=20, race count=10,
+and three-package TestNET001 count=5 commands. Execute sequentially with the cached
+Go/offline environment and a fresh numbered developer capture. Preserve every failed
+attempt, verify actual source before/after, and adapt a new copy of the reviewed
+capture helper for current pins. Append changed paths/hashes/line counts and exact
+results to the existing execution report. No broad/scanner execution, build/restart
+or Git by Sol. Review and remaining Hermes acceptance follow the completed targeted
+phase. Reviewer publication is only this ticket and CURRENT_TASK.md.

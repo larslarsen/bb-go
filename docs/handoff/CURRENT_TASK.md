@@ -1,18 +1,18 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, stalled-handler
-fixture synchronization and targeted tests under review 13**. API reconnect passed
-20 iterations. Network exposed an admission race: the test can count the preceding
-malformed handler instead of the new stalled stream. Sol may finish synchronization
-within that network fixture and iterate review 12's three targeted commands, recording
-every attempt in the existing report. No further handoff is needed for timing repairs
-inside this same scope. API, production, other tests and modules stay frozen.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, complete both
+reconnect fixtures and targeted tests under review 14**. Stalled-handler synchronization
+passed 20 runs. API now exposes an invalid exactly-one-connection assumption; the
+fixture must handle all old connections and prove a real gap before fresh handshake.
+Sol may iterate synchronization/lifecycle assumptions in both named API/network
+fixtures until review 12's three targeted commands pass. No per-symptom handoff is
+needed within that scope. Preserve assertions and retain every attempt in the existing
+report. Production, other tests and modules remain frozen.
 
-Broader acceptance/scanners, daemon build/restart and Git remain outside Sol's scope.
-Hermes's outstanding gates/report corrections remain pending; both binaries are
-unchanged. Preserve prior captures and accepted results. All instructions are in
-review 13; no Hermes execution phase is active. Reviewer stays High and publishes
-only this file and NET-001. Preserve unrelated work.
+Broader acceptance/scanners, build/restart and Git remain outside Sol's scope. No
+Hermes execution phase is active; remaining gates and report corrections are pending.
+Both binaries are unchanged. Preserve accepted evidence and all unrelated work.
+Reviewer stays High; publication is only this file and NET-001.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with
