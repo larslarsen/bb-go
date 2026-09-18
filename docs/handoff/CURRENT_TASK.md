@@ -1,18 +1,19 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes regression and acceptance**
-under review 06. Corrected source and the reconnect regression are accepted for
-execution. First reproduce stale confirmation against the pinned old source, then
-prove corrected green, targeted green, outbound-validation falsification/restored
-green, broad tests/race/vet/fuzz and security checks. Refresh modern/bitbookd only if
-all gates pass; no restart. All thirteen implementation/test paths are frozen.
-Hermes records actual results and review 04's report corrections in the same existing
-execution report. No source repairs, module changes or Git mutation are authorized.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, one-line compile repair**
+under review 07. Add the specified int64 conversion in discovery.go; everything else
+stays frozen. Hermes reported a compiler failure but retained no acceptance capture;
+no runtime result or rebuild is accepted. Review 07 pins the exact repaired bytes.
+Once that hash and all other pins match, Hermes is already authorized to resume
+review 06 from step 1, with the same conversion only in its disposable old-source
+copy. Create captures before execution and correct the existing report first.
+All test/security gates and conditional local rebuild remain required; no restart
+or Git mutation. No additional source-review handoff is required for this exact repair.
 The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
 plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
 must not appear as BitBook peers in the API. Existing daemon keys remain stable;
 portable-account integration remains subsequent work. No naming or trust-policy change.
-Sol's source authority is closed. Runtime acceptance and developer publication remain
+Sol may make only review 07's repair. Runtime acceptance and developer publication remain
 pending review of Hermes's evidence. Reviewer effort stays High. Reviewer publication is
 limited to this file and NET-001; preserve unrelated work, including cancelled DEV-001.
 

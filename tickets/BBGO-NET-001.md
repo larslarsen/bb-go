@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Hermes regression reproduction and acceptance under review 06.**
-Reviewer: Codex, High. Corrected source accepted for execution; runtime acceptance pending.
+Status: **ACTIVE — Sol High, one-line compile repair under review 07; then Hermes resumes.**
+Reviewer: Codex, High. Runtime acceptance remains pending.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Sol's source authority is closed; all source is frozen.
+ACC-002 is accepted and closed. Only review 07's exact source repair is writable.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — activated and bounded by review 06
+## Execution plan — review 06, with review 07's repair and resumption conditions
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -923,3 +923,69 @@ test authoring, module changes, real user data, restart or Git staging/commit/pu
 Do not publish developer files or the report yet. Return after recording results;
 reviewer will accept or reject them and enumerate publication scope in this ticket.
 Reviewer publication now contains only this ticket and CURRENT_TASK.md.
+
+## Review 07 — compile repair and conditional execution resumption
+
+Reviewer: Codex, 2026-09-17, at HEAD
+6fd9c1ec1a29751c538a08b9d0de3929e3507af4. Source/report inspection only; no execution.
+All review-06 inputs and the retained old-source fixture still match. The report is
+now 122 lines, SHA-256
+055bc199dc6ca12f0c57a5c8640d03b7a4a23880e4739ddb729c2a11718639f2.
+
+Hermes reports exit 1 from the real targeted command, due to discovery.go:430 passing
+the typed int expression len(peerHello)+1 to io.LimitReader's int64 parameter. The
+pinned toolchain source confirms that signature; this is a source defect, not a new
+Go 1.27 restriction. Reviewer missed the conversion during source review. The old
+discovery.go fixture has the same defect, so its regression reproduction needs the
+same build-only adjustment in the disposable copy.
+
+No acceptance-phase raw logs or command metadata were retained under net001; only
+the original red01 logs are present. The report also skips the required old-source
+regression first and leaves review 04's report errors uncorrected. The reported
+compiler failure is corroborated by source, but exit/timing/environment and attempted
+execution order are not independently captured. No test success, behavioral red,
+security result or rebuild is accepted. Preserve these gaps explicitly; do not
+manufacture captures. Stopping on the compiler error was appropriate.
+
+### Sol High — exact repair only
+
+In modern/network/discovery.go's readPeerHello, replace only
+`io.LimitReader(reader, len(peerHello)+1)` with
+`io.LimitReader(reader, int64(len(peerHello)+1))`.
+The nine-byte bound and parser behavior stay identical. Current hash is review 06's
+16dc9bed61362501b01195cbdb34dcf9748cdf478e3e37ff5321a5be80ae5971.
+The exact repaired file is 768 lines and must hash to
+4ba9e0b795872301e4350cfb4a43868c2206fb7b1539de85726d9533161b300c
+(calculated from the specified replacement without writing source).
+All other files, including tests and the retained old-source fixture, stay frozen.
+No execution, report or Git work by Sol. Stop after this source edit.
+
+### Hermes — resume after the exact repaired pin matches
+
+Once that repaired hash exists and every other review-06 pin matches, Hermes may
+resume the full review-06 sequence without another architecture or source-review
+handoff. This authorization is conditional on exact bytes, not a chat completion
+claim. Start from step 1; no acceptance stage has a retained passing result to reuse.
+
+In step 1's disposable old-source copy only, apply the same int64 conversion after
+copying the immutable review05/discovery.go.txt. Its resulting 652-line discovery.go
+must hash to
+1b1ec0d0fb82616aa64fb98529ad6f754ecdd56faf524e2627a4b3743cb3554a.
+Record this build-only adjustment separately from the connection-lifetime defect;
+the regression must fail on stale confirmation after successfully compiling. Never
+change the original retained fixture. Step 2 restores the repaired production hash
+above. Use that same repaired hash for all corrected runs and fault restoration.
+
+Before launching any test, create and verify writable stdout/stderr capture files
+and a metadata record with command, cwd, environment and actual start time. Run the
+command through the capture helper, then record actual exit/end time even on failure.
+If capture setup fails, stop before execution. Retain the helper and its artifacts
+under a fresh acceptance directory. Terminal output or a later Markdown transcript
+alone does not meet the evidence requirement. Do not skip to the targeted suite.
+
+First correct the existing report's historical verdict, type-error explanation,
+absolute cwd and missing-metadata disclosures as required by review 04; keep phases
+clearly dated and preserve existing actual results. Append new evidence in that same
+report. All remaining commands, stop conditions, security gates, conditional local
+build and no-restart/no-Git limits remain exactly as in review 06.
+Reviewer publication is limited to this ticket and CURRENT_TASK.md.
