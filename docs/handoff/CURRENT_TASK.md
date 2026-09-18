@@ -1,25 +1,21 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, test-only reconnect
-synchronization correction and targeted execution under review 11**. Local-first
-block retrieval has captured green. The remaining ordinary test failure occurs
-before a malformed hello is sent: reconnect races the client's old connection closing.
-Sol may correct only the specified discovery_test.go fixture, run the three targeted
-commands and append results to the existing execution report. Production and all
-other tests remain frozen. No broader acceptance, build/restart or Git by Sol.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, API reconnect
+fixture correction and targeted execution under review 12**. The network reconnect
+fix passed 20 normal and 10 race runs. The wider suite exposed the same missing
+remote disconnect wait in the API fixture. Sol may fix that fixture, add unconditional
+cleanup to the network fixture, run the three specified targeted commands and append
+results to the existing execution report. Production, other tests and modules remain
+frozen. No broader acceptance, build/restart or Git by Sol.
 
-Hermes's acceptance04 retains useful partial results but does not complete acceptance:
-execution continued past failure, checks used narrower scope, and govulncheck never
-launched. Both binaries are unchanged. Review 11 records verified results, report
-corrections and outstanding gates; retain all captures and do not reuse the flawed
-acceptance runner. No Hermes execution phase is active until source review.
+Local-read green and prior accepted regression/falsification evidence remain valid.
+Hermes's incomplete broader/security gates and report corrections stay pending; both
+binaries are unchanged. No Hermes execution phase is currently active. All instructions
+are in review 12; preserve prior captures and unrelated work.
 
-All implementation developers may run the active ticket's targeted tests and record
-exact results/raw-output references in its designated report. Broader acceptance
-remains with Hermes and acceptance with Codex. Reviewer effort stays High.
-The ticket remains the complete assignment. Existing daemon keys remain stable;
-portable-account integration is subsequent work. No naming or trust-policy change.
-Reviewer publication is only this file and NET-001; preserve all unrelated work.
+Developers may run the ticket's targeted tests and record results in its designated
+report. Broader acceptance remains with Hermes; Codex owns acceptance and stays High.
+Reviewer publication is only this file and NET-001.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with

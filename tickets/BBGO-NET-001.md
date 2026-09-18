@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, reconnect fixture correction and targeted tests under review 11.**
+Status: **ACTIVE — Sol High, API reconnect fixture correction and targeted tests under review 12.**
 Reviewer: Codex, High. Local-first correction has captured green; acceptance remains open.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Only review 11's test correction and report append are writable.
+ACC-002 is accepted and closed. Only review 12's test corrections and report append are writable.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — broader acceptance paused pending review 11
+## Execution plan — broader acceptance paused pending review 12
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1394,3 +1394,85 @@ section, not an acceptance verdict. Preserve prior sections/captures. Reviewer w
 inspect the fix and reuse valid targeted results before Hermes completes outstanding
 full-scope gates, report corrections and the conditional local rebuild. No separate
 report-only task. Reviewer publication is only this ticket and CURRENT_TASK.md.
+
+
+## Review 12 — repeated reconnect checks pass; finish API fixture synchronization
+
+Reviewer: Codex, 2026-09-17, at HEAD f89aded1. Source/artifact review only; no tests,
+builds or scanners executed. The only source change is 27 added lines inside the
+review-11 network fixture. Its disconnect observer, bounded wait and fresh connection
+check preserve every original assertion. All other 18 captured source/module/fixture
+inputs and both binaries remain unchanged. The execution report is now SHA-256
+2d337efc1e63b569524c9fcbc76a6590e763c2da3a15c59a2b1fdcc211a5d0f1.
+
+Verified developer02 metadata, before/after source identities, tool hash and raw logs:
+
+| Command | Exit / result | Metadata SHA-256 |
+| --- | --- | --- |
+| Review-11 focused count=20 | 0; network 0.194s | fd9c9050da2e1532a981f789055896e776ae5547c9994483cdd074c35532739f |
+| Review-11 focused race count=10 | 0; network 1.518s | 0de11e49597dd210c7c896683990546689207fdc30aa0962ac9d7e3263909228 |
+| Review-11 targeted three-package suite | 1; network/cmd pass, API fails | 353e5c04bac7c44beb264a25e106581351e55e66ff2a3ca54b71268e3e3ece21 |
+
+These captures are under modern/dist/net001/developer02; their exact commands and
+log hashes are in Sol's appended report section. developer01 is correctly retained
+as a loopback-bind sandbox denial before fixture execution. Sol appropriately stopped
+at the later out-of-scope API failure. Accept the repeated network regression results;
+feature acceptance remains open.
+
+API failure: TestNET001PeerAPIRequiresHandshake, handler_test.go:434, empty fresh
+hello response with stream reset / connection closed: EOF. The API fixture closes
+subject-to-realPeer, waits only for subject confirmation removal, then immediately
+reconnects from realPeer. It has the same missing remote transport-close barrier as
+the preceding network fixture. This is source-supported diagnosis; the captured API
+failure is accepted pre-correction evidence. Reviewer checked all four ClosePeer
+sites across network/api/daemon tests: the other reconnect regression already has
+the barrier; the remaining discovery test closes without reconnecting. No production
+reconnect change is justified by these failures.
+
+### Sol High correction and targeted execution
+
+Writable source scope:
+
+| Path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/api/handler_test.go | 602 | 38a990cbccb38a04e6f8394909d429610217a5d134f5f71810a6186c1cf08950 |
+| modern/network/discovery_test.go | 1218 | 599ff033a1b81afa366a255cc5a7f3ba9ffecd60ac0c7d14ac286b5e395cca49 |
+
+1. In TestNET001PeerAPIRequiresHandshake only (and narrowly necessary helper/imports),
+   register an observer on realPeer before subject closes the old connection. Wait
+   for the relevant old connection's remote-side disconnect under the existing test
+   context, then reconnect and verify a fresh live connection before the fresh hello.
+   Unregister the observer on all exits. Preserve all API positive/negative controls,
+   invalid advertiser checks, disconnect visibility and fresh-handshake assertions.
+2. In TestNET001InboundHelloValidationDisconnectAndCloseCancellation only, add
+   unconditional deferred/registered Node.Close cleanup immediately after successful
+   node creation. The new waitSignal can terminate the test without reaching the
+   existing explicit Close branches; cleanup must also cover that failure. Preserve
+   the explicit stalled-handler Close/join proof and observer cleanup. Node.Close
+   is idempotent. No other change to this now-passing fixture is needed.
+
+Production, other tests and dependencies stay frozen. No sleeps, retry-to-green,
+weakened assertions, extended timeouts or manual confirmation state. If a different
+cause emerges, retain evidence and return for review without widening source scope.
+
+Sol may execute these commands sequentially from modern, retaining every attempt:
+
+```sh
+go test ./network ./api -run '^TestNET001(InboundHelloValidationDisconnectAndCloseCancellation|PeerAPIRequiresHandshake)$' -count=20 -timeout=180s
+go test -race ./network ./api -run '^TestNET001(InboundHelloValidationDisconnectAndCloseCancellation|PeerAPIRequiresHandshake)$' -count=10 -timeout=180s
+go test ./network ./api ./cmd/bitbookd -run '^TestNET001' -count=5 -timeout=180s
+```
+
+Use review 11's cached Go, offline/read-only environment and fresh numbered developer
+captures. The reviewed capture_developer.py pattern correctly writes metadata before
+execution, finalizes failure evidence and stops on nonzero exit; adapt a new helper
+copy for these commands and new pins, preserving the old helper/captures. Retain
+actual input/output hashes, argv/cwd/environment, timestamps and exits. Append the
+changed paths, hashes/line counts and exact results to the same execution report.
+Only bounded iterations of the authorized fixture corrections and targeted commands
+are allowed. No broad acceptance/scanners, daemon build/restart or Git by Sol.
+
+Prior accepted local-read and discovery regression/falsification evidence is retained.
+After review, Hermes completes outstanding full-scope acceptance/report corrections
+and the conditional local rebuild from review 11; no separate report-only task.
+Reviewer publication remains only this ticket and CURRENT_TASK.md.
