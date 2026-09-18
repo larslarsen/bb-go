@@ -1,6 +1,6 @@
 # BBGO-MEDIA-001 — rich media posts, messaging and IPFS attachments
 
-Status: **MEDIA PUBLISHED — final CI exposed an inherited API test race; Sol fixture correction active.**
+Status: **API FIXTURE CORRECTION ACCEPTED — Hermes exact two-file publication and CI check active.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [BBGO-MSG-001 — libsignal messaging](BBGO-MSG-001.md).
 NET-001 is accepted and closed. The M2A assignment below is the sole active source
@@ -1032,3 +1032,60 @@ restart. If the failure requires a product behavior change, report the concrete 
 rather than changing production. Source review and scoped publication follow this drop.
 
 Reviewer publication for review 05 is only this ticket and docs/handoff/CURRENT_TASK.md.
+
+## Review 06 — API fixture accepted; publish frozen test and report
+
+2026-09-18, Codex reviewer, High. Review 05's source correction and targeted evidence
+are accepted. Sol is finished. Media production and its accepted checks remain frozen.
+
+Reviewer inspected the complete test diff and the production discovery lifecycle it
+observes. Both loops use owned cancellable contexts. The public non-restartable state
+becomes observable only after runDiscoveryLoop returns, including its synchronous
+round; the helper therefore waits for more than cancellation being requested. Closing
+both connection views and waiting for empty live sets replaces the incomplete snapshot
+notification barrier. Initial real discovery, invalid-peer exclusion, API absence,
+fresh connection IDs and a fresh hello still have assertions. The helper's coupling to
+the current lifecycle error is confined to test source. No production API was added.
+
+All developer04 output and exit-file hashes match the report. Accepted results:
+20 handshake runs with GOMAXPROCS=8 (0.975s), ten race runs (2.645s), full api package
+(0.079s), and clean api vet. All four captured exits are 0. Current test diff matches
+the retained diff hash 1579ff958fb0f100919d06c757135f8feb9bad385a407c00719b19b384f3bb65.
+No reviewer test/scanner/build was run.
+
+### Hermes — publication only, no report rewriting
+
+Stage and publish exactly these current bytes:
+
+| Path | SHA-256 |
+| --- | --- |
+| modern/api/handler_test.go (672 lines) | d98a96a5416b83a59c26f18b880185c5ac57b280207bd240db045bfadf883bc4 |
+| docs/testing/BBGO-MEDIA-001-EXECUTION-01.md | 5ca0edb127aab3e2f2beeed1251a0a44169e4db64c4b061464e0539483d43073 |
+
+The report already contains Sol's complete correction evidence; no edit or appended
+closeout is authorized. Review 05 already resolves its historical typographical errors.
+All production/module/media-test files and the binary must remain at accepted hashes.
+Do not rerun local tests, vet, fuzz, dependency scans or builds; no daemon restart.
+
+1. Verify both hashes and stage only those two files. Verify the staged path list and
+   exact staged bytes. Preserve unrelated dirty work and artifacts.
+2. Retain actual outputs, exits, source/staged hashes and command metadata under fresh
+   modern/dist/media001/publication02. From repository root run:
+
+   ```sh
+   ../.security-tools/bbgo-sec-tools-20260829/gitleaks git --pre-commit --staged --redact=100 --no-banner .
+   git diff --cached --check
+   ```
+
+   Use the already pinned Gitleaks. Stop on a failed check; do not modify the frozen
+   files or fabricate a success summary. Generated captures are not publication inputs.
+3. Commit and push those two paths to origin/master; retain the actual commit/push
+   outputs. No amend, force-push, further report edit or report-only commit.
+4. Inspect the automatic Go CI for this exact new commit, explicitly using repository
+   larslarsen/bb-go in gh calls. Retain run ID, head SHA, status/conclusion and failed
+   logs if applicable in publication02. Do not reuse an earlier commit's successful
+   run, rerun until green, or claim pending CI passed. Return the actual evidence for
+   reviewer closeout. The reviewer records final publication/CI in this ticket.
+
+Reviewer governance publication for review 06 is only this ticket and
+docs/handoff/CURRENT_TASK.md. No additional source or execution assignment is active.
