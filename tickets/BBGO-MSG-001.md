@@ -3,8 +3,8 @@
 Status: **QUEUED — owner-requested implementation direction; contract before source.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [rich media/IPFS attachments](BBGO-MEDIA-001.md).
-NET-001 remains active. No source actor, executor, installation or migration is
-authorized by this ticket yet.
+NET-001 is accepted and closed. MEDIA-001 M2A is the active daemon assignment.
+No source actor, executor, installation or migration is authorized by this ticket yet.
 
 ## Goal
 

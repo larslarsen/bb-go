@@ -1,5 +1,20 @@
 # Current Task
 
+ACTIVE: [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), M2A — bounded UnixFS
+file import/read on the existing IPFS node. Relay that ticket to Sol High. It authorizes
+tests first, implementation, targeted red/green/race/fuzz and in-scope correction in one
+task. Sol writes docs/testing/BBGO-MEDIA-001-EXECUTION-01.md and stops without Git work.
+The same ticket defines the subsequent acceptance/publication phase after source review.
+No separate developer handoff or owner-transcribed evidence is needed.
+
+Uploaded files use IPFS; Klipy-selected GIFs use the provider's supplied media URLs
+through the unified JSON adapter. Klipy rehosting is not a prerequisite. Public posts
+do not use libsignal. MSG-001 and later media/UI slices remain queued. M2A creates no
+visible UI feature yet. Exact source and reviewer publication scopes are in MEDIA-001.
+Preserve all unrelated dirty work, local binaries and retained evidence.
+
+COMPLETED BACKGROUND (earlier phase instructions below are historical):
+
 ACCEPTED, PUBLISHED AND CLOSED: [BBGO-NET-001](../../tickets/BBGO-NET-001.md),
 review 17. Feature 0951c837aa6fea0eb06dcc036d24dd617c0abaa6 and report closeout
 24bce94edeb5a677a7e89fb8fbfbfa2381b136de are verified on origin/master. All thirteen
@@ -10,18 +25,16 @@ scans and publication commands from retained Hermes tool history.
 Runtime/security gates and correct local-daemon rebuild are accepted. No process
 restart is claimed. No further Sol/Hermes task, report correction, test rerun or
 publication work is needed under NET-001. All earlier NET-001 instructions are
-historical. MEDIA-001 and MSG-001 remain queued; no new source task is active.
-Reviewer stays High; closeout publication is only this file and NET-001. Preserve
-all unrelated dirty work, both local binaries and retained evidence.
+historical. MEDIA-001 M2A supersedes the former no-new-source instruction; MSG-001
+remains queued. NET-001's closeout publication is complete.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with
 IPFS attachments, shared Electron/Android UI, emoji/GIF selection and reactions; and
 [BBGO-MSG-001](../../tickets/BBGO-MSG-001.md), libsignal private messaging.
 Private attachment keys travel inside MSG-001 encrypted messages. Public posts use
-signed public content/IPFS and no libsignal. Both tickets are queued
-architecture/implementation contracts; no new actor or source authorization. NET-001
-continues unchanged. Their documentation-only publication scope is in MEDIA-001.
+signed public content/IPFS and no libsignal. MEDIA-001 now has the active M2A assignment
+above; MSG-001 remains queued. NET-001 is closed. Reviewer documentation scope is in MEDIA-001.
 
 ACCEPTED, PUBLISHED AND CLOSED: [BBGO-ACC-002](../../tickets/BBGO-ACC-002.md),
 review 05. Feature `84e3a26863ea5e230e3a737858719d62ad894c5e` is verified on

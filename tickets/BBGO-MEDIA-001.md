@@ -1,17 +1,19 @@
 # BBGO-MEDIA-001 — rich media posts, messaging and IPFS attachments
 
-Status: **QUEUED — architecture and implementation breakdown; no source actor active.**
+Status: **ACTIVE — M2A file storage primitive assigned to Sol High; later slices queued.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [BBGO-MSG-001 — libsignal messaging](BBGO-MSG-001.md).
-NET-001 remains the active assignment. This ticket does not interrupt its source work.
+NET-001 is accepted and closed. The M2A assignment below is the sole active source
+authorization. This ticket is the handoff; no separate developer handoff is needed.
 
 ## Goal and existing foundation
 
 Support mixed text, Unicode emoji, inline images, animated GIFs, video attachments and
 reactions in both public posts and private messages on Electron desktop and Android
 using shared UI components. Owner clarification: posts do not use libsignal.
-IPFS content identifiers replace object-storage/CDN URLs. Updates remain automatic;
-no manual Connect or Refresh control.
+IPFS content identifiers replace object-storage/CDN URLs for user-uploaded files.
+Provider-selected GIFs may use their provider's supplied media URLs. Updates remain
+automatic; no manual Connect or Refresh control.
 
 The desktop currently uses plain JavaScript in social/app.js/core.js and a textarea,
 not React. There is no Android project in the reviewed workspace. The daemon has
@@ -24,7 +26,7 @@ This ticket specifies the target and implementation slices. Exact dependency ver
 wire bytes, source paths, hashes and red/green commands must be frozen when a slice
 is activated. Logical schemas below are not authorization to change existing v1
 signatures. No app rewrite, new infrastructure service or real-data migration is
-authorized by this queued record.
+authorized outside the explicit active assignment below.
 
 ## 1. Shared composer and rendering
 
@@ -41,11 +43,10 @@ authorized by this queued record.
 - Bundle Emoji Mart and its data locally. Emoji picker, keyboard navigation, skin-tone
   selection and insertion must work without a remote script/data CDN.
 - Use **Klipy** for GIF-picker search in both posts and messages, with recents and
-  favorites (owner update, 2026-09-17). Keep locally retained GIFs and user imports
-  available offline. Review Klipy's integration requirements, import/rehosting terms
-  and privacy behavior when activating the UI slice. Provider responses use the
-  adapter contract below. The target attachment delivery remains IPFS; Klipy's
-  current delivery restrictions require resolution before importing its media.
+  favorites (owner update, 2026-09-17). Use its supplied media URLs through the adapter
+  contract below. IPFS rehosting is not required. Offline availability applies to
+  locally retained user imports; it is not promised for provider-hosted GIFs. Review
+  provider requirements and request privacy when activating the UI slice.
 - Provide an accessible shared MediaViewer/lightbox: full-screen image preview,
   zoom/pan, next/previous, Escape/back dismissal and focus restoration. Use native
   video controls, poster frames and explicit playback. GIF animation respects reduced
@@ -69,8 +70,9 @@ Owner requirement, 2026-09-17: normalize GIF APIs so feed/picker/message compone
 do not depend on the source provider. Start with Klipy; adding another provider later
 requires an adapter and fixtures, with no provider-specific rendering branches.
 
-Flow: provider API -> adapter -> GifPage/GifItem -> common picker -> attachment
-pipeline -> existing common post/message attachment renderer. Keep raw API payloads,
+Flow: provider API -> adapter -> GifPage/GifItem -> common picker -> external GIF
+descriptor -> common post/message attachment renderer. User file imports use the
+IPFS pipeline. Keep raw API payloads,
 authentication, pagination translation, URL refresh and provider event callbacks
 inside the adapter/service. Provider identity is provenance, not rendering logic.
 
@@ -103,8 +105,7 @@ Logical JSON contract (illustrative IDs and URLs, not an actual API response):
 ```
 
 - Item IDs are stable provider-qualified strings, treated as opaque by the UI.
-  Identical native IDs from different providers must not collide. They are not CIDs;
-  the actual imported bytes determine the attachment CID.
+  Identical native IDs from different providers must not collide. They are not CIDs.
 - Title/alt text/attribution are plain data. Missing optional metadata is null, not
   fabricated zero dimensions or durations. A poster is null or a rendition-shaped
   static preview. Keep at least one supported animated rendition; invalid results
@@ -112,7 +113,8 @@ Logical JSON contract (illustrative IDs and URLs, not an actual API response):
 - Renditions carry their actual MIME type: a GIF result may offer image/gif,
   video/mp4 or video/webm. Shared media selection uses format support, dimensions
   and size limits. It never examines provider-specific format dictionaries.
-  Provider metadata remains untrusted until the attachment pipeline validates bytes.
+  Provider metadata remains untrusted; apply bounded loading and decoding without
+  requiring import into the daemon's blockstore.
 - Expose search(query, cursor, limit, locale, cancellation), trending, resolve(itemId)
   and share(itemId) through one adapter interface. Return the same GifPage/GifItem
   types, with errors normalized as unavailable, rate_limited, unauthorized,
@@ -125,7 +127,7 @@ Logical JSON contract (illustrative IDs and URLs, not an actual API response):
   expiring URLs. Do not persist API keys, tracking identifiers or raw responses in
   posts/messages. Required provider events run through the adapter after the defined
   user action, not as a side effect of rendering received messages.
-- On selection, pass the normalized item/rendition ID to the attachment service.
+- On selection, pass the normalized item/rendition ID to the media service.
   Feed and message renderers consume section 3's common attachment descriptors and
   section 4's media handles. They never call Klipy or parse its API responses.
   Preserve necessary attribution as generic metadata in the same visibility context.
@@ -151,12 +153,17 @@ Mapping source: [Klipy's documented response and media objects](https://docs.kli
 Another API version belongs inside its adapter; its native field names must not
 change this UI contract.
 
-**Delivery constraint found during mapping:** Klipy currently requires direct media
-URLs, restricts rehosting/caching, and requires approval for blending providers'
-results. Its standard integration therefore does not establish permission for this
-ticket's IPFS import. Obtain the required written approval or bring that delivery
-choice back to the owner before activation; do not silently replace IPFS delivery or
-assume approval. Unified data/rendering does not require combining search grids.
+**Delivery correction, 2026-09-18:** the owner questioned why Klipy would need IPFS
+rehosting. That was an overbroad reviewer interpretation of replacing S3/CDN for file
+uploads, not an owner requirement. The selected design uses Klipy's supplied media
+URLs. No Klipy rehosting approval is a prerequisite for this ticket. Klipy's standard
+integration requires direct loading and preserved delivery data. Custom caching,
+proxying or combined-provider results would need separate approval if later requested;
+none is selected here. Unified JSON/rendering does not require a combined search grid.
+Provider-hosted media depends on provider availability, and media requests reach the
+provider even when the containing message is encrypted. Do not describe these public
+GIF bytes as encrypted private attachments. Provider-specific request handling belongs
+in adapters, with request credentials/delivery requirements reviewed at UI activation.
 [Klipy integration requirements](https://docs.klipy.com/#integration-requirements).
 
 Add adapter contract fixtures to M1/M3: Klipy plus a synthetic second provider with
@@ -195,7 +202,19 @@ and [Storage Access Framework](https://developer.android.com/training/data-stora
 
 Use a versioned JSON content model with separate public-post and private-message
 envelopes. Private messages go inside MSG-001's authenticated encryption, separate
-from libsignal's opaque ciphertext/session records. A private-message example:
+from libsignal's opaque ciphertext/session records.
+
+Separate media location from display metadata. The shared renderer receives a typed
+location (IPFS file or external GIF reference) plus normalized MIME, dimensions,
+duration, caption and attribution. External GIF references preserve provider/item and
+rendition identifiers; their adapter supplies the permitted direct URL. Rendering can
+branch on location/format without provider-specific response parsing. The private
+message encrypts either kind of descriptor, but encryption of an external reference
+does not encrypt the provider's media or conceal the subsequent provider request.
+Exact signed JSON bytes are a later integration contract, not part of M2A.
+
+An illustrative private user-file message (bulk encryption framing remains to be
+selected with MSG-001; this example does not mandate a custom chunk manifest):
 
     {
       "schema": "bitbook.rich-message/1",
@@ -226,11 +245,11 @@ For private messages, this entire object is encrypted before network delivery.
 Keys, filenames, captions,
 dimensions and preview metadata are never public IPFS metadata or gateway URL fragments.
 The CID addresses ciphertext; renderer display URLs are local, short-lived handles.
-Private manifests describe ordered encrypted chunks and verified sizes. Thumbnail
-descriptors have their own unambiguous encryption parameters.
+The eventual reviewed encryption profile determines file/manifest framing and verified
+sizes. Thumbnail descriptors have their own unambiguous encryption parameters.
 
 Public posts use a separately versioned, signed public-post payload with the same
-body/attachment-reference structure. Public descriptors contain the media CID, MIME,
+body/attachment-reference structure. Public user-file descriptors contain the media CID, MIME,
 length, dimensions, optional duration, public thumbnail CID and optional blurhash;
 they contain no private-message key or libsignal fields. Preserve author signatures,
 post IDs, current text limits and existing social-root/IPNS publication. Do not import
@@ -257,11 +276,13 @@ name uniqueness is not a prerequisite.
 
 ## 4. Attachment pipeline, retention and delivery
 
-Shared intake: select -> validate/prepare -> choose the composer-owned visibility.
+User-file intake: select -> validate/prepare -> choose the composer-owned visibility.
 Public posts: chunk/import public media into IPFS -> retain -> sign/publish post and
 CID descriptors -> fetch/verify/render in the feed. No libsignal operation.
 Private messages: encrypt -> chunk/import ciphertext into IPFS -> retain -> send the
 encrypted descriptor through libsignal -> fetch/verify/decrypt on the recipient.
+Provider GIF selection creates an external reference instead of invoking this file
+import/encryption pipeline. References in private messages still travel inside libsignal.
 
 - The daemon owns jobs, resource limits, encryption, durable staging, IPFS imports,
   retries and storage accounting. UI/native adapters stream bytes through an
@@ -277,9 +298,9 @@ encrypted descriptor through libsignal -> fetch/verify/decrypt on the recipient.
   Stream bounded chunks into the existing blockstore/Bitswap path; do not call the
   current whole-block Put with a complete large video. Use established IPFS file/DAG
   import machinery where applicable. IPFS chunking is not itself encryption.
-- Because private encrypted manifests hide child links, retention must track every
-  required ciphertext block; pinning only the manifest cannot be assumed recursive.
-  Public file DAGs may use ordinary recursive retention. Durably retain a completed
+- Retention must cover every required ciphertext block. If the selected encryption
+  format hides child links, pinning only a manifest cannot be assumed recursive.
+  Ordinary UnixFS file DAGs can use recursive retention. Durably retain a completed
   import before committing its message to the outbox or publishing its public post.
   Recover after crash without advertising partial files as complete.
 - Author retains public post media while its post requires it; readers use the bounded
@@ -315,8 +336,9 @@ encrypted descriptor through libsignal -> fetch/verify/decrypt on the recipient.
   attachments; apply bounded behavior/resource controls and the newcomer warning.
 
 IPFS does not encrypt file contents automatically, and availability needs retained
-copies on reachable nodes. No required S3, CDN, public HTTP gateway or paid pinning
-provider. Encrypted storage does not hide traffic/CID-provider metadata.
+copies on reachable nodes. User-uploaded files require no S3, CDN, public HTTP gateway
+or paid pinning provider. Provider-selected GIFs use the provider's delivery service.
+Encrypted storage does not hide traffic/CID-provider metadata.
 [IPFS privacy](https://docs.ipfs.tech/concepts/privacy-and-encryption/),
 [persistence](https://docs.ipfs.tech/how-to/pin-files/) and
 [file/DAG model](https://docs.ipfs.tech/concepts/file-systems/).
@@ -326,6 +348,7 @@ provider. Encrypted storage does not hide traffic/CID-provider metadata.
 | Slice | Deliverable | Required proof |
 | --- | --- | --- |
 | M1 — contract | Separate post/message schemas, unified GIF adapter JSON, private attachment encryption profile, limits, API/jobs and shared UI packaging | Independent vectors; malformed inputs rejected; provider adapter fixtures; public/private separation; private key binding agrees with MSG-001 |
+| M2A — active file primitive | Bounded standard UnixFS import/read on the existing node | Independent upstream reader, controlled peer transfer, cancellation, malformed DAGs and persistence |
 | M2 — daemon pipeline | Public and encrypted-private imports, references, recovery, download and scoped media API | Two controlled nodes; public feed retrieval; private ciphertext-only exposure; corruption, cancellation, disk-full and restart |
 | M3 — desktop UI | Post/message composers, provider-neutral GIF picker with Klipy adapter, emoji picker, paste/drop, inline feed/chat media, viewer and video | Same renderer for Klipy and a second-provider fixture; actual intake-to-publication/delivery paths; keyboard/IME/accessibility; no injected HTML or sandbox weakening |
 | M4 — reactions/live updates | Signed public-post reactions, encrypted message reactions, deduplication and reconciliation | Duplicate/reordered delivery converges; drafts/scroll survive; no cross-context leakage or manual refresh |
@@ -337,16 +360,18 @@ release requires MSG-001's accepted encrypted messaging and NET-001's accepted n
 integration. Public rich-media posts require the public pipeline and networking but
 do not depend on libsignal. WebRTC/video conferencing is separate and not a prerequisite.
 Every source slice follows the repositories' test-first/falsification rules. Activation
-adds exact paths, hashes and commands here or in one bounded child ticket; no actor
-is authorized by this architecture record.
+adds exact paths, hashes and commands here. M2A below is active; other rows remain
+queued. Private cryptography and GIF-provider approval do not block public file storage.
 
 ## Baselines and documentation publication
 
-Reviewed bb-go: 8d41a06d058c11b6f151543780add3da4818e857.
-Reviewed bb-desktop: 8298af916c95e627c28aed8ba3de83daa7cf9509.
-Preserve concurrent NET-001 test work and all unrelated dirty files.
+Activation baseline bb-go: 05e7d092d37d11b31969839b3f01dddc3fcfbd7c.
+Routing-only baseline bb-desktop: 8a66ca7ee7f3af8f36f27ba202a5841cad5bf40b.
+Subsequent reviewer documentation commits do not change the source baseline.
+Preserve all unrelated dirty files and retained NET-001 evidence.
 
 Reviewer-only publication for these two owner requests:
+
 - bb-go: tickets/BBGO-MEDIA-001.md, tickets/BBGO-MSG-001.md,
   docs/handoff/CURRENT_TASK.md.
 - bb-desktop: docs/handoff/CURRENT_TASK.md.
@@ -354,5 +379,201 @@ Reviewer-only publication for these two owner requests:
 Validate document links/formatting and commit each repository's exact document set.
 No source, dependency installation, acceptance execution, app launch or restart.
 
-Owner's Klipy provider and unified GIF adapter updates are reviewer-only publication of
-tickets/BBGO-MEDIA-001.md.
+This publication also corrects the Klipy rehosting assumption and stale NET-001 routing.
+
+## Active M2A assignment — Sol High, 2026-09-18
+
+**Deliverable:** add bounded streaming file import/read to the existing IPFS node.
+The current whole-block Put/Get cannot safely serve as a large-file attachment API.
+Use Boxo already pinned in this module. This is a daemon foundation; it adds no visible
+composer, upload endpoint or post/message publication yet. Those need retention and
+the authenticated media service before UI wiring. Do not wait for private encryption
+or a GIF-provider decision to implement this independent file layer.
+
+### Scope and baseline
+
+Authorize tests first: new modern/network/files_test.go and
+modern/network/files_fuzz_test.go. Production: new modern/network/files.go.
+The only other source-input paths allowed are modern/go.mod and modern/go.sum for
+the minimal requirements made necessary by these Boxo imports. Keep all existing
+dependency versions; use the already pinned module graph and recorded checksums.
+In particular Boxo stays v0.42.1; go-ipld-legacy v0.3.0 and go-codec-dagpb v1.7.0 are
+already present in go.sum. No dependency upgrades or new media/crypto libraries.
+Small deterministic fixtures belong in test source; no binary fixture tree is needed.
+
+Completion record: create docs/testing/BBGO-MEDIA-001-EXECUTION-01.md with a Sol
+section. Write exact commands, exits, test counts, raw-output paths/hashes, changed
+file hashes/line counts, and remaining limitations there. Do not edit this ticket,
+CURRENT_TASK, acceptance conclusions or other actors' records. No developer Git work.
+
+Verify these unchanged baseline inputs before editing; report a mismatch rather than
+overwriting another actor's work:
+
+| Path in modern | SHA-256 |
+| --- | --- |
+| go.mod | 1150b94372852355beaffa7104430a21e8f8aa6ec4877bad18d0bcdb71453783 |
+| go.sum | 4c91209822dccd4a60955ddd6b8b94a327e88b55721577494c953a705395b83a |
+| network/node.go | ee15f7a120468679a7f52a8e0fa73aa38aa86813ea5a62a493bfd990daf13555 |
+| network/open.go | 96bf07274832c57ef67ace9a6e0a5dc06651bc7a5b27eef7cff7f480610d4f3b |
+| network/node_test.go | 9abc12fc479252c390f78802c9df546e6c4a4e78d71b09acf9db20ba815ab000 |
+
+All existing network, discovery, API, social and direct-message behavior stays frozen.
+No edits in bb-desktop or go-ipfs. No account migration, pin manager, garbage collector,
+HTTP gateway, provider URL fetcher, native picker or daemon restart in this assignment.
+
+### File contract
+
+Add these Go APIs in package network (internal helpers are the developer's choice):
+
+```go
+type PublicFile struct {
+    CID cid.Cid
+    ByteLength int64
+}
+
+func (n *Node) ImportPublicFile(ctx context.Context, src io.Reader, maxBytes int64) (PublicFile, error)
+func (n *Node) CopyPublicFile(ctx context.Context, file PublicFile, dst io.Writer) (int64, error)
+```
+
+- These operations put/read publicly retrievable blocks. They provide no encryption,
+  recipient authentication, media decoding or proof of long-term retention. Private
+  plaintext must never be routed here by future application integration. A later
+  reviewed encryption service can reuse the underlying storage for ciphertext.
+- Maximum file size is 100 MiB. Import maxBytes must be 1..100 MiB; an empty file is
+  valid. Reject invalid limits before reading/storing. Detect maxBytes+1, reader or
+  storage failure; never return a usable PublicFile on incomplete import. Partial
+  unreferenced blocks may remain, and must be documented as such. Do not delete shared
+  blocks to simulate rollback. A future retained-import job owns completion/publishing.
+- Import standard balanced UnixFS, explicit CIDv1/SHA2-256 (32-byte digest), fixed
+  1 MiB chunks, raw leaves and maximum 1024 links per branch, matching the file settings
+  of Boxo's unixfs-v1-2025 profile. No filenames, mode, mtime or wrapper directory.
+  Identical bytes produce identical roots, including empty and one-chunk files.
+  Pass per-operation parameters; never call ApplyGlobals or mutate Boxo globals.
+  Reference: [UnixFS specification](https://specs.ipfs.tech/unixfs/) and the pinned
+  Boxo ipld/unixfs/io/profile.go and importer packages.
+- Reuse this Node's blockstore/Bitswap; do not create a second node, routing namespace
+  or transfer protocol. Notify the exchange of completed block writes using its
+  established API. Existing Node.Put/Get retain their current semantics.
+- Copy is local-first with existing Bitswap retrieval on missing blocks. Accept only
+  CIDv1/SHA2-256 raw or DAG-PB file nodes; reject unsupported CIDs, directories, HAMTs,
+  symlinks and metadata-wrapper traversal. A raw root is a valid file. Use maintained
+  Boxo UnixFS decoding/reading, with bounded validation around it.
+- Treat every loaded block, including local cache hits, as untrusted: verify the CID
+  against its bytes before decoding or output. Cap encoded blocks at 2 MiB, links per
+  node at 1024, traversal depth at 32, total visited node occurrences at 4096 and total
+  encoded bytes processed at 256 MiB per copy. Count repeated links each time traversed;
+  a unique-CID set alone does not bound expansion. Enforce budgets on upstream prefetch
+  paths too. Check lengths, child counts and integer arithmetic before allocation/use.
+- The declared ByteLength must be 0..100 MiB. Enforce it while writing and require exact
+  completion: declared sizes alone do not establish successful EOF. Reject malformed
+  UnixFS size/block tables, truncation, extra output and overflow. A failed copy may
+  have written a prefix; return its count and error, and document that callers must
+  discard incomplete results. Never emit bytes beyond the declared length.
+- Stream with bounded working memory, not whole-file buffers or io.ReadAll of a file.
+  Use errors.Is-compatible errors for invalid files and exceeded limits; preserve
+  context and underlying I/O errors. Test nil/invalid inputs without panics.
+- Caller cancellation and Node shutdown must stop owned network/storage work. Close
+  per-operation readers and join any owned workers; never close the shared Bitswap
+  exchange from a per-file service. Boxo importer Add currently uses context.TODO:
+  bind storage/exchange calls to the operation context rather than trusting that call.
+  No goroutine per blocking caller I/O: an arbitrary Reader/Writer cannot be forcibly
+  interrupted, so callers supply cooperative I/O and retain its close responsibility.
+
+### Tests, iteration and developer evidence
+
+Sol authors meaningful tests first, runs the red, implements, and iterates source plus
+targeted tests until green in this one assignment. No separate red/green handoff.
+Retain raw command output under fresh modern/dist/media001/developerNN directories;
+inspect the filesystem first and use this repository's disk-backed storage for caches
+and artifacts, not RAM-backed /tmp. These generated captures are not publication files.
+
+Use the cached Go 1.27.0 toolchain (executable SHA-256
+1db869c560a193573a71be466a34e0d4abb7792d78165c6102cdda069276a3a8).
+Record actual executable and environment. Tests use GOTOOLCHAIN=local, GOWORK=off,
+GOENV=off, GOPROXY=off, GOSUMDB=off, GOFLAGS='-mod=readonly -p=2', GOMAXPROCS=2.
+Minimal `go mod tidy` is authorized with GOFLAGS='-p=2' only if the new imports require
+it; record the diff and do not upgrade versions. Missing cached dependencies are an
+explicit execution gap, not a test failure or permission to select replacements.
+
+From modern, exact first red and final targeted green:
+
+```sh
+go test ./network -run '^TestMEDIA001' -count=1 -timeout=180s
+```
+
+The initial red may be missing PublicFile/ImportPublicFile/CopyPublicFile symbols after
+test source exists; unrelated dependency/compiler failures are not the intended red.
+Final developer checks (in addition to the green above):
+
+```sh
+go test -race ./network -run '^TestMEDIA001' -count=1 -timeout=300s
+go test ./network -run '^$' -fuzz '^FuzzMEDIA001FileNode$' -fuzztime=30s -parallel=2
+```
+
+Cover empty/single/multiple chunks; chunk-size and import-limit boundaries; deterministic
+CIDs; streaming input/output failures and cancellation; partial-store failure; bounded
+malformed DAGs including dishonest sizes/repeated links; local-block corruption; missing
+remote blocks; concurrent calls and operation after Node closure. Test persistence by
+reopening an isolated temporary datastore. Store a private-namespace sentinel and prove
+the file transfer does not serve it as a public block.
+
+Use an independently constructed upstream Boxo reader/importer as an interoperability
+oracle and verify full byte equality on a multi-chunk file, including a golden root
+computed outside the BitBook helper. Controlled two-node transfer must start with the
+recipient missing every fixture block. Manual dialing is appropriate here because this
+proves file transfer, not discovery; reuse existing offline upstream-fixture helpers.
+No public swarm or user daemon/data. Fuzz the actual bounded block-validation path with
+valid raw/DAG-PB seeds and malformed inputs, not a separate test-only parser.
+
+Falsify the import-limit regression by temporarily bypassing its enforcement in
+production, proving the above-limit test fails, restoring the exact source and rerunning
+that test green. Record the precise temporary diff and outputs; never retain the fault
+in submitted source. This is part of the developer task, not a separate assignment.
+
+### Single acceptance/publication phase after source review
+
+Codex reviews the complete source and Sol evidence in this ticket. On source acceptance,
+Hermes performs the remaining commands below, appends to the same execution report and
+publishes the exact accepted file set. Valid retained developer checks are reused;
+do not repeat them merely because the actor changes. No implementation/test authorship
+or semantic corrections by Hermes. Any discovered defect returns with concrete evidence.
+
+With the same Go environment, from modern:
+
+```sh
+go test ./... -count=1 -timeout=300s
+go test -race ./... -count=1 -timeout=600s
+go vet ./...
+gosec -tests ./network/...
+go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$' -count=1
+```
+
+Immediately after the diversity check, from repository root:
+
+```sh
+python3 scripts/govulncheck_policy.py source
+```
+
+Use existing pinned gosec v2.29.0 (SHA-256
+eb00a1fb095b161a48c5bcadbe1e246bbafe270da497a122d2e63ade346954c2),
+govulncheck v1.7.0 (6c92f0536311f5e2083a839c75558e3fb986758a320a402aa8f524c85ffd7400)
+and the unchanged dependency policy; the existing DHT exception keeps its exact scope
+and expiry. Only advisory-data retrieval uses the network. New scanner findings require
+reviewer adjudication; inherited findings retain only their previously accepted exact
+scope from NET-001 review 16. Test/security execution failures block acceptance.
+
+After gates pass, rebuild from modern with `go build -o bitbookd ./cmd/bitbookd` and
+record `go version -m bitbookd`, output hash and size. No restart. Preserve the other
+untracked binary at modern/cmd/bitbookd/bitbookd. Before publication, stage only accepted
+M2A source/module/report paths, then from repository root:
+
+```sh
+../.security-tools/bbgo-sec-tools-20260829/gitleaks git --pre-commit --staged --redact=100 --no-banner .
+git diff --cached --check
+```
+
+Gitleaks stays v8.30.1 (SHA-256
+444a87409b36e0c330caf3fa61f354dd13e66987ecc9db63d787db761641541a).
+Secrets block publication. Record actual commit/push results and CI identity in the
+same report. Preserve unrelated work. Reviewer governance publication is separate and
+limited to the four documentation paths already enumerated above.
