@@ -475,6 +475,7 @@ func TestMEDIA001InFlightCancellationAndUnavailableBlock(t *testing.T) {
 			started := make(chan struct{})
 			n.Blockstore = &blockingBlockstore{Blockstore: n.Blockstore, started: started}
 			opctx, stop := context.WithCancel(ctx)
+			defer stop()
 			result := make(chan error, 1)
 			go func() {
 				_, err := n.ImportPublicFile(opctx, bytes.NewReader([]byte("blocked")), 7)
