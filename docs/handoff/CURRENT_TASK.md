@@ -1,20 +1,18 @@
 # Current Task
 
-ACCEPTED: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes final publication
-and CI closeout under review 16**. Full tests/race/vet/fuzz and vulnerability policy
-pass; eleven test-code gosec findings are adjudicated. The correct modern/bitbookd
-binary is rebuilt and independently verified; no restart is claimed.
+ACCEPTED, PUBLISHED AND CLOSED: [BBGO-NET-001](../../tickets/BBGO-NET-001.md),
+review 17. Feature 0951c837aa6fea0eb06dcc036d24dd617c0abaa6 and report closeout
+24bce94edeb5a677a7e89fb8fbfbfa2381b136de are verified on origin/master. All thirteen
+source/test blobs match accepted pins. [Go 1.27 CI](https://github.com/larslarsen/bb-go/actions/runs/35320581742)
+passed for the feature commit. Reviewer recovered actual successful staged secret
+scans and publication commands from retained Hermes tool history.
 
-Source, targeted and broader acceptance are complete. Do not repeat them. Hermes
-reconstructs the overwritten consolidated report from retained captures, stages the
-exact thirteen source/test files plus that report, runs staged secret/whitespace
-checks, commits/pushes, verifies feature-commit Go CI, and publishes the report
-closeout in the same assignment. Review 16 is the complete publication contract and
-records evidence limitations. No source repair, further build, restart or unrelated
-Git changes. Preserve both binaries, all captures and unrelated dirty work.
-
-Reviewer stays High and publishes only this file and NET-001. No intermediate owner
-approval is needed between successful publication steps.
+Runtime/security gates and correct local-daemon rebuild are accepted. No process
+restart is claimed. No further Sol/Hermes task, report correction, test rerun or
+publication work is needed under NET-001. All earlier NET-001 instructions are
+historical. MEDIA-001 and MSG-001 remain queued; no new source task is active.
+Reviewer stays High; closeout publication is only this file and NET-001. Preserve
+all unrelated dirty work, both local binaries and retained evidence.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with

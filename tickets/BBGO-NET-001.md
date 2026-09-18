@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACCEPTED — Hermes scoped publication and CI closeout under review 16.**
-Reviewer: Codex, High. Source, runtime/security gates and local rebuild accepted.
+Status: **ACCEPTED, PUBLISHED AND CLOSED — review 17.**
+Reviewer: Codex, High. Source, runtime/security gates, local rebuild and publication accepted.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Source/tests remain frozen; review 16 authorizes exact-scope publication.
+No further implementation or executor task is active under this ticket.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — completed; publication active under review 16
+## Execution plan — completed; historical instructions
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1829,3 +1829,43 @@ No process restart, binary cleanup or additional implementation. This is the fin
 integration assignment, including evidence repair and CI; no intermediate owner
 approval between successful steps. Reviewer will verify publication and close the
 ticket. Reviewer-only publication now remains this ticket and CURRENT_TASK.md.
+
+
+## Review 17 — publication verified; closed
+
+Reviewer: Codex, 2026-09-18. Read-only source, Git, remote API and retained executor
+history review; no tests/build/scanners executed. Feature commit
+0951c837aa6fea0eb06dcc036d24dd617c0abaa6 contains exactly review 16's thirteen accepted
+source/test files plus the execution report. Every source blob and current file
+matches its accepted SHA-256. Closeout 24bce94edeb5a677a7e89fb8fbfbfa2381b136de changes
+only that report. Remote master independently resolves to the closeout commit.
+[Go 1.27 CI run 35320581742](https://github.com/larslarsen/bb-go/actions/runs/35320581742)
+is completed/success on the exact feature SHA.
+
+Hermes did not write separate publication capture files. Reviewer recovered actual
+terminal calls and results from retained Hermes session 20260913_213737_aba8d9:
+
+- Messages 87551–87554: exact fourteen staged paths, whitespace exit 0, final staged
+  Gitleaks command with --pre-commit --staged --redact=100 --no-banner; 102,003 bytes,
+  no leaks, actual printed GITLEAKS_EXIT=0. This followed staging the completed report.
+- Messages 87555–87558: feature commit and successful push.
+- Messages 87571–87574: report-only restage, whitespace check and same staged scanner;
+  342 bytes, no leaks, printed EXIT=0; closeout commit and successful push.
+
+Pinned Gitleaks binary hash still matches. These retained tool responses establish
+actual execution; they are not reconstructed scanner outcomes. No secret-scan rerun
+or further executor handoff is required. Earlier capture limitations remain recorded
+in reviews 11/16 and are not retroactively erased.
+
+Final execution-report SHA-256:
+2b4831e87f38fe90738e993d776360a17872018a7d24d0e0b544f5225ef82738.
+Its "Current HEAD" denotes the acceptance/build baseline, not the later publication
+head. The consolidated summary omits some failed-attempt detail; the prior reviews
+and immutable raw captures retain it. No additional report edit is needed.
+
+modern/bitbookd still matches the accepted rebuilt SHA-256
+b885b1d23fe3da0b7ec7de2b1817a4f9827ac45a32be1386bca3dfaa3af3ef6e.
+No restart is claimed. Source, runtime/security acceptance, local rebuild and scoped
+publication are complete. NET-001 is CLOSED; all earlier actor instructions are
+historical. MEDIA-001 and MSG-001 remain queued. Preserve unrelated dirty work.
+Reviewer closeout publication is limited to this ticket and CURRENT_TASK.md.
