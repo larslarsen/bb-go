@@ -1,15 +1,14 @@
 # Current Task
 
-FINAL CORRECTION: [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), review 03.
-Relay the same ticket to Sol High for the one-line cancellation-test cleanup, focused
-race check and go vet. Production remains accepted and frozen. Full runtime/race,
-security-policy results, actual publication/CI and local binary are verified; retain
-them without another broad run. Review 03 adjudicates all eight gosec findings and
-corrects Hermes's inaccurate NET-001 commit/CI/build references.
-Hermes published before vet passed; final acceptance remains pending the cleanup.
-Sol appends its evidence to the same report without editing Hermes's section or doing
-Git work. After source review, only the small test/report publication remains. No
-daemon restart, new feature slice, separate handoff or owner-transcribed evidence.
+ACCEPTED, FINAL PUBLICATION PENDING: [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md),
+review 04. The one-line cleanup, focused race pass and clean vet are verified; all
+implementation checks are accepted. Sol is finished. Relay the same ticket to Hermes
+to correct its report and publish exactly the test file plus execution report, with
+staged secret/whitespace checks and retained actual commit/push output.
+No source edit, runtime rerun, dependency scan, rebuild or daemon restart. Reuse the
+accepted broader results and binary. Review 03 supplies verified identities/security
+dispositions; review 04 defines the complete remaining two-file publication scope.
+No separate handoff or owner-transcribed evidence is needed.
 
 Uploaded files use IPFS; Klipy-selected GIFs use the provider's supplied media URLs
 through the unified JSON adapter. Klipy rehosting is not a prerequisite. Public posts

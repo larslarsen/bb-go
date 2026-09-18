@@ -1,6 +1,6 @@
 # BBGO-MEDIA-001 — rich media posts, messaging and IPFS attachments
 
-Status: **FINAL CORRECTION — Sol test cleanup; runtime/security results retained, closeout pending.**
+Status: **ACCEPTED — Hermes two-file correction publication pending; no further runtime checks.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [BBGO-MSG-001 — libsignal messaging](BBGO-MSG-001.md).
 NET-001 is accepted and closed. The M2A assignment below is the sole active source
@@ -878,3 +878,64 @@ publication with staged secret/whitespace checks. Reuse the already verified pro
 binary; this test-only edit does not change its executable inputs. That final report
 must use the actual identities and results above. No repeat broad acceptance cycle.
 Reviewer publication now is only this ticket and docs/handoff/CURRENT_TASK.md.
+
+## Review 04 — cleanup accepted; publish only the test and corrected report
+
+2026-09-18, Codex reviewer, High. **M2A implementation and required checks accepted.**
+The final source diff is exactly one added `defer stop()` in the designated cancellation
+subtest; explicit cancellation/Node-close triggers and assertions are unchanged.
+The test file is 887 lines, SHA-256
+ec2df5adaebe5a0793e0020404158c876e9b2642b1a8a6cb0d56259bccee96c2.
+All production/module/fuzz hashes still match review 02, and the binary still matches
+review 03. The report change is an appended Sol section only, with no deleted history.
+
+Reviewer read/hash-verified developer03's focused race capture (pass, 1.302s,
+e713b558d2185d2a58351685d4431e6216bc3081d96988c965ce45d96f64002d) and empty vet capture
+(reported exit 0, e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855).
+These satisfy review 03's remaining checks. Accepted broad runtime/race, fuzz, security
+dispositions and current binary are reused. No reviewer test/scanner/build was run.
+The execution report before Hermes correction hashes to
+7b48bc95c2eaf0c842ebebe77a4e6ade1abf8f7b4ffc38dbcd2967e7dd583763.
+
+### Hermes — final two-file publication only
+
+1. Verify the accepted test hash above and unchanged production/module/fuzz inputs.
+   No source edits or further tests, vet, fuzz, dependency scans, builds or restart.
+2. Correct only Hermes's own inaccurate section in
+   docs/testing/BBGO-MEDIA-001-EXECUTION-01.md using review 03's verified facts. Record
+   the original vet failure as historical and the developer03 vet pass as its resolution;
+   record all eight gosec findings and their reviewer disposition rather than claiming
+   test-only findings. Use actual feature edf5cbce, report a6ea2e50, actual MEDIA CI runs,
+   and binary hash 969a1197 from review 03. Preserve the fact that publication occurred
+   before those gates were adjudicated. Distinguish artifact directory from command cwd
+   and the verified policy wrapper from the originally specified CLI.
+   Restore the following closing paragraph to Sol's review 01 section, before Hermes's
+   section. It describes that earlier developer phase, not current acceptance:
+
+   > Formatting and whitespace checks are clean. No dependency retrieval, broad acceptance,
+   > scanner, binary rebuild, Git operation or daemon restart was performed. The original
+   > limitations and incomplete-import/copy requirements above are unchanged. Hermes
+   > acceptance/publication remains pending reviewer source acceptance.
+
+   Preserve both Sol correction sections. Do not copy NET-001 identities into this report.
+3. Stage exactly modern/network/files_test.go and
+   docs/testing/BBGO-MEDIA-001-EXECUTION-01.md. Verify the two-path staging and test hash.
+   From repository root, run the pinned publication checks:
+
+   ```sh
+   ../.security-tools/bbgo-sec-tools-20260829/gitleaks git --pre-commit --staged --redact=100 --no-banner .
+   git diff --cached --check
+   ```
+
+   Retain actual stdout/stderr, exits, staged paths/blob IDs and hashes under fresh
+   modern/dist/media001/publication01. These captures are not commit inputs. Stop if
+   either check fails; do not print overall success unconditionally. No source change
+   or suppression to bypass findings is authorized.
+4. Commit those two paths and push to origin/master, retaining actual commit/push
+   outputs in the same capture directory. Do not amend or force-push. The reviewer
+   will record this final commit and CI from those actual results; a report-only commit
+   merely to insert its own publication identity is unnecessary. Return the repository
+   evidence for final verification. Preserve all unrelated work and local artifacts.
+
+Reviewer governance publication for review 04 is only this ticket and
+docs/handoff/CURRENT_TASK.md. Sol's source assignment is complete.
