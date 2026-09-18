@@ -1,6 +1,6 @@
 # BBGO-MEDIA-001 — rich media posts, messaging and IPFS attachments
 
-Status: **ACTIVE — M2A file storage primitive assigned to Sol High; later slices queued.**
+Status: **CORRECTION — Sol High, review 01 source-error preservation; acceptance pending.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [BBGO-MSG-001 — libsignal messaging](BBGO-MSG-001.md).
 NET-001 is accepted and closed. The M2A assignment below is the sole active source
@@ -495,6 +495,18 @@ Minimal `go mod tidy` is authorized with GOFLAGS='-p=2' only if the new imports 
 it; record the diff and do not upgrade versions. Missing cached dependencies are an
 explicit execution gap, not a test failure or permission to select replacements.
 
+Reviewer prerequisite correction, 2026-09-18: the initial offline attempt found
+`github.com/crackcomm/go-gitignore@v0.0.0-20241020182519-7843d2ba8fdf` missing from
+the local source/archive cache. Boxo v0.42.1 already requires this exact version;
+its retained go.sum records module checksum
+`h1:dwGgBWn84wUS1pVikGiruW+x5XM4amhjaZO20vCjay4=` and go.mod checksum
+`h1:p1d6YEZWvFzEh4KLyvBcVSnrfNDDvK2zfK/4x2v/4pE=`. Sol may fetch only this
+exact dependency from the Go module proxy into a writable disk-backed cache and
+verify both checksums before offline tidy/testing. This is prerequisite recovery,
+not a version change or an intended red. Retain its command, output and checksum
+verification in the same execution report. All test commands retain GOPROXY=off
+and GOSUMDB=off; any further missing dependency must be reported before fetching.
+
 From modern, exact first red and final targeted green:
 
 ```sh
@@ -577,3 +589,96 @@ Gitleaks stays v8.30.1 (SHA-256
 Secrets block publication. Record actual commit/push results and CI identity in the
 same report. Preserve unrelated work. Reviewer governance publication is separate and
 limited to the four documentation paths already enumerated above.
+
+## Review 01 — preserve source failures across chunking
+
+2026-09-18, Codex reviewer, High. **M2A source acceptance withheld for one defect.**
+Sol remains the source actor; Hermes acceptance/publication has not started. This
+section supersedes the initial implementation scope for the correction below.
+
+### Verified drop and evidence
+
+All five changed source/module hashes and line counts match the execution report:
+files.go f088afa9f213a5b112b4443b49eb8bbb025b7436fc029d457b06e396bfab032d (470 lines),
+files_test.go ca2ebcf7e779f57b8b62baea1abeb081080bfed7a29e2a386923015285898a46 (827),
+files_fuzz_test.go 1951689375fb002eb81d34acf3e5c9e8c1cbf55411a679683ccc83bd2a37944a (50),
+go.mod df7f1e5d4fa1d20083c1fcc872415a4203f6afefb4a7b2a980d45cdd286b3c38 (138),
+go.sum 58614c1e27170525cf205f0f03c54085c70e4b37e51ee0aebf73a75ff955e800 (376).
+The three frozen node input hashes still match the original baseline.
+
+Reviewer read and hash-verified the retained intended red (09), limit falsification
+red (17), restored green (19), final targeted green (20), 30-second fuzz (21), and
+race green (22). Their hashes match the report. Fuzz records 207,216 executions;
+targeted/race package times are 1.621s/4.619s. The seven top-level tests and sixteen
+named subtests are consistent with source enumeration; the non-verbose package output
+does not independently enumerate individual test events. No reviewer tests/scans ran.
+The report reviewed here hashes to
+62e26386a7eb57d652235a88fd9b2fcc5e0d72398dd6140f6f2f28c6cb621ef1.
+
+The module diff preserves all versions. The existing prerequisite note is verified
+against pinned Boxo v0.42.1's go.mod/go.sum: the go-gitignore version and both sums
+agree. Retain that note; no further dependency change or fetch is needed.
+
+### Blocking finding: failed source reads can produce a successful descriptor
+
+In modern/network/files.go:166, publicFileLimitReader returns source errors without
+remembering them, and ImportPublicFile checks only Layout's returned error and context
+before returning a descriptor at line 80. Two upstream behaviors defeat that check:
+
+1. Boxo v0.42.1 chunker/splitting.go NextBytes treats errors matching
+   io.ErrUnexpectedEOF as normal final-chunk completion. A source returning a short
+   prefix with io.ErrUnexpectedEOF therefore produces an apparently complete file.
+   The same problem applies to an error wrapping io.ErrUnexpectedEOF.
+2. Go 1.27 io.ReadFull/ReadAtLeast drops an error returned alongside enough bytes to
+   fill its buffer (io/io.go:338). A reader returning exactly one chunk with a custom
+   failure, followed by EOF, therefore also yields a successful descriptor.
+
+These are source-traced findings, not claims of a reviewer-run reproduction. Both
+violate the ticket's requirement that a source failure returns no usable PublicFile.
+The current short-prefix custom-error test misses them: it uses neither UnexpectedEOF
+nor a full chunk, and its helper repeats the error on subsequent reads.
+
+### Sol correction — regression, repair and targeted checks in one task
+
+Writable paths: modern/network/files_test.go first, modern/network/files.go second,
+and Sol's appended correction section/current file table in
+docs/testing/BBGO-MEDIA-001-EXECUTION-01.md. Preserve the initial report and all raw
+captures. Module files, fuzz source, all other production/tests and binaries are frozen
+at the hashes above. No Git work, source expansion or new dependencies.
+
+Add TestMEDIA001ImportPreservesSourceErrors exercising the public import API. Include
+a partial chunk with direct and wrapped io.ErrUnexpectedEOF, and a full 1 MiB chunk
+returned with a custom error followed by ordinary EOF. For each failure, require the
+original error to remain identifiable with errors.Is and a zero PublicFile. Include
+successful partial/full-chunk ordinary EOF controls so the repair does not reject
+valid final chunks. Run the exact regression against the submitted production first:
+
+```sh
+go test ./network -run '^TestMEDIA001ImportPreservesSourceErrors$' -count=1 -timeout=180s
+```
+
+Retain the expected failed assertions, then preserve observed non-EOF source failures
+across the splitter and reject completion if one occurred. Ordinary EOF is completion;
+source io.ErrUnexpectedEOF is failure even though the splitter uses the same sentinel
+internally for normal short EOF. Keep the streaming limits, cancellation, error identity
+and partial-block policy. Internal repair design is Sol's choice.
+
+Repeat that command green and run:
+
+```sh
+go test ./network -run '^TestMEDIA001' -count=1 -timeout=180s
+go test -race ./network -run '^TestMEDIA001' -count=1 -timeout=300s
+```
+
+Use the existing verified Go toolchain and developer01 disk-backed caches with the
+same offline environment; place new raw captures under a fresh developer02 directory.
+Record exact command exits, outputs/hashes and final source identities in the existing
+report. The regression red proves the submitted faulty behavior; no additional fault
+injection is required. The existing import-limit falsification remains retained.
+Fuzz exercises the unchanged block validator; its existing accepted capture need not
+be rerun for this reader-only correction. Sol may iterate the correction and targeted
+tests to completion without another handoff. Return the repository report for review.
+
+Reviewer-only publication for this review is tickets/BBGO-MEDIA-001.md and
+docs/handoff/CURRENT_TASK.md, including the verified existing prerequisite note.
+No developer source, module changes, report or generated artifacts are included.

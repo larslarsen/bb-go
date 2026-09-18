@@ -1,11 +1,14 @@
 # Current Task
 
-ACTIVE: [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), M2A — bounded UnixFS
-file import/read on the existing IPFS node. Relay that ticket to Sol High. It authorizes
-tests first, implementation, targeted red/green/race/fuzz and in-scope correction in one
-task. Sol writes docs/testing/BBGO-MEDIA-001-EXECUTION-01.md and stops without Git work.
-The same ticket defines the subsequent acceptance/publication phase after source review.
-No separate developer handoff or owner-transcribed evidence is needed.
+ACTIVE CORRECTION: [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), review 01.
+Relay the same ticket to Sol High. The file primitive's reported targeted/race/fuzz
+results and hashes are verified, but source review found that chunking can swallow
+source read errors and return a successful descriptor for incomplete input. Sol adds
+the bounded regression, repairs error preservation and runs targeted green/race in one
+task. Writable paths and exact commands are in review 01; all other inputs are frozen.
+Append evidence to docs/testing/BBGO-MEDIA-001-EXECUTION-01.md; no developer Git work.
+Hermes acceptance/publication remains pending source acceptance. No separate handoff
+or owner-transcribed evidence is needed.
 
 Uploaded files use IPFS; Klipy-selected GIFs use the provider's supplied media URLs
 through the unified JSON adapter. Klipy rehosting is not a prerequisite. Public posts
