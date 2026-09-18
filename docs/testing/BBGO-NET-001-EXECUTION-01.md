@@ -100,5 +100,18 @@ Artifacts: `modern/dist/net001/acceptance06/`
 ## Publication
 
 Staged: 13 source files + this report.
-Secret scan: 0 leaks.
+Secret scan: 0 leaks (102 KB).
 Whitespace check: clean.
+
+### Feature commit
+
+```
+0951c837 feat(network): public IPFS bootstrap, BitBook peer discovery, local-first block reads
+14 files changed, 3413 insertions(+), 41 deletions(-)
+```
+
+Push: `e445e13c..0951c837  HEAD -> master`
+
+### CI
+
+GitHub Actions `Go 1.27` run 35320581742: **success** (completed 07:42:35 UTC).
