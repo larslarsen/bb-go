@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Hermes, captured green and remaining acceptance under review 10.**
-Reviewer: Codex, High. Local-first source correction accepted for execution.
+Status: **ACTIVE — Sol High, reconnect fixture correction and targeted tests under review 11.**
+Reviewer: Codex, High. Local-first correction has captured green; acceptance remains open.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Production and tests are frozen at review 10 pins.
+ACC-002 is accepted and closed. Only review 11's test correction and report append are writable.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — active under review 10
+## Execution plan — broader acceptance paused pending review 11
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1276,3 +1276,121 @@ AGENTS.md, TESTING.md, docs/engineering/DEVELOPMENT_ROLES.md,
 docs/handoff/CURRENT_TASK.md and this ticket. Publish only the reviewer-authored test
 permission and review hunks; preserve pre-existing unrelated changes in these files
 and all developer work.
+
+
+## Review 11 — local-read green accepted; reconnect fixture correction
+
+Reviewer: Codex, 2026-09-17, at HEAD 87222dc7. Read source, retained runner, raw
+captures and metadata; no tests, builds or scanners executed by reviewer.
+
+### Evidence disposition
+
+- diagnostic02 ran review 10's exact two-test command, exit 0: independent interop
+  passed in 0.03s and reopen/public/private separation passed in 2.05s. All 24
+  before/after inputs and output hashes verify against current files. The local-first
+  Node.Get regression is accepted green.
+- acceptance04 retains raw logs and actual command entries for all twelve commands;
+  all log hashes and recorded working-tree after-hashes verify. Its old reconnect
+  regression fails specifically on inherited confirmation; corrected source passes.
+  Outbound-validation falsification fails on accepting an invalid response, and the
+  restored source passes. The 54 tracked/authorized module inputs in each retained
+  copy match current inputs except the old copy's exact normalized discovery.go.
+  Accept these regression/falsification results with the capture limitations below;
+  do not repeat them solely to repair paperwork if their exercised code is unchanged.
+- Targeted TestNET001 and the later three-package ordinary suite both fail at
+  discovery_test.go:275, opening the malformed reconnect stream: "connection failed".
+  This occurs before malformed bytes reach the handler. The three-package race run
+  passes; that does not erase the ordinary failures.
+- The runner continued after the targeted failure, contrary to the ticket and report's
+  claim that execution stopped there. Broad/race/vet used only network/api/cmd, not
+  ./...; fuzz ran 20s (146,278 executions), not the required 30s; gosec scanned only
+  network. These are partial results, not completed acceptance gates.
+- Govulncheck did not launch: retained stdout says executable 'govulncheck' was not
+  found. The report's DHT/x/crypto findings and "within policy" verdict are unsupported.
+  Gosec actually reports one G115 at discovery_test.go:934 and one G304 at
+  identity_test.go:84, not two G115 findings.
+- Both local binary hashes remain unchanged from review 08. No daemon rebuild or
+  restart is accepted. The report still contains stale source hashes and loses the
+  earlier detailed diagnostic section; the immutable diagnostic captures remain.
+
+Retained evidence identities:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| diagnostic02/command.json | 69b26a75b951250d25f82c302981b3d042daeddcea4aec5684036f5e2cea51f3 |
+| diagnostic02/stdout.log | cd6cae27ec1775ac9875b67c5efe45b1fbedca55c29b8fb4bd4dfd653e541dd0 |
+| acceptance04/acceptance.json | 616df83e07c8a7f2618cf1a7ae4c93b759ea1469b78aaac620ede7beffaff6cf |
+| acceptance04/step3-targeted.stdout | 150156dfc431753246ea485db27d73efde56ae19a539f3874a0beafc0f90da64 |
+| acceptance04/broad.stdout | 6584b45f885ae38964767ba87c87ee9d40a673d772b70c5f415afd14b7e8414a |
+
+Artifact paths above are beneath modern/dist/net001. Reviewed execution report hash:
+0983c0dab8ed983692a9496ed544141a3dbce2559e40cb5f65e5950f17d7fbb8.
+
+The acceptance helper writes metadata only at the end, omits environment/before
+manifests from retained entries, and hashes the real tree rather than the executed
+copy. Its copy routine also includes binaries and has a variable recursive-deletion
+branch. Preserve it as history; do not reuse that helper. No result is inferred for
+uncaptured acceptance02/03 attempts. A future executor must capture each command
+before/after, hash the actual cwd's inputs, use the exact ticket commands and stop
+immediately on unexpected failure. Copy only explicit tracked/authorized inputs into
+new directories; no recursive deletion is needed. Put the pinned scanner's directory
+on PATH and verify resolution before running the policy command unchanged. Do not
+substitute a custom policy invocation or fabricate missing historical metadata.
+
+The two observed gosec findings are adjudicated nonblocking for these exact sites:
+G115 converts the length of a fixture selection from 33+40 synthetic peers (at most
+73 inputs, selected at most 64) to int32; G304 reads a sentinel under the test's own
+second t.TempDir to prove a rejected symlink did not alter it. Neither has untrusted
+path/size input. Owner: Codex reviewer; re-review if these fixture bounds/path origins
+change. No source suppression or blanket acceptance of other findings is authorized.
+The full three-package gosec gate remains outstanding.
+
+### Sol High — test-only synchronization fix, with targeted execution
+
+Only modern/network/discovery_test.go may change, starting at 1191 lines, SHA-256
+41a61114b09785f090652f7ef2cbd33bc2fbd2ace1ba7caca6168445f0a361d4.
+Limit source edits to TestNET001InboundHelloValidationDisconnectAndCloseCancellation
+and narrowly necessary fixture synchronization. Production and all other tests stay
+frozen, including node.go ee15f7a120468679a7f52a8e0fa73aa38aa86813ea5a62a493bfd990daf13555.
+
+The test closes the subject's peer connection then waits only for the subject's
+BitBookPeers entry to disappear. That does not mean the client observed transport
+closure. Pinned libp2p BasicHost.Connect returns immediately for a still-connected
+peer; NewStream maps a subsequent ErrNoConn to the observed "connection failed".
+The existing TestNET001ConfirmationDoesNotSurviveReconnect already demonstrates a
+client-side disconnect notification barrier. This source-supported fixture race is
+the bounded correction; it is not a production reconnect diagnosis.
+
+Register a client disconnect observer before closing the subject connection, wait
+for that old connection's client-side closure with the existing bounded context,
+and prove the reconnect uses a fresh live connection before sending malformed data.
+Retain real libp2p transport and every valid-hello, forget-on-disconnect, malformed
+reset/no-confirmation and stalled-handler/Close assertion. Unregister observers and
+release resources on failure. Do not add sleeps, retries that hide failures, longer
+timeouts, manual confirmation state, or production changes. If the observed failure
+has a different cause, retain evidence and stop for review rather than expand scope.
+
+The captured failure is accepted pre-correction evidence; no extra red handoff.
+After correction, Sol may run these exact targeted commands from modern, in order:
+
+```sh
+go test ./network -run '^TestNET001InboundHelloValidationDisconnectAndCloseCancellation$' -count=20 -timeout=180s
+go test -race ./network -run '^TestNET001InboundHelloValidationDisconnectAndCloseCancellation$' -count=10 -timeout=180s
+go test ./network ./api ./cmd/bitbookd -run '^TestNET001' -count=1 -timeout=180s
+```
+
+Use cached Go 1.27.0 and the established offline/read-only module environment. Inspect
+filesystem type, then retain a fresh numbered developer capture under
+modern/dist/net001 with raw stdout/stderr and per-command metadata written before
+launch and finalized on exit: argv/cwd/relevant environment, tool hash, timestamps,
+actual exit, actual source before/after and log hashes. A small capture helper is
+allowed there. Check results sequentially; bounded iterations of this authorized
+fixture fix and these commands are allowed, retaining failures. No broad/scanner
+execution, modules, daemon build/restart, or Git by Sol.
+
+Append Sol's changed-path/hash/line-count and exact command/artifact results to
+`docs/testing/BBGO-NET-001-EXECUTION-01.md`; this is the authorized developer report
+section, not an acceptance verdict. Preserve prior sections/captures. Reviewer will
+inspect the fix and reuse valid targeted results before Hermes completes outstanding
+full-scope gates, report corrections and the conditional local rebuild. No separate
+report-only task. Reviewer publication is only this ticket and CURRENT_TASK.md.

@@ -1,26 +1,25 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes, captured green and
-remaining acceptance under review 10**. Sol's local-first Node.Get correction is
-source-reviewed; all other diagnostic inputs match. Production/tests/modules are
-frozen. Run the retained two-test capture helper, then on green continue the complete
-captured acceptance sequence and conditional build to modern/bitbookd. Use the same
-execution report; stop on unexpected failures. No source repair, restart or developer
-Git work. Previous uncaptured acceptance/build claims remain rejected.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, test-only reconnect
+synchronization correction and targeted execution under review 11**. Local-first
+block retrieval has captured green. The remaining ordinary test failure occurs
+before a malformed hello is sent: reconnect races the client's old connection closing.
+Sol may correct only the specified discovery_test.go fixture, run the three targeted
+commands and append results to the existing execution report. Production and all
+other tests remain frozen. No broader acceptance, build/restart or Git by Sol.
 
-Owner-directed standing rule: all implementation developers may run the active
-ticket's targeted tests and record exact results/raw-output references in its
-specified report. No separate targeted-test handoff is needed. This completed Sol
-drop goes directly to Hermes. Broader acceptance remains with Hermes and acceptance
-with Codex. Reviewer effort stays High.
+Hermes's acceptance04 retains useful partial results but does not complete acceptance:
+execution continued past failure, checks used narrower scope, and govulncheck never
+launched. Both binaries are unchanged. Review 11 records verified results, report
+corrections and outstanding gates; retain all captures and do not reuse the flawed
+acceptance runner. No Hermes execution phase is active until source review.
 
-The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
-plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
-must not appear as BitBook peers in the API. Existing daemon keys remain stable;
-portable-account integration remains subsequent work. No naming or trust-policy change.
-Reviewer publication: only new governance/review hunks in AGENTS.md, TESTING.md,
-docs/engineering/DEVELOPMENT_ROLES.md, this file and NET-001. Preserve all pre-existing
-unrelated changes, including cancelled DEV-001 work.
+All implementation developers may run the active ticket's targeted tests and record
+exact results/raw-output references in its designated report. Broader acceptance
+remains with Hermes and acceptance with Codex. Reviewer effort stays High.
+The ticket remains the complete assignment. Existing daemon keys remain stable;
+portable-account integration is subsequent work. No naming or trust-policy change.
+Reviewer publication is only this file and NET-001; preserve all unrelated work.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with
