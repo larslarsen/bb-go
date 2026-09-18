@@ -199,6 +199,7 @@ func TestPaymentDaemonChild(t *testing.T) {
 		"-listen", "/ip4/127.0.0.1/tcp/0",
 		"-api", "127.0.0.1:0",
 		"-allow-private",
+		"-no-bootstrap",
 	}
 	if err := run(); err != nil {
 		t.Fatal(err)

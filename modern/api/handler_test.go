@@ -5,19 +5,28 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	datastore "github.com/ipfs/go-datastore"
+	dsync "github.com/ipfs/go-datastore/sync"
 	"github.com/larslarsen/bb-go/modern/direct"
 	"github.com/larslarsen/bb-go/modern/network"
 	"github.com/larslarsen/bb-go/modern/social"
+	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	lp2pnet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
+	routingdiscovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 )
 
 func TestSocialAPIWorksOffline(t *testing.T) {
@@ -244,6 +253,326 @@ func TestWebSocketReceivesDirectChat(t *testing.T) {
 	}
 	if event.Message.Message != "live hello" || event.Message.PeerID != aNode.ID().String() {
 		t.Fatalf("unexpected websocket event: %+v", event)
+	}
+}
+
+func TestNET001PeerAPIRequiresHandshake(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	config := network.Config{
+		ListenAddrs:           []string{"/ip4/127.0.0.1/tcp/0"},
+		DHTMode:               dht.ModeServer,
+		AllowPrivateAddresses: true,
+	}
+	seedStore := dsync.MutexWrap(datastore.NewMapDatastore())
+	seedHost, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer seedHost.Close()
+	seedDHT, err := dht.New(seedHost,
+		dht.Datastore(seedStore),
+		dht.Mode(dht.ModeServer),
+		dht.ProtocolPrefix(protocol.ID("/ipfs")),
+		dht.BootstrapPeers(),
+		dht.AddressFilter(nil),
+		dht.QueryFilter(func(_ any, _ peer.AddrInfo) bool { return true }),
+		dht.RoutingTableFilter(func(_ any, _ peer.ID) bool { return true }),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer seedDHT.Close()
+	if err := seedDHT.Bootstrap(ctx); err != nil {
+		t.Fatal(err)
+	}
+	config.BootstrapPeers = []peer.AddrInfo{{ID: seedHost.ID(), Addrs: slices.Clone(seedHost.Addrs())}}
+	subject, err := network.New(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer subject.Close()
+	realPeer, err := network.New(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer realPeer.Close()
+	falsePeer, err := network.New(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer falsePeer.Close()
+	waitForAPITransport(t, ctx, subject, seedHost.ID())
+	waitForAPITransport(t, ctx, realPeer, seedHost.ID())
+	waitForAPITransport(t, ctx, falsePeer, seedHost.ID())
+	waitForAPIRoutingPeer(t, ctx, subject.DHT)
+	waitForAPIRoutingPeer(t, ctx, realPeer.DHT)
+	waitForAPIRoutingPeer(t, ctx, falsePeer.DHT)
+
+	invalidWritten := make(chan peer.ID, 16)
+	falsePeer.Host.SetStreamHandler(network.DiscoveryProtocolCurrent, func(stream lp2pnet.Stream) {
+		defer stream.Close()
+		_ = stream.SetDeadline(time.Now().Add(5 * time.Second))
+		raw, _ := io.ReadAll(io.LimitReader(stream, 9))
+		if string(raw) != "BBGO001\n" {
+			_ = stream.Reset()
+			return
+		}
+		if _, err := io.WriteString(stream, "INVALID\n"); err != nil {
+			return
+		}
+		if err := stream.CloseWrite(); err != nil {
+			return
+		}
+		invalidWritten <- stream.Conn().RemotePeer()
+	})
+	falseDiscovery := routingdiscovery.NewRoutingDiscovery(falsePeer.DHT)
+	if _, err := falseDiscovery.Advertise(ctx, network.DiscoveryNamespace); err != nil {
+		t.Fatal(err)
+	}
+	if err := realPeer.StartDiscovery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	seedDiscovery := routingdiscovery.NewRoutingDiscovery(seedDHT)
+	waitForAdvertisedPeer(t, ctx, seedDiscovery, realPeer.ID())
+	waitForAdvertisedPeer(t, ctx, seedDiscovery, falsePeer.ID())
+
+	ordinary, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ordinary.Close()
+	if err := ordinary.Connect(ctx, peer.AddrInfo{ID: subject.ID(), Addrs: slices.Clone(subject.Host.Addrs())}); err != nil {
+		t.Fatal(err)
+	}
+	if err := subject.StartDiscovery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	responseWrittenForSubject := false
+	for !responseWrittenForSubject {
+		select {
+		case observer := <-invalidWritten:
+			if observer == subject.ID() {
+				responseWrittenForSubject = true
+			}
+		case <-ctx.Done():
+			t.Fatalf("false advertiser did not write its invalid response to the API node: %v", ctx.Err())
+		}
+	}
+	waitForAPIBitBookPeer(t, ctx, subject, realPeer.ID())
+
+	store, err := social.NewStore(subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directService, err := direct.NewService(subject, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer directService.Close()
+	handler, err := NewHandler(subject, store, directService)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertPeerAPI := func(wantReal bool) {
+		t.Helper()
+		response := request(t, handler, http.MethodGet, "/ob/peers", "")
+		var peers []string
+		decodeResponse(t, response, &peers)
+		want := []string{}
+		if wantReal {
+			want = []string{realPeer.ID().String()}
+		}
+		if !slices.Equal(peers, want) {
+			t.Fatalf("/ob/peers = %v, want %v", peers, want)
+		}
+		realStatus := request(t, handler, http.MethodGet, "/ob/status/"+realPeer.ID().String(), "")
+		var realBody map[string]string
+		decodeResponse(t, realStatus, &realBody)
+		wantStatus := "not connected"
+		if wantReal {
+			wantStatus = "connected"
+		}
+		if realBody["status"] != wantStatus {
+			t.Fatalf("real peer status = %q, want %q", realBody["status"], wantStatus)
+		}
+		for _, rejected := range []peer.ID{ordinary.ID(), falsePeer.ID()} {
+			status := request(t, handler, http.MethodGet, "/ob/status/"+rejected.String(), "")
+			var body map[string]string
+			decodeResponse(t, status, &body)
+			if body["status"] != "not connected" {
+				t.Fatalf("unconfirmed peer %s status = %q", rejected, body["status"])
+			}
+		}
+	}
+	assertPeerAPI(true)
+	if response := request(t, handler, http.MethodGet, "/ob/status/not-a-peer-id", ""); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid peer status = %d, want 400", response.Code)
+	}
+
+	connections := realPeer.Host.Network().ConnsToPeer(subject.ID())
+	if len(connections) == 0 {
+		t.Fatal("real peer has no initial connection to subject")
+	}
+	oldConnectionIDs := make(map[string]struct{}, len(connections))
+	for _, connection := range connections {
+		oldConnectionIDs[connection.ID()] = struct{}{}
+	}
+	realPeerDisconnected := make(chan string, len(oldConnectionIDs))
+	reportedDisconnects := make(map[string]struct{}, len(oldConnectionIDs))
+	var disconnectMu sync.Mutex
+	realPeerObserver := &lp2pnet.NotifyBundle{
+		DisconnectedF: func(_ lp2pnet.Network, connection lp2pnet.Conn) {
+			if connection.RemotePeer() != subject.ID() {
+				return
+			}
+			id := connection.ID()
+			if _, old := oldConnectionIDs[id]; !old {
+				return
+			}
+			disconnectMu.Lock()
+			if _, reported := reportedDisconnects[id]; !reported {
+				reportedDisconnects[id] = struct{}{}
+				realPeerDisconnected <- id
+			}
+			disconnectMu.Unlock()
+		},
+	}
+	realPeer.Host.Network().Notify(realPeerObserver)
+	defer realPeer.Host.Network().StopNotify(realPeerObserver)
+
+	if err := subject.Host.Network().ClosePeer(realPeer.ID()); err != nil {
+		t.Fatal(err)
+	}
+	waitForAPINoBitBookPeer(t, ctx, subject, realPeer.ID())
+	assertPeerAPI(false)
+	remaining := make(map[string]struct{}, len(oldConnectionIDs))
+	for id := range oldConnectionIDs {
+		remaining[id] = struct{}{}
+	}
+	for len(remaining) > 0 {
+		select {
+		case id := <-realPeerDisconnected:
+			delete(remaining, id)
+		case <-ctx.Done():
+			t.Fatalf("real peer did not observe all old connections close (%d remain): %v", len(remaining), ctx.Err())
+		}
+	}
+	if realPeer.Host.Network().Connectedness(subject.ID()) == lp2pnet.Connected {
+		t.Fatalf("real peer did not observe a transport gap: %v", realPeer.Host.Network().ConnsToPeer(subject.ID()))
+	}
+	if err := realPeer.Host.Connect(ctx, peer.AddrInfo{ID: subject.ID(), Addrs: slices.Clone(subject.Host.Addrs())}); err != nil {
+		t.Fatal(err)
+	}
+	reconnected := realPeer.Host.Network().ConnsToPeer(subject.ID())
+	if realPeer.Host.Network().Connectedness(subject.ID()) != lp2pnet.Connected || len(reconnected) == 0 || slices.ContainsFunc(reconnected, func(connection lp2pnet.Conn) bool {
+		_, old := oldConnectionIDs[connection.ID()]
+		return old
+	}) {
+		t.Fatalf("reconnect did not establish a fresh live real-peer connection: %v", reconnected)
+	}
+	stream, err := realPeer.Host.NewStream(ctx, subject.ID(), network.DiscoveryProtocolCurrent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = stream.SetDeadline(time.Now().Add(5 * time.Second))
+	if _, err := io.WriteString(stream, "BBGO001\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stream.CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+	responseBytes, err := io.ReadAll(io.LimitReader(stream, 9))
+	_ = stream.Close()
+	if err != nil || string(responseBytes) != "BBGO001\n" {
+		t.Fatalf("fresh discovery response = %q, %v", responseBytes, err)
+	}
+	waitForAPIBitBookPeer(t, ctx, subject, realPeer.ID())
+	assertPeerAPI(true)
+}
+
+func waitForAdvertisedPeer(t testing.TB, ctx context.Context, discovery *routingdiscovery.RoutingDiscovery, want peer.ID) {
+	t.Helper()
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		findCtx, cancel := context.WithTimeout(ctx, time.Second)
+		found, err := discovery.FindPeers(findCtx, network.DiscoveryNamespace)
+		if err == nil {
+			for info := range found {
+				if info.ID == want {
+					cancel()
+					return
+				}
+			}
+		}
+		cancel()
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting for advertisement from %s: %v", want, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForAPIBitBookPeer(t testing.TB, ctx context.Context, node *network.Node, want peer.ID) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if slices.Contains(node.BitBookPeers(), want) {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting for confirmed peer %s: %v", want, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForAPINoBitBookPeer(t testing.TB, ctx context.Context, node *network.Node, want peer.ID) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if !slices.Contains(node.BitBookPeers(), want) {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting to remove confirmed peer %s: %v", want, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForAPITransport(t testing.TB, ctx context.Context, node *network.Node, want peer.ID) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if node.Host.Network().Connectedness(want) == lp2pnet.Connected {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting for transport peer %s: %v", want, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForAPIRoutingPeer(t testing.TB, ctx context.Context, kad *dht.IpfsDHT) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for kad.RoutingTable().Size() == 0 {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting for DHT routing peer: %v", ctx.Err())
+		case <-ticker.C:
+		}
 	}
 }
 

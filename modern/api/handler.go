@@ -17,7 +17,6 @@ import (
 	"github.com/larslarsen/bb-go/modern/direct"
 	"github.com/larslarsen/bb-go/modern/network"
 	"github.com/larslarsen/bb-go/modern/social"
-	lp2pnet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
@@ -137,7 +136,7 @@ func (h *Handler) getConfig(w http.ResponseWriter) {
 }
 
 func (h *Handler) getPeers(w http.ResponseWriter) {
-	peers := h.node.Host.Network().Peers()
+	peers := h.node.BitBookPeers()
 	encoded := make([]string, len(peers))
 	for i, id := range peers {
 		encoded[i] = id.String()
@@ -153,7 +152,7 @@ func (h *Handler) getStatus(w http.ResponseWriter, encoded string) {
 		return
 	}
 	status := "not connected"
-	if h.node.Host.Network().Connectedness(id) == lp2pnet.Connected {
+	if slices.Contains(h.node.BitBookPeers(), id) {
 		status = "connected"
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": status})

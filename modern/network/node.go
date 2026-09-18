@@ -18,6 +18,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	dsync "github.com/ipfs/go-datastore/sync"
+	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p-kad-dht/amino"
@@ -25,6 +26,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	swarm "github.com/libp2p/go-libp2p/p2p/net/swarm"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -33,7 +35,10 @@ var defaultListenAddrs = []string{
 	"/ip4/0.0.0.0/udp/4001/quic-v1",
 }
 
-const ipnsRecordLifetime = 7 * 24 * time.Hour
+const (
+	ipnsRecordLifetime   = 7 * 24 * time.Hour
+	bootstrapDialTimeout = 10 * time.Second
+)
 
 // Config contains the network-owned settings needed to construct a BitBook
 // peer. Application and marketplace settings deliberately do not belong here.
@@ -49,9 +54,8 @@ type Config struct {
 	AllowPrivateAddresses bool
 }
 
-// Node is the maintained BitBook networking core. It owns a libp2p host, a
-// namespaced Kademlia DHT, a local blockstore, and a namespaced Bitswap client
-// and server.
+// Node is the maintained BitBook networking core. It owns a libp2p host, the
+// public IPFS Kademlia DHT and Bitswap exchange, and a local blockstore.
 type Node struct {
 	Host       host.Host
 	DHT        *dht.IpfsDHT
@@ -62,7 +66,9 @@ type Node struct {
 	Resolver   *namesys.IPNSResolver
 	PrivateKey crypto.PrivKey
 
+	ctx       context.Context
 	cancel    context.CancelFunc
+	discovery *discoveryState
 	closeOnce sync.Once
 	closeErr  error
 }
@@ -90,8 +96,13 @@ func New(parent context.Context, cfg Config) (_ *Node, err error) {
 	if cfg.DHTMode == 0 {
 		cfg.DHTMode = dht.ModeAuto
 	}
+	bootstrapPeers := cloneAddrInfos(cfg.BootstrapPeers)
 
-	hostOptions := []libp2p.Option{libp2p.ListenAddrStrings(cfg.ListenAddrs...)}
+	hostOptions := []libp2p.Option{
+		libp2p.ListenAddrStrings(cfg.ListenAddrs...),
+		libp2p.WithDialTimeout(bootstrapDialTimeout),
+		libp2p.SwarmOpts(swarm.WithDialTimeoutLocal(bootstrapDialTimeout)),
+	}
 	if cfg.PrivateKey != nil {
 		hostOptions = append(hostOptions, libp2p.Identity(cfg.PrivateKey))
 	}
@@ -110,10 +121,8 @@ func New(parent context.Context, cfg Config) (_ *Node, err error) {
 		dht.Datastore(cfg.Datastore),
 		dht.Mode(cfg.DHTMode),
 		dht.ProtocolPrefix(DHTProtocolPrefix),
+		dht.BootstrapPeers(bootstrapPeers...),
 		dht.RoutingTablePeerDiversityFilter(dht.NewRTPeerDiversityFilter(h, amino.DefaultMaxPeersPerIPGroupPerCpl, amino.DefaultMaxPeersPerIPGroup)),
-	}
-	if len(cfg.BootstrapPeers) > 0 {
-		dhtOptions = append(dhtOptions, dht.BootstrapPeers(cfg.BootstrapPeers...))
 	}
 	if cfg.AllowPrivateAddresses {
 		dhtOptions = append(dhtOptions,
@@ -150,20 +159,15 @@ func New(parent context.Context, cfg Config) (_ *Node, err error) {
 		Publisher:  namesys.NewIPNSPublisher(kad, cfg.Datastore),
 		Resolver:   namesys.NewIPNSResolver(kad),
 		PrivateKey: privateKey,
+		ctx:        ctx,
 		cancel:     cancel,
 	}
+	n.discovery = newDiscoveryState(n, ctx)
 
 	if err := kad.Bootstrap(ctx); err != nil {
 		_ = n.Close()
 		return nil, fmt.Errorf("bootstrapping BitBook DHT: %w", err)
 	}
-	for _, bootstrapPeer := range cfg.BootstrapPeers {
-		if err := h.Connect(ctx, bootstrapPeer); err != nil {
-			_ = n.Close()
-			return nil, fmt.Errorf("connecting bootstrap peer %s: %w", bootstrapPeer.ID, err)
-		}
-	}
-
 	return n, nil
 }
 
@@ -201,9 +205,17 @@ func (n *Node) Put(ctx context.Context, data []byte) (cid.Cid, error) {
 	return block.Cid(), nil
 }
 
-// Get retrieves a block locally or from the isolated BitBook Bitswap network.
+// Get retrieves a block locally or from the public IPFS Bitswap network.
 func (n *Node) Get(ctx context.Context, id cid.Cid) ([]byte, error) {
-	block, err := n.Bitswap.GetBlock(ctx, id)
+	block, err := n.Blockstore.Get(ctx, id)
+	if err == nil {
+		return slices.Clone(block.RawData()), nil
+	}
+	if !ipld.IsNotFound(err) {
+		return nil, fmt.Errorf("getting local block %s: %w", id, err)
+	}
+
+	block, err = n.Bitswap.GetBlock(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting block %s: %w", id, err)
 	}
@@ -255,7 +267,18 @@ func (n *Node) Close() error {
 	}
 	n.closeOnce.Do(func() {
 		n.cancel()
+		if n.discovery != nil {
+			n.discovery.close()
+		}
 		n.closeErr = errors.Join(n.Bitswap.Close(), n.DHT.Close(), n.Host.Close())
 	})
 	return n.closeErr
+}
+
+func cloneAddrInfos(source []peer.AddrInfo) []peer.AddrInfo {
+	cloned := make([]peer.AddrInfo, len(source))
+	for i, info := range source {
+		cloned[i] = peer.AddrInfo{ID: info.ID, Addrs: slices.Clone(info.Addrs)}
+	}
+	return cloned
 }

@@ -8,18 +8,22 @@ import (
 	"testing"
 	"time"
 
+	bsnet "github.com/ipfs/boxo/bitswap/network/bsnet"
 	"github.com/ipfs/boxo/ipns"
 	"github.com/ipfs/boxo/namesys"
+	boxopath "github.com/ipfs/boxo/path"
+	blocks "github.com/ipfs/go-block-format"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p-kad-dht/amino"
 	kb "github.com/libp2p/go-libp2p-kbucket"
 	"github.com/libp2p/go-libp2p-kbucket/peerdiversity"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	manet "github.com/multiformats/go-multiaddr/net"
 )
 
-func TestBitBookProtocolsAreIsolated(t *testing.T) {
+func TestNET001PublicIPFSAndApplicationProtocols(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -33,16 +37,112 @@ func TestBitBookProtocolsAreIsolated(t *testing.T) {
 	defer n.Close()
 
 	protocols := n.Protocols()
-	if !slices.Contains(protocols, BitswapProtocolCurrent) {
-		t.Fatalf("BitBook Bitswap protocol missing; protocols: %v", protocols)
+	if DHTProtocolPrefix != "/ipfs" || DHTProtocolCurrent != "/ipfs/kad/1.0.0" {
+		t.Fatalf("public DHT constants = prefix %q current %q", DHTProtocolPrefix, DHTProtocolCurrent)
 	}
-	if !slices.Contains(protocols, DHTProtocolCurrent) {
-		t.Fatalf("BitBook DHT protocol missing; protocols: %v", protocols)
+	if BitswapProtocolPrefix != "" || BitswapProtocolCurrent != "/ipfs/bitswap/1.2.0" {
+		t.Fatalf("public Bitswap constants = prefix %q current %q", BitswapProtocolPrefix, BitswapProtocolCurrent)
+	}
+	if DirectProtocolCurrent != "/bitbook/direct/1.0.0" || PaymentProtocolCurrent != "/bitbook/payment/1.0.0" {
+		t.Fatalf("application protocol IDs changed: direct=%q payment=%q", DirectProtocolCurrent, PaymentProtocolCurrent)
+	}
+	if DiscoveryProtocolCurrent != "/bitbook/discovery/1.0.0" || DiscoveryNamespace != "/bitbook/peers/1.0.0" {
+		t.Fatalf("discovery constants = protocol %q namespace %q", DiscoveryProtocolCurrent, DiscoveryNamespace)
+	}
+	for _, bitswapProtocol := range []protocol.ID{
+		bsnet.ProtocolBitswap,
+		bsnet.ProtocolBitswapOneOne,
+		bsnet.ProtocolBitswapOneZero,
+		bsnet.ProtocolBitswapNoVers,
+	} {
+		if !slices.Contains(protocols, bitswapProtocol) {
+			t.Fatalf("standard Bitswap protocol %q missing; protocols: %v", bitswapProtocol, protocols)
+		}
+	}
+	if !slices.Contains(protocols, protocol.ID("/ipfs/kad/1.0.0")) {
+		t.Fatalf("public DHT protocol missing; protocols: %v", protocols)
 	}
 	for _, id := range protocols {
-		if id == "/ipfs/bitswap/1.2.0" || id == "/ipfs/kad/1.0.0" {
-			t.Fatalf("public IPFS protocol unexpectedly registered: %s", id)
+		if strings.HasPrefix(string(id), "/bitbook/ipfs/bitswap/") || id == "/bitbook/kad/1.0.0" {
+			t.Fatalf("obsolete private IPFS protocol registered: %s", id)
 		}
+	}
+}
+
+func TestNET001IndependentPublicIPFSInterop(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	upstream := newUpstreamFixture(t, ctx)
+	node, err := New(ctx, Config{
+		ListenAddrs:           []string{"/ip4/127.0.0.1/tcp/0"},
+		DHTMode:               dht.ModeServer,
+		AllowPrivateAddresses: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer node.Close()
+	connectUpstreamAndNode(t, ctx, upstream, node)
+
+	fromNode := []byte("public block from BitBook node")
+	nodeCID, err := node.Put(ctx, fromNode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	upstreamBlock, err := upstream.bitswap.GetBlock(ctx, nodeCID)
+	if err != nil {
+		t.Fatalf("upstream Bitswap read: %v", err)
+	}
+	if !bytes.Equal(upstreamBlock.RawData(), fromNode) {
+		t.Fatalf("upstream Bitswap read = %q", upstreamBlock.RawData())
+	}
+
+	fromUpstream := blocks.NewBlock([]byte("public block from independent upstream"))
+	if err := upstream.blocks.Put(ctx, fromUpstream); err != nil {
+		t.Fatal(err)
+	}
+	if err := upstream.bitswap.NotifyNewBlocks(ctx, fromUpstream); err != nil {
+		t.Fatal(err)
+	}
+	got, err := node.Get(ctx, fromUpstream.Cid())
+	if err != nil || !bytes.Equal(got, fromUpstream.RawData()) {
+		t.Fatalf("BitBook Bitswap read = %q, %v", got, err)
+	}
+
+	if err := node.PublishRoot(ctx, nodeCID); err != nil {
+		t.Fatal(err)
+	}
+	resolvedNode, err := upstream.resolver.Resolve(ctx, ipns.NameFromPeer(node.ID()).AsPath(), namesys.ResolveWithDhtRecordCount(1))
+	if err != nil || resolvedNode.Path.String() != "/ipfs/"+nodeCID.String() {
+		t.Fatalf("upstream IPNS resolution = %v, %v", resolvedNode.Path, err)
+	}
+
+	upstreamKey := upstream.host.Peerstore().PrivKey(upstream.host.ID())
+	if upstreamKey == nil {
+		t.Fatal("independent host has no retained private key")
+	}
+	if err := upstream.publisher.Publish(ctx, upstreamKey, boxopath.FromCid(fromUpstream.Cid()), namesys.PublishWithEOL(time.Now().Add(7*24*time.Hour))); err != nil {
+		t.Fatal(err)
+	}
+	resolvedUpstream, err := node.ResolveRoot(ctx, upstream.host.ID())
+	if err != nil || resolvedUpstream != fromUpstream.Cid() {
+		t.Fatalf("BitBook IPNS resolution = %s, %v", resolvedUpstream, err)
+	}
+
+	name := ipns.NameFromPeer(node.ID())
+	rawRecord, err := node.Datastore.Get(ctx, namesys.IpnsDsKey(name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := slices.Clone(rawRecord)
+	tampered[len(tampered)-1] ^= 1
+	if record, err := ipns.UnmarshalRecord(tampered); err == nil {
+		if err := ipns.ValidateWithName(record, name); err == nil {
+			t.Fatal("tampered IPNS record passed independent validation")
+		}
+	}
+	if err := upstream.dht.PutValue(ctx, string(name.RoutingKey()), tampered); err == nil {
+		t.Fatal("public DHT accepted tampered IPNS record")
 	}
 }
 

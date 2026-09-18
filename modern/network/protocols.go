@@ -3,17 +3,19 @@ package network
 import "github.com/libp2p/go-libp2p/core/protocol"
 
 const (
-	// DHTProtocolPrefix produces /bitbook/kad/1.0.0 with the current DHT.
-	DHTProtocolPrefix  protocol.ID = "/bitbook"
-	DHTProtocolCurrent protocol.ID = "/bitbook/kad/1.0.0"
+	// DHTProtocolPrefix joins the public IPFS DHT.
+	DHTProtocolPrefix  protocol.ID = "/ipfs"
+	DHTProtocolCurrent protocol.ID = "/ipfs/kad/1.0.0"
 
-	// BitswapProtocolPrefix produces /bitbook/ipfs/bitswap/<version>. The
-	// embedded "ipfs" component is retained by Boxo's prefix API. This is the
-	// version-two BitBook wire namespace and intentionally does not join the
-	// public IPFS Bitswap network or the legacy BitBook 1.1 network.
-	BitswapProtocolPrefix protocol.ID = "/bitbook"
+	// An empty Bitswap prefix retains Boxo's standard public IPFS protocol IDs.
+	BitswapProtocolPrefix protocol.ID = ""
 
-	BitswapProtocolCurrent protocol.ID = "/bitbook/ipfs/bitswap/1.2.0"
+	BitswapProtocolCurrent protocol.ID = "/ipfs/bitswap/1.2.0"
+
+	// DiscoveryProtocolCurrent confirms that an authenticated libp2p peer is
+	// participating in BitBook after public-DHT routing discovery finds it.
+	DiscoveryProtocolCurrent protocol.ID = "/bitbook/discovery/1.0.0"
+	DiscoveryNamespace                   = "/bitbook/peers/1.0.0"
 
 	// DirectProtocolCurrent carries signed follows, chat messages, typing
 	// indicators, and read receipts between authenticated BitBook peers.

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -53,6 +54,7 @@ func run() error {
 	apiAddr := flag.String("api", "127.0.0.1:4002", "HTTP API listen address")
 	allowPrivate := flag.Bool("allow-private", false, "allow private and loopback peers in the DHT")
 	dhtServer := flag.Bool("dht-server", false, "run the DHT in server mode")
+	noBootstrap := flag.Bool("no-bootstrap", false, "disable automatic public DHT bootstrap")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Var(&listenAddrs, "listen", "libp2p multiaddress; may be repeated")
 	flag.Var(&bootstrapAddrs, "bootstrap", "bootstrap peer multiaddress ending in /p2p/<peerID>; may be repeated")
@@ -62,10 +64,11 @@ func run() error {
 		fmt.Println(version)
 		return nil
 	}
-	bootstrapPeers, err := parseBootstrapPeers(bootstrapAddrs)
+	bootstrapPeers, err := selectBootstrapPeers(bootstrapAddrs, *noBootstrap)
 	if err != nil {
 		return err
 	}
+	log.Printf("bootstrap: %s", bootstrapSelectionLabel(len(bootstrapAddrs), *noBootstrap, len(bootstrapPeers)))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -117,6 +120,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if err := node.StartDiscovery(ctx); err != nil {
+		return fmt.Errorf("starting BitBook discovery: %w", err)
+	}
 	server := &http.Server{
 		Addr:              *apiAddr,
 		Handler:           handler,
@@ -132,10 +138,6 @@ func run() error {
 		log.Printf("p2p: %s", addr)
 	}
 	log.Printf("social API: http://%s/ob/config", *apiAddr)
-	if len(bootstrapPeers) == 0 {
-		log.Print("no bootstrap peers configured; this node will save locally until a peer is supplied")
-	}
-
 	go republish(ctx, node.Node, store)
 	go retryPending(ctx, directService)
 	serverErrors := make(chan error, 1)
@@ -232,6 +234,38 @@ func parseBootstrapPeers(encoded []string) ([]peer.AddrInfo, error) {
 		result = append(result, *info)
 	}
 	return result, nil
+}
+
+func selectBootstrapPeers(encoded []string, noBootstrap bool) ([]peer.AddrInfo, error) {
+	if noBootstrap && len(encoded) > 0 {
+		return nil, errors.New("-no-bootstrap cannot be combined with -bootstrap")
+	}
+	if noBootstrap {
+		return []peer.AddrInfo{}, nil
+	}
+	if len(encoded) > 0 {
+		return parseBootstrapPeers(encoded)
+	}
+	defaults := dht.GetDefaultBootstrapPeerAddrInfos()
+	selected := make([]peer.AddrInfo, len(defaults))
+	for i, info := range defaults {
+		selected[i] = peer.AddrInfo{ID: info.ID, Addrs: slices.Clone(info.Addrs)}
+	}
+	return selected, nil
+}
+
+func bootstrapSelectionLabel(explicitCount int, disabled bool, selectedCount int) string {
+	if disabled {
+		return "disabled"
+	}
+	word := "peers"
+	if selectedCount == 1 {
+		word = "peer"
+	}
+	if explicitCount > 0 {
+		return fmt.Sprintf("explicit override (%d %s)", selectedCount, word)
+	}
+	return fmt.Sprintf("default (%d %s)", selectedCount, word)
 }
 
 func dataDirectory() (string, error) {
