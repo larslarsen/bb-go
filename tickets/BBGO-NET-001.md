@@ -1,7 +1,7 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, production source plus bounded test repair under review 04.**
-Reviewer: Codex, High. Missing-implementation red accepted with the limitations below.
+Status: **ACTIVE — Sol High, discovery correction under review 05.**
+Reviewer: Codex, High. Initial production drop needs the bounded corrections below.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
 ACC-002 is accepted and closed. Hermes's red phase is closed; no execution is active.
@@ -704,7 +704,7 @@ counts from review 03, and replace its local absolute cwd with repository-relati
 modern before publication. Preserve the original raw logs. No separate report-only
 task or rerun is needed now; the report remains uncommitted.
 
-### Sol High assignment — exact source scope
+### Sol High assignment — superseded by review 05
 
 Read the full frozen behavior and accepted tests in this ticket. Verify original
 production/module pins and review 03's test pins before editing. First repair only
@@ -737,3 +737,97 @@ Stop after the source drop; reviewer reads it directly and authorizes Hermes's n
 execution phase in this same ticket. No actor has been launched by this review.
 Reviewer publication is limited to this ticket and CURRENT_TASK.md; preserve all
 unrelated work and the uncommitted developer source/report.
+
+## Review 05 — production review; discovery correction required
+
+Reviewer: Codex, 2026-09-17, at HEAD
+0c2a7569f7c17bc5f7fdd65149cd507904e94505. Source inspection only; no execution.
+The four existing production edits stay within scope. Public protocol selection,
+explicit empty library bootstrap, upstream background bootstrap, CLI selection,
+daemon discovery startup and API filtering match the specified wiring. Publication's
+transport checks are unchanged. Seven frozen tests and original module/identity/open
+inputs match. Reversing exactly the two EqualFunc repairs reconstructs the previous
+bootstrap_test.go hash; their comparator closures are equivalent to the requested
+Multiaddr.Equal method expression. No further repair to that test is needed.
+
+### Drop identities
+
+| Path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/network/node.go | 275 | 044de22794980774d0268c902ed4a54441c8ab4f52e7af2ac25640f029cc94f9 |
+| modern/network/protocols.go | 26 | a17f85edf8bb8dd52a12f6d826d1637ad32cd5d27daf534bac672943f1eafd03 |
+| modern/network/discovery.go | 652 | 781e937f1a3d348baaf191b8163fa0f6d45a76f8d283ceaf8b6f6a1cc2a6a832 |
+| modern/cmd/bitbookd/main.go | 287 | fe2d3b2c07d3ddc0948889dc37158b90f5aecda79bd83d0974d1f61548f1caea |
+| modern/api/handler.go | 652 | 678511fee172b1b9f0aef0c85eb5e724f162aa233d65e535bcbe8708630054fd |
+| modern/cmd/bitbookd/bootstrap_test.go | 407 | b348eabe4afcef497200767dac8e4a39743441b88cefb0be98d299d1dcd50ef5 |
+
+### Required corrections
+
+1. **A reconnect can inherit stale confirmation.** discovery.go:71-75 decides whether
+   to forget using the network's current connections when DisconnectedF runs. Pinned
+   libp2p v0.49.0 swarm_conn.go:56-107 explicitly dispatches disconnect notifications
+   asynchronously. If the last old connection closes and a new one connects before
+   that callback, the callback sees the new connection and skips forgetting. The
+   peer-only snapshot at lines 149-151 then reports the new connection as confirmed
+   without a fresh hello. Separately, the unguarded confirmation commits at lines
+   288 and 339 can run after disconnect cleanup and restore an obsolete confirmation.
+   These are source-derived interleavings, not claimed runtime observations.
+
+   Bind confirmation to the connection lifetime that actually performed the hello,
+   and serialize its validation/commit with connection-lifecycle invalidation.
+   Neither a delayed callback nor a late old-stream completion may carry confirmation
+   across a last-connection gap. Apply the same validity decision to BitBookPeers and
+   discovery's already-confirmed candidate filtering; hiding stale entries only from
+   the API would leave them ineligible for reprobe. Preserve confirmation while
+   another connection remains continuously live, and do not let an old delayed
+   disconnect erase a freshly validated connection. Keep tracking bounded and avoid
+   stream I/O or network shutdown while holding the confirmation lock.
+
+2. **Handler availability is signalled before its slot is released.** The deferred
+   cleanup at discovery.go:313-320 decrements activeHandlers, signals and unlocks
+   before returning the token. waitForDiscoveryHandlers can return 15 while all 16
+   tokens are still occupied, so the existing slot-reuse test can receive a spurious
+   excess reset. Release the token and publish the updated occupancy consistently
+   under the same synchronization, preserving immediate rejection of excess work.
+
+### Sol High correction scope and regression evidence
+
+Only modern/network/discovery.go and modern/network/discovery_test.go may change.
+Freeze the other five paths in the table and every other test/module input. Keep
+this as the current implementation correction, with no protocol or product redesign.
+
+Before editing discovery.go, retain its exact pinned bytes as the non-Go source
+fixture modern/dist/net001/review05/discovery.go.txt. Inspect the filesystem type
+before creation, use disk storage, and never overwrite a differing existing fixture.
+This one source copy is explicitly allowed; it is not an execution report or a
+claim of test evidence. It remains uncommitted for Hermes's later reproduction.
+
+First add TestNET001ConfirmationDoesNotSurviveReconnect in discovery_test.go, using
+the existing production entry points so it also compiles with the retained old
+discovery.go. With controlled authenticated loopback peers, prove a valid initial
+hello, delay the subject's production disconnect callback, close the last connection,
+and reconnect without a new hello. Assert the peer is unconfirmed both before and
+after delivery of the delayed callback. Then complete a fresh valid hello and prove
+confirmation returns. Delay only the relevant callback, forward other lifecycle
+events, and use barriers with bounded cleanup rather than sleeps to arrange ordering.
+Do not disable discovery logic or manually insert confirmation state. Manual dialing
+is appropriate for this connection-lifetime test; retain the existing real discovery
+test without test-side dialing. Preserve all existing assertions and tests.
+
+Then correct the two production findings. Existing inbound slot-reuse and
+disconnect/malformed-reconnect tests remain required. Reviewer will inspect the
+correction and new regression before authorizing execution. At the next Hermes phase,
+first run the regression in a disposable copy with only discovery.go restored from
+the pinned fixture; it must fail on stale confirmation, not compilation or timeout.
+Then run it against corrected source and proceed to the existing acceptance plan.
+The exact regression command, from each copy's modern directory, is:
+
+```sh
+go test ./network -run '^TestNET001ConfirmationDoesNotSurviveReconnect$' -count=1 -timeout=90s
+```
+
+This specifies the later execution; it is not yet authorization for Hermes. No
+execution, dependency changes, other source edits, report writing or Git by Sol.
+No extra report/handoff document: use this ticket and the existing execution report.
+Reviewer publication is limited to this ticket and CURRENT_TASK.md. The production
+drop is not accepted for broader execution, build or publication yet.

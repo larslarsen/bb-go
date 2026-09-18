@@ -1,12 +1,14 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, production source**
-under review 04. Missing-symbol compilation failures are accepted as limited red;
-no test bodies ran. A real address-comparison test defect is separately identified:
-Sol must repair the two specified comparisons, then implement the five reserved
-production paths. All other tests and modules stay frozen. Review 04 records the
-executor report's incorrect verdict and missing capture metadata without inventing
-evidence. Hermes's next phase will correct that same report; no extra relay now.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, discovery correction**
+under review 05. The production drop needs a connection-lifetime fix so delayed
+disconnects or old hello completions cannot confirm a fresh connection, plus atomic
+handler-slot release/occupancy notification. Only discovery.go and discovery_test.go
+may change, with the one pinned old-source fixture specified in the ticket. Bootstrap,
+protocol, CLI and API edits and the two test comparison repairs are retained/frozen.
+Add the bounded reconnect regression first; its old-source reproduction and green run
+will join Hermes's next execution phase after source review. No execution is active.
+Review 04's report corrections remain due in that same phase.
 The ticket is the complete assignment: public IPFS DHT/Bitswap and automatic bootstrap,
 plus BitBook discovery with an authenticated protocol exchange. Ordinary IPFS peers
 must not appear as BitBook peers in the API. Existing daemon keys remain stable;
