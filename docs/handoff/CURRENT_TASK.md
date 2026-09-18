@@ -1,21 +1,18 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, API reconnect
-fixture correction and targeted execution under review 12**. The network reconnect
-fix passed 20 normal and 10 race runs. The wider suite exposed the same missing
-remote disconnect wait in the API fixture. Sol may fix that fixture, add unconditional
-cleanup to the network fixture, run the three specified targeted commands and append
-results to the existing execution report. Production, other tests and modules remain
-frozen. No broader acceptance, build/restart or Git by Sol.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, stalled-handler
+fixture synchronization and targeted tests under review 13**. API reconnect passed
+20 iterations. Network exposed an admission race: the test can count the preceding
+malformed handler instead of the new stalled stream. Sol may finish synchronization
+within that network fixture and iterate review 12's three targeted commands, recording
+every attempt in the existing report. No further handoff is needed for timing repairs
+inside this same scope. API, production, other tests and modules stay frozen.
 
-Local-read green and prior accepted regression/falsification evidence remain valid.
-Hermes's incomplete broader/security gates and report corrections stay pending; both
-binaries are unchanged. No Hermes execution phase is currently active. All instructions
-are in review 12; preserve prior captures and unrelated work.
-
-Developers may run the ticket's targeted tests and record results in its designated
-report. Broader acceptance remains with Hermes; Codex owns acceptance and stays High.
-Reviewer publication is only this file and NET-001.
+Broader acceptance/scanners, daemon build/restart and Git remain outside Sol's scope.
+Hermes's outstanding gates/report corrections remain pending; both binaries are
+unchanged. Preserve prior captures and accepted results. All instructions are in
+review 13; no Hermes execution phase is active. Reviewer stays High and publishes
+only this file and NET-001. Preserve unrelated work.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with

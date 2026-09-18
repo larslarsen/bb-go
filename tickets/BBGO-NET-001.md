@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, API reconnect fixture correction and targeted tests under review 12.**
+Status: **ACTIVE — Sol High, stalled-handler fixture synchronization and targeted tests under review 13.**
 Reviewer: Codex, High. Local-first correction has captured green; acceptance remains open.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Only review 12's test corrections and report append are writable.
+ACC-002 is accepted and closed. Only review 13's network fixture correction and report append are writable.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — broader acceptance paused pending review 12
+## Execution plan — broader acceptance paused pending review 13
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1476,3 +1476,71 @@ Prior accepted local-read and discovery regression/falsification evidence is ret
 After review, Hermes completes outstanding full-scope acceptance/report corrections
 and the conditional local rebuild from review 11; no separate report-only task.
 Reviewer publication remains only this ticket and CURRENT_TASK.md.
+
+
+## Review 13 — API correction passes; synchronize stalled-handler admission
+
+Reviewer: Codex, 2026-09-17, at HEAD c1569638. Source and retained-capture review
+only; no tests, builds or scanners executed. API changes are exactly the authorized
+29-line disconnect observer/wait/fresh-connection check; network adds only deferred
+Node.Close. Other captured inputs and both binaries remain unchanged.
+
+The developer03 focused count=20 command matches review 12 exactly. Its 19 input
+hashes match before/after/current files; tool and log hashes verify. API passes all
+20 iterations (0.693s). Network fails one iteration at discovery_test.go:352 with
+"Close ended stalled discovery I/O without reset: protocols not supported:
+[/bitbook/discovery/1.0.0]". Exit 1 is accepted failure evidence; race/count=5 were
+correctly not launched. The API correction and unconditional cleanup are accepted;
+network synchronization still needs correction. Broader acceptance remains open.
+
+Evidence beneath modern/dist/net001/developer03:
+
+- 01-focused-count20.json: aae0b6aecf7c0a69d92119329451c74808cdb34f8b7f66d204f2e0372532dd76
+- 01-focused-count20.stdout.log: c8684cdedc35414a4ca8b54d529081866df2c17387e0c563fd97d1b3575830cd
+- Reviewed execution report: ff573257aaaffb12c2f29f48a3715634a87efdc797b593dde25830bf51e0f260
+
+Source-supported cause: malformed.Read observes Reset before the server handler's
+deferred cleanup necessarily decrements activeHandlers. The test immediately opens
+and writes its stalled stream, then waits for a global count of one. That count can
+still belong to the malformed handler. Pinned multistream lazyClient.go permits Write
+to return before the remote negotiation response; Write alone does not prove handler
+admission. Node.Close removes the protocol handler, so the new unadmitted stream can
+receive "protocols not supported" rather than an admitted stream's reset. The test
+must establish that the stalled stream owns the counted handler before invoking Close.
+The other waitForDiscoveryHandlers uses were inspected: the concurrency-limit fixture
+starts from an empty node and monotonically admits known stalled streams, then waits
+for the completed stream's slot release. It has no preceding malformed-request phase.
+
+### Sol High — finish this fixture and run the targeted checks
+
+Only modern/network/discovery_test.go may change, starting at 1219 lines, SHA-256
+6afd0594ac88bceeef2f5cc4f4b67b87e9087c5e90a3e1eaedca50ca0730f041.
+Scope is synchronization inside
+TestNET001InboundHelloValidationDisconnectAndCloseCancellation and narrowly necessary
+fixture helpers. API is frozen at 631 lines, SHA-256
+fec216d6ec65a7d313c19fac45edaf82f209de8f473e1b2b7e81ad1c37248248.
+All production, other tests and dependencies stay frozen.
+
+After verifying the malformed reset and absent confirmation, wait under the existing
+context for zero active discovery handlers BEFORE opening the stalled stream. Then
+retain its one-byte write and wait-for-one barrier before Close. This orders prior
+cleanup before new admission on the fixture's otherwise idle node. Preserve the
+ErrReset assertion, bounded Close return and zero-handlers-after-Close proof; do not
+accept negotiation failure, arbitrary errors or a local timeout as cancellation.
+Keep all valid/malformed/reconnect assertions and unconditional cleanup.
+
+Sol may iterate synchronization fixes within this same fixture and rerun review 12's
+three exact targeted commands until green, retaining every attempt. A further timing
+failure in this authorized fixture does not itself require another handoff. No sleeps,
+retry-to-green without correction, increased deadlines, weakened assertions or
+production changes. Stop if evidence requires another source path or a production
+behavior change. Use the same cached Go/offline environment and verified developer
+capture pattern, new numbered artifacts, actual before/after pins and fail-fast
+sequential commands. Review 12's focused count=20, race count=10 and TestNET001
+count=5 commands remain the exact execution scope.
+
+Append changed-path/hash/line-count and exact results to the existing execution
+report. No broad/scanner execution, build/restart or Git by Sol. Retain accepted
+local-read, API and earlier regression/falsification evidence; remaining Hermes gates
+and report corrections are unchanged. Reviewer publication is only this ticket and
+CURRENT_TASK.md.
