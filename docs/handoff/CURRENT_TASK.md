@@ -1,18 +1,20 @@
 # Current Task
 
-ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Sol High, complete both
-reconnect fixtures and targeted tests under review 14**. Stalled-handler synchronization
-passed 20 runs. API now exposes an invalid exactly-one-connection assumption; the
-fixture must handle all old connections and prove a real gap before fresh handshake.
-Sol may iterate synchronization/lifecycle assumptions in both named API/network
-fixtures until review 12's three targeted commands pass. No per-symptom handoff is
-needed within that scope. Preserve assertions and retain every attempt in the existing
-report. Production, other tests and modules remain frozen.
+ACTIVE: [BBGO-NET-001](../../tickets/BBGO-NET-001.md), **Hermes, remaining acceptance
+and conditional local rebuild under review 15**. Source and targeted tests are
+accepted: focused fixtures passed 20 normal and 10 race runs; full TestNET001 passed
+five runs in network/api/daemon. Reuse those captures and prior accepted regression/
+falsification evidence. No further Sol task is active.
 
-Broader acceptance/scanners, build/restart and Git remain outside Sol's scope. No
-Hermes execution phase is active; remaining gates and report corrections are pending.
-Both binaries are unchanged. Preserve accepted evidence and all unrelated work.
-Reviewer stays High; publication is only this file and NET-001.
+Freeze source/tests/modules at developer05's manifest. Hermes runs the exact remaining
+full-suite/race/vet/fuzz/security commands, corrects the same report, and rebuilds
+modern/bitbookd if all gates pass. Use the reviewed developer capture pattern with
+fresh artifacts and scanner PATH verified; do not reuse the flawed old acceptance
+runner. Stop on unexpected failures. No source edits, restart or developer Git.
+The complete assignment and accepted scanner dispositions are in review 15.
+
+Reviewer stays High and publishes only this file and NET-001. Preserve unrelated
+work and all prior captures. No extra owner approval between passing stages.
 
 QUEUED OWNER REQUESTS (2026-09-17):
 [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), rich media posts and messaging with

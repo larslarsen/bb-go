@@ -1,10 +1,10 @@
 # BBGO-NET-001 — public IPFS connectivity and BitBook peer discovery
 
-Status: **ACTIVE — Sol High, complete both reconnect fixtures and targeted tests under review 14.**
-Reviewer: Codex, High. Local-first correction has captured green; acceptance remains open.
+Status: **ACTIVE — Hermes, remaining acceptance and conditional local rebuild under review 15.**
+Reviewer: Codex, High. Source and targeted tests accepted; broader acceptance remains open.
 Read AGENTS.md, TESTING.md and [CURRENT_TASK](../docs/handoff/CURRENT_TASK.md).
 This ticket is the complete assignment; chat supplies no additional authority.
-ACC-002 is accepted and closed. Only review 14's two fixture scopes and report append are writable.
+ACC-002 is accepted and closed. All production, tests and modules are frozen at review 15 pins.
 
 ## Outcome and identity boundary
 
@@ -227,7 +227,7 @@ New top-level tests use the prefix `TestNET001`.
    datastore value using its ordinary SHA-256 block CID. Successful public retrieval
    is the non-vacuous control.
 
-## Execution plan — broader acceptance paused pending review 14
+## Execution plan — remaining gates active under review 15
 
 Reviewer pins the test drop here, then authorizes Hermes red capture. After accepted
 red, reviewer authorizes Sol production in the reserved paths. Reviewer then pins
@@ -1606,3 +1606,102 @@ capture helper for current pins. Append changed paths/hashes/line counts and exa
 results to the existing execution report. No broad/scanner execution, build/restart
 or Git by Sol. Review and remaining Hermes acceptance follow the completed targeted
 phase. Reviewer publication is only this ticket and CURRENT_TASK.md.
+
+
+## Review 15 — targeted green accepted; remaining gates and local rebuild
+
+Reviewer: Codex, 2026-09-17, at HEAD f13b9a7d. Source and artifact review only; no
+tests, builds or scanners executed. API changes are confined to the authorized
+fixture and sync import. It tracks the complete nonempty old connection-ID set,
+deduplicates notifications under a mutex, waits for every old disconnect, verifies
+the transport gap and excludes every old ID after reconnect. The buffered channel
+has one slot per unique old ID, so callback sends cannot block on duplicate events.
+All existing API controls remain. The accepted network fixture is unchanged.
+
+Developer05's three exact targeted commands all passed. Reviewer verified every
+command's cached Go identity, 19 before/after/current source pins, exact argv and
+raw-output hashes. Source/targeted evidence is accepted:
+
+| Check | Result | Metadata SHA-256 |
+| --- | --- | --- |
+| Focused network/API, count=20 | exit 0; 0.203s / 0.804s | 945380b964d60ec2b5d870130b60488bf5e6734ec8b3c133c045b11ab4df1a83 |
+| Focused network/API race, count=10 | exit 0; 1.575s / 2.547s | 9dfd07e530a676d7bf54612d1b0f4c688a93d2b1a534f662076a2ad1556dd6fc |
+| Three-package TestNET001, count=5 | exit 0; all three packages pass | f65055de2bb0a571d2b52b3bc9a3036cd3fb039faa0f0bd1d338a12e7023d88d |
+
+Metadata/logs are under modern/dist/net001/developer05. The current report hash is
+a3afc69f29a23a5854b767e7e70de32995c59487fe46156b6ce6f35050d17e41.
+Both binaries retain review 08's hashes; rebuild is still pending.
+
+### Frozen inputs
+
+Use developer05/03-targeted.json's 19-entry source manifest. Latest two test pins:
+
+| Path | Lines | SHA-256 |
+| --- | --- | --- |
+| modern/api/handler_test.go | 656 | 92460e5731b2e41e5d70d1c81e96d90036408e9813a38d0df90059170a22c09b |
+| modern/network/discovery_test.go | 1223 | c8b0a9890509691a2d488066c0040d9ce87e39885436627457a44ea703d0ea66 |
+
+All production/modules/other tests remain at their preceding pins. No source actor
+is active. Reuse accepted local-read green, reconnect regression red/green,
+outbound-validation falsification/restored green and developer05 targeted results.
+Do not rerun those as a separate phase or recreate disposable source copies.
+
+### Hermes — one remaining acceptance/report/build phase
+
+1. Read this current review, AGENTS.md and TESTING.md. Verify frozen inputs and
+   pinned tools before execution. Inspect filesystem type/space. Create a fresh
+   numbered acceptance directory under modern/dist/net001, with owned TMPDIR/GOTMPDIR
+   and the existing disk-backed build-cache. Preserve prior captures.
+2. Copy/adapt the reviewed capture_developer_review14.py capture pattern into a NEW
+   helper for the commands below. Use developer05's manifest, verify inputs before
+   and after every command, persist start metadata BEFORE launching, then actual
+   exit/end/output hashes even on failure. Retain argv, cwd, relevant environment,
+   tool hashes and raw stdout/stderr. Stop immediately on unexpected test/tool error.
+   Do not reuse review06_runner.py, reconstruct metadata later, narrow package scope,
+   shorten fuzzing, or parallelize these dependent gates. Helpers/report/artifacts
+   are writable; production/tests/modules are not.
+3. Use cached Go 1.27.0, GOTOOLCHAIN=local, GOWORK=off, GOENV=off, GOPROXY=off,
+   GOSUMDB=off, GOFLAGS='-mod=readonly -p=2', GOMAXPROCS=2. PATH must include both
+   the cached Go bin directory AND the installed scanner directory ($HOME/go/bin).
+   Verify gosec/govulncheck resolution and hashes against the original execution plan
+   before starting. Tests stay offline; only the vulnerability scanner accesses the
+   official advisory database. No installation, dependency or policy-script edits.
+4. From modern, capture these exact commands in order:
+
+   ```sh
+   go test ./... -count=1 -timeout=300s
+   go test -race ./... -count=1 -timeout=600s
+   go vet ./...
+   go test ./network -run '^$' -fuzz '^FuzzPeerHello$' -fuzztime=30s -parallel=2
+   gosec -tests ./network/... ./api/... ./cmd/bitbookd/...
+   go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$' -count=1
+   ```
+
+   Immediately after diversity passes, from repository root:
+
+   ```sh
+   python3 scripts/govulncheck_policy.py source
+   ```
+
+   Preserve real scanner exits. Gosec finding-only exits may proceed to diversity/
+   vulnerability capture, but unreviewed findings block the build. Review 11's exact
+   G115/G304 site adjudications remain valid after line shifts; existing fixture
+   dispositions in docs/testing/BBGO-PAY-003-FINAL-REVIEW-01.md also remain valid when
+   source/input assumptions match. Do not label findings-bearing scans clean or
+   accept new findings yourself. Govulncheck policy must exit 0; its existing scoped
+   DHT exception remains unchanged. Scanner launch/tool failures stop execution.
+5. If every test/security gate passes under the recorded policy, from modern run
+   `go build -o bitbookd ./cmd/bitbookd`, then `go version -m bitbookd`, through the
+   same capture mechanism. Record modern/bitbookd's new SHA-256, size and actual build
+   identity including the dirty flag. Preserve cmd/bitbookd/bitbookd. No process restart.
+6. In the existing execution report, correct the inaccurate historical acceptance04
+   summary from review 11 (actual scope, continuation past failure, 20s fuzzing,
+   actual gosec findings, govulncheck failed to launch), refresh the current source
+   table from the manifest, and distinguish accepted diagnostic01/02 captures from
+   earlier uncaptured claims. Preserve all Sol sections and raw evidence. Append this
+   phase's exact results, artifact paths/hashes and explicit skipped stages.
+
+No source repair, user-data operations or developer Git staging/commit/push. Return
+for acceptance/publication review after this combined phase; no intermediate owner
+approval is needed between passing stages. Reviewer publication is only this ticket
+and CURRENT_TASK.md.
