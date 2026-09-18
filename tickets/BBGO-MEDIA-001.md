@@ -1,6 +1,6 @@
 # BBGO-MEDIA-001 — rich media posts, messaging and IPFS attachments
 
-Status: **CORRECTION — Sol High, review 01 source-error preservation; acceptance pending.**
+Status: **SOURCE ACCEPTED — Hermes broader acceptance, rebuild and scoped publication active.**
 Owner request recorded 2026-09-17. Reviewer: Codex, High.
 Companion: [BBGO-MSG-001 — libsignal messaging](BBGO-MSG-001.md).
 NET-001 is accepted and closed. The M2A assignment below is the sole active source
@@ -682,3 +682,83 @@ tests to completion without another handoff. Return the repository report for re
 Reviewer-only publication for this review is tickets/BBGO-MEDIA-001.md and
 docs/handoff/CURRENT_TASK.md, including the verified existing prerequisite note.
 No developer source, module changes, report or generated artifacts are included.
+
+## Review 02 — correction accepted; Hermes acceptance and publication
+
+2026-09-18, Codex reviewer, High. **M2A source and targeted evidence accepted.**
+Review 01's correction is complete; Sol has no further assignment. Hermes may now
+execute the single acceptance/publication phase specified above, under this section's
+exact file pins and evidence rules. This ticket remains the only handoff.
+
+The source now records source read errors before chunking can discard them and checks
+the retained error before returning success. A concurrent layout error preserves both
+identities. The regression reproduces the three prior false successes and asserts
+their errors/zero descriptors after repair; ordinary EOF controls also round-trip.
+Removing only this repair and its new regression/helper in memory reconstructs the
+exact review 01 production/test hashes. No unrelated source correction is present.
+
+Reviewer read and hash-verified all developer02 captures against the report: regression
+red (three failures), regression green (0.018s), targeted green (1.631s) and race green
+(4.646s). Current source hashes match the correction table below. The block validator,
+fuzz source, module files and three original node inputs remain unchanged. Retained
+fuzz and limit falsification evidence remains accepted; do not rerun it or the targeted
+tests merely to change actors. No tests/scanners/build were executed by the reviewer.
+
+### Frozen acceptance and publication inputs
+
+| Path | Lines | SHA-256 |
+| --- | ---: | --- |
+| modern/network/files.go | 485 | 5a2f7a8515fa4578edbedf3ec9899791c5f8145c570aa9d568c232a10a727492 |
+| modern/network/files_test.go | 886 | ec224bd2b3cd22b00fbf512028f5464327d5d7f06dcc19835989208945b9c323 |
+| modern/network/files_fuzz_test.go | 50 | 1951689375fb002eb81d34acf3e5c9e8c1cbf55411a679683ccc83bd2a37944a |
+| modern/go.mod | 138 | df7f1e5d4fa1d20083c1fcc872415a4203f6afefb4a7b2a980d45cdd286b3c38 |
+| modern/go.sum | 376 | 58614c1e27170525cf205f0f03c54085c70e4b37e51ee0aebf73a75ff955e800 |
+
+The sixth publication path is docs/testing/BBGO-MEDIA-001-EXECUTION-01.md, currently
+8af794fa1c9ad5bd590a0a823281869d58167f391bff42d80d6ac59a24f37c6d.
+Hermes appends its acceptance/publication evidence there, preserving the Sol sections.
+Only that report is editable by Hermes; source/module files are frozen. Generated
+captures and the routine modern/bitbookd build output are local artifacts, not commit
+inputs. Do not stage any other path, including unrelated dirty governance/README work,
+cancelled DEV-001 files, caches or either daemon binary. No desktop source/publication.
+
+### Hermes execution instructions
+
+1. Verify the five source pins and the three unchanged original node inputs before
+   work and again after commands. Use the same cached Go 1.27.0 executable and offline
+   environment recorded by Sol. Reuse modern/dist/media001/developer01/gocache and
+   its .gomodcache to avoid another dependency fetch. Resolve those cache paths before
+   changing cwd for the root-level policy command. PATH must include the pinned Go
+   toolchain bin directory and the installed gosec/govulncheck directory. No install,
+   module tidy or dependency/policy edits.
+2. Retain raw stdout, stderr, actual exit status, command/arguments, cwd, environment,
+   timing and source/tool hashes under a fresh modern/dist/media001/acceptance01
+   directory. Use disk-backed storage. A temporary capture runner is permitted there;
+   it is not test source and is not published. Do not manually reconstruct output or
+   call an unexecuted check passed. Reviewer has verified the pinned scanner hashes
+   above and policy-script hash
+   709cb00d44c62ef6e2d394f457407183d6fb90bc98958c80db0261607bc3c77c.
+3. Run the exact broad test, race, vet, network gosec and DHT-diversity commands in
+   “Single acceptance/publication phase after source review,” followed immediately by
+   the root-level vulnerability-policy command. Tests stay offline with isolated
+   loopback fixtures. Only the policy scanner's official advisory retrieval uses the
+   network. Stop on test/vet failure or tool-launch failure and record the gap.
+   A scanner finding may be retained alongside the other security reports, but new
+   findings require reviewer adjudication before build/publication; only NET-001
+   review 16's exact inherited sites and the existing dependency policy are accepted.
+4. If all gates pass within that policy, perform the already specified local build and
+   record modern/bitbookd's SHA-256, size and actual `go version -m` identity. No daemon
+   restart. Preserve the untracked modern/cmd/bitbookd/bitbookd file.
+5. Append actual results and raw artifact identities to the existing report. If all
+   gates passed, stage exactly the five pinned source/module paths and that report.
+   Verify the staged path list and source hashes; execute and retain the ticket's
+   staged Gitleaks and whitespace commands. A secret finding blocks publication.
+   Then commit and push to origin/master, retaining the actual command results.
+6. Record the feature commit, push result and its Go CI run/result in the same report.
+   A report-only closeout commit is authorized to retain these post-publication facts;
+   recheck its exact staging, Gitleaks and whitespace before pushing. No extra owner
+   permission or new handoff is needed when the gates pass. Return the report for
+   final reviewer acceptance; do not label pending/failed CI as successful.
+
+Reviewer publication for review 02 is only this ticket and docs/handoff/CURRENT_TASK.md.
+It does not integrate the developer drop or claim broader acceptance is already complete.

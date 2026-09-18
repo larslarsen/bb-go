@@ -1,14 +1,14 @@
 # Current Task
 
-ACTIVE CORRECTION: [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), review 01.
-Relay the same ticket to Sol High. The file primitive's reported targeted/race/fuzz
-results and hashes are verified, but source review found that chunking can swallow
-source read errors and return a successful descriptor for incomplete input. Sol adds
-the bounded regression, repairs error preservation and runs targeted green/race in one
-task. Writable paths and exact commands are in review 01; all other inputs are frozen.
-Append evidence to docs/testing/BBGO-MEDIA-001-EXECUTION-01.md; no developer Git work.
-Hermes acceptance/publication remains pending source acceptance. No separate handoff
-or owner-transcribed evidence is needed.
+SOURCE ACCEPTED: [BBGO-MEDIA-001](../../tickets/BBGO-MEDIA-001.md), review 02.
+Relay the same ticket to Hermes for broader acceptance, routine local rebuild and
+scoped publication. Sol's source-error correction, regression red/green, targeted/race
+results and exact source hashes are verified. Sol has no further assignment.
+Review 02 freezes the five source/module inputs and authorizes appending to the existing
+docs/testing/BBGO-MEDIA-001-EXECUTION-01.md report. Reuse accepted targeted/fuzz evidence;
+run only the outstanding broad/security gates. Publish the six-path set only if those
+gates pass under the recorded policy. No source edits or daemon restart. No separate
+handoff or owner-transcribed evidence is needed.
 
 Uploaded files use IPFS; Klipy-selected GIFs use the provider's supplied media URLs
 through the unified JSON adapter. Klipy rehosting is not a prerequisite. Public posts
