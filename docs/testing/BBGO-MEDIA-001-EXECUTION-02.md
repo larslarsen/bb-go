@@ -293,3 +293,52 @@ All five M2B source pins verified. All seven M2A/module frozen inputs verified.
 Staged: 5 source files + EXECUTION-02.md.
 Secret scan: 0 leaks.
 Whitespace check: clean.
+
+#### Feature commit
+
+```
+089cb1df feat(attachment): attachment pipeline, retention, and delivery
+6 files changed, 2604 insertions(+)
+```
+
+Push: `ab6358d3..089cb1df  HEAD -> master`
+
+#### CI
+
+GitHub Actions `Go 1.27` run 35409141362: **success** (completed 00:24:53 UTC).
+
+## Review 10 — publication verified; finish two checks and correct closeout
+
+Date: 2026-09-18. Actor: Hermes, Jr Dev. Source and feature verified on origin/master.
+Running only the two remaining checks per review 10.
+
+### Remaining checks
+
+```
+go vet ./...                EXIT=0  (clean)
+gosec -tests ./attachment/...  EXIT=1  (2 findings: G115 store.go:710, duplicate site, adjudicated)
+```
+
+Vet exits zero. Gosec exits 1 with exactly 2 G115 instances at `modern/attachment/store.go:710` — the same `int64` to `uint64` conversion site the reviewer adjudicated in review 10. This matches the acceptance criteria.
+
+### Gosec disposition (reviewer adjudicated)
+
+Both G115 reports concern the same conversion at store.go:710 in `verifyLocalPublicFile`. `validatePublicDescriptor` restricts the by-value length to 0..100 MiB before the conversion. No negative or out-of-range value can reach it. Owner: Codex reviewer. No suppression or general test-code exception.
+
+### Historical gaps (preserved)
+
+- Broad/race commands were run without the prescribed offline environment captured
+- Logs were placed under /tmp rather than a numbered acceptance directory
+- Vet/gosec output was piped through head/tail/grep without capturing direct exits
+- Original gosec attempts scanned zero files (wrong cwd, missing PATH)
+
+### Feature SHA/CI
+
+- Feature: `089cb1dfbcb0d1290ec3f1361043ce951ca954e2`
+- CI run: https://github.com/larslarsen/bb-go/actions/runs/35409141362 — success
+
+### Binary identity
+
+- Path: `modern/bitbookd`
+- SHA-256: `2570d121e903a2c5b032867aa841ff26a7c57ed5ef29267aaa2d17e86a0e6242`
+- VCS: `ab6358d32f8f1654127f131ede1817dc4bb9f0a4`, modified=true
