@@ -414,3 +414,77 @@ Push: `f9916348..1462ae99  HEAD -> master`
 #### CI
 
 GitHub Actions `Go 1.27` run 35468267640: **success** (completed 20:45:56 UTC).
+
+## Review 15 — M2C published; remaining gates, rebuild and report correction
+
+Date: 2026-09-19. Actor: Hermes, Jr Dev. Source and feature verified on origin/master.
+Retracting three unsupported PASS claims from review 14 and documenting actual results.
+
+### Retracted claims (review 14)
+
+The review 14 section claimed PASS for diversity, govulncheck, and build. These were
+not executed before publication. They are superseded by actual execution below.
+
+### Actual closeout results
+
+```
+go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$' -count=1
+  EXIT=0  (PASS)
+
+python3 scripts/govulncheck_policy.py source
+  EXIT=0  (PASS — DHT GO-2024-3218 within scope, 4 x/crypto notes)
+
+go build -o bitbookd ./cmd/bitbookd
+  EXIT=0  (PASS)
+```
+
+### Build identity (M2C rebuild)
+
+- Path: `modern/bitbookd`
+- SHA-256: `6e860747ef714ee9ea85285503420ee4a79e25c2423b47876979ff796503d23f`
+- VCS: `258c29b9370946cacacc6ac0da27f0a5832fc8e2`, modified=true
+- Size: 44,992,241 bytes
+
+### Reviewer adjudication — 25 gosec findings
+
+**Inherited (accepted per review 14):** G204 payment_test.go:285, G204 bootstrap_test.go:243,
+G304 server_test.go:374/442/587, G304 localclient_test.go:110, G301/G302 server_test.go:386/389
+
+**New media findings (test-only, non-blocking):**
+- G115 media_fuzz_test.go:269,272 (bounded fuzz values, 63-bit parser limit)
+- G304 media_test.go:1058 (test-owned temp directory, constant child names)
+- G104 media_test.go:273, cmd/bitbookd/media_test.go:40/43/47/50/55/58/77/80/84/87 (fixture cleanup)
+
+**Production G115 (media.go:754):** `uint64(length)` conversion. Reviewer confirms:
+length constrained to 0..100 MiB by validatePublicDescriptor; endpoints parsed with
+63-bit limit; ordering checked before subtraction. Conversion cannot overflow.
+
+### Historical gaps (prescribed environment not captured)
+
+- Broad/race commands: logs in /tmp, not numbered acceptance directory
+- Vet/gosec output piped through head/tail/grep without capturing direct exits
+- Original gosec attempts scanned zero files (wrong cwd, missing PATH)
+- Prescribed offline environment not independently verified
+
+### Recovered accepted results (from Hermes session 20260913_213737_aba8d9)
+
+| Log | SHA-256 |
+|---|---|
+| m2c-broad.log | `0230a0589dada18f9b8bfcaefa3ce955a8237761eae7243f7110daeea6dcd3f7` |
+| m2c-race.log | `da163fbb42f287564a9eb4264b77cf375143d3d22c86545c22aa3d4f6a52c1a4` |
+| m2c-vet.log | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| m2c-gosec.log | `230909a61dcad5e5cb52ccb1699abe7bb3d0f5f011c433b7743954874f307f24` |
+
+### Feature SHA/CI
+
+- Feature: `1462ae998cf3a8499a5fede9b1b1d53583a4fe5a`
+- Report: `258c29b9370946cacacc6ac0da27f0a5832fc8e2`
+- CI: https://github.com/larslarsen/bb-go/actions/runs/35468267640 — success
+
+### Artifact identities
+
+| Artifact | SHA-256 |
+|---|---|
+| diversity.stdout | `ad6fb0bdfa4f587d29e306a1da5e1f41354ff000913ef4f5113f7a9261236e68` |
+| govulncheck.stdout | `05234cec3775b7be8a52ab2326ce83935c9f60cc4e78ae00d016dafd5e6bbf7d` |
+| diversity.stderr | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
