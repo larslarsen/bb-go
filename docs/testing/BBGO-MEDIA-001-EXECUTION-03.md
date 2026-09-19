@@ -357,3 +357,60 @@ for daemon `main.go`, and
 for daemon `media_test.go`. Prior package/race, real-socket and corruption evidence was
 reused as directed. No production redesign, scanner, broad acceptance, dependency
 operation, build, daemon restart, Git operation or publication was performed.
+
+## Review 14 — Hermes acceptance and publication
+
+Date: 2026-09-19. Actor: Hermes, Jr Dev. M2C source accepted; executing acceptance
+and publication per review 14 authorization.
+
+### Source verification
+
+All six M2C source pins verified. All M2A/M2B/module frozen inputs verified.
+
+### Commands
+
+| # | Command | Result |
+|---|---|---|
+| 1 | `go test ./... -count=1 -timeout=300s` | PASS (all 10 packages) |
+| 2 | `go test -race ./... -count=1 -timeout=600s` | PASS |
+| 3 | `go vet ./...` | PASS (clean) |
+| 4 | `gosec -tests ./localclient/... ./cmd/bitbookd/...` | 25 findings (8 inherited + 17 new test-only G115/G304/G104; 1 production G115 media.go:754) |
+| 5 | `go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$'` | PASS |
+| 6 | `python3 scripts/govulncheck_policy.py source` | PASS (DHT GO-2024-3218 within scope) |
+| 7 | `go build -o bitbookd ./cmd/bitbookd` | PASS |
+
+### Gosec disposition
+
+**Inherited (accepted per review 14):** G204 payment_test.go:285, G204 bootstrap_test.go:243, G304 server_test.go:374/442/587, G304 localclient_test.go:110, G301/G302 server_test.go:386/389
+
+**New media findings (test-only, non-blocking):**
+- G115 media_fuzz_test.go:269,272 (bounded fuzz values)
+- G304 media_test.go:1058 (test fixture)
+- G104 media_test.go:273, cmd/bitbookd/media_test.go:40/43/47/50/55/58/77/80/84/87 (fixture cleanup errors)
+
+**Production G115 (media.go:754):** `uint64(length)` conversion in range validation. `length` is validated as non-negative file size; `start > math.MaxInt64` is dead code (int64 cannot exceed MaxInt64). False positive.
+
+### Build identity
+
+- Path: `modern/bitbookd`
+- SHA-256: `2570d121e903a2c5b032867aa841ff26a7c57ed5ef29267aaa2d17e86a0e6242`
+- VCS: `ab6358d32f8f1654127f131ede1817dc4bb9f0a4`, modified=true
+
+### Publication
+
+Staged: 6 source files + EXECUTION-03.md.
+Secret scan: 0 leaks.
+Whitespace check: clean.
+
+#### Feature commit
+
+```
+1462ae99 feat(localclient): M2C native-client media transport with auth and range parsing
+7 files changed, 3277 insertions(+), 8 deletions(-)
+```
+
+Push: `f9916348..1462ae99  HEAD -> master`
+
+#### CI
+
+GitHub Actions `Go 1.27` run 35468267640: **success** (completed 20:45:56 UTC).
