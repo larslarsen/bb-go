@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/larslarsen/bb-go/modern/api"
+	"github.com/larslarsen/bb-go/modern/attachment"
 	"github.com/larslarsen/bb-go/modern/direct"
 	"github.com/larslarsen/bb-go/modern/localclient"
 	"github.com/larslarsen/bb-go/modern/network"
@@ -91,7 +92,15 @@ func run() error {
 		return err
 	}
 	defer paymentService.Close()
-	localAccess, err := localclient.Start(*dataDir, node.ID(), paymentService)
+	attachmentStore, err := attachment.Open(ctx, node.Node, attachment.Limits{
+		MaxReferences:   4096,
+		MaxLogicalBytes: 4 << 30,
+	})
+	if err != nil {
+		return fmt.Errorf("opening attachment store: %w", err)
+	}
+	defer attachmentStore.Close()
+	localAccess, err := localclient.StartWithMedia(*dataDir, node.ID(), paymentService, node.Node, attachmentStore)
 	if err != nil {
 		if !errors.Is(err, localclient.ErrUnavailable) {
 			return err

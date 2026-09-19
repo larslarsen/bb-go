@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/larslarsen/bb-go/modern/attachment"
+	"github.com/larslarsen/bb-go/modern/network"
 	"github.com/larslarsen/bb-go/modern/payment"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -51,6 +53,7 @@ type Server struct {
 	listener net.Listener
 	root     *os.Root
 	records  RecordReader
+	media    *mediaService
 	failures chan error
 
 	bound     string
@@ -84,6 +87,28 @@ type errorBody struct {
 
 // Start binds 127.0.0.1:0, publishes a private descriptor, and serves records.
 func Start(dataDir string, peerID peer.ID, records RecordReader) (*Server, error) {
+	return start(dataDir, peerID, records, nil, nil)
+}
+
+// StartWithMedia starts the authenticated local listener with public attachment
+// upload and bounded download handling in addition to payment records.
+func StartWithMedia(dataDir string, peerID peer.ID, records RecordReader, node *network.Node, store *attachment.Store) (*Server, error) {
+	if runtime.GOOS != "linux" {
+		return nil, ErrUnavailable
+	}
+	if node == nil || node.Host == nil {
+		return nil, errors.New("nil media network node")
+	}
+	if store == nil {
+		return nil, errors.New("nil attachment store")
+	}
+	if peerID == "" || node.Host.ID() != peerID {
+		return nil, errors.New("media node peer identity mismatch")
+	}
+	return start(dataDir, peerID, records, node, store)
+}
+
+func start(dataDir string, peerID peer.ID, records RecordReader, node *network.Node, store *attachment.Store) (*Server, error) {
 	if runtime.GOOS != "linux" {
 		return nil, ErrUnavailable
 	}
@@ -128,6 +153,9 @@ func Start(dataDir string, peerID peer.ID, records RecordReader) (*Server, error
 		instance: instance,
 		token:    token,
 	}
+	if node != nil {
+		server.media = newMediaService(node, store, root)
+	}
 	server.http = &http.Server{
 		Handler:           server,
 		ReadHeaderTimeout: readHeaderTimeout,
@@ -138,6 +166,10 @@ func Start(dataDir string, peerID peer.ID, records RecordReader) (*Server, error
 		ErrorLog:          log.New(io.Discard, "", 0),
 	}
 	if err := server.publishDescriptor(); err != nil {
+		if server.media != nil {
+			server.media.cancelAndCloseBodies()
+			server.media.wait()
+		}
 		_ = ln.Close()
 		_ = root.Close()
 		return nil, err
@@ -163,6 +195,9 @@ func (s *Server) Close(ctx context.Context) error {
 	}
 	var err error
 	s.closeOnce.Do(func() {
+		if s.media != nil {
+			s.media.cancelAndCloseBodies()
+		}
 		if s.http != nil {
 			shutdownErr := s.http.Shutdown(ctx)
 			if shutdownErr != nil {
@@ -175,6 +210,9 @@ func (s *Server) Close(ctx context.Context) error {
 			}
 		} else if s.listener != nil {
 			err = errors.Join(err, s.listener.Close())
+		}
+		if s.media != nil {
+			s.media.wait()
 		}
 		if s.root != nil {
 			if s.tmpName != "" {
@@ -192,16 +230,25 @@ func (s *Server) Close(ctx context.Context) error {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !loopbackAddr(r.RemoteAddr) || r.Host != s.bound {
-		writeError(w, http.StatusForbidden, "FORBIDDEN")
+	if status := localRequestAuthorized(s, r); status != 0 {
+		if status == http.StatusUnauthorized {
+			writeError(w, status, "UNAUTHORIZED")
+		} else {
+			writeError(w, status, "FORBIDDEN")
+		}
 		return
 	}
-	if len(r.Header.Values("Origin")) > 0 {
-		writeError(w, http.StatusForbidden, "FORBIDDEN")
+	mediaRoute, routeErr := parseMediaRoute(r)
+	if routeErr != nil {
+		writeError(w, http.StatusBadRequest, "BAD_REQUEST")
 		return
 	}
-	if !s.authorized(r) {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED")
+	if mediaRoute.kind != mediaRouteNone {
+		if s.media == nil {
+			writeError(w, http.StatusNotFound, "NOT_FOUND")
+			return
+		}
+		s.media.serve(w, r, mediaRoute, s)
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -244,6 +291,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(payload)
+}
+
+func localRequestAuthorized(s *Server, r *http.Request) int {
+	if s == nil || r == nil || !loopbackAddr(r.RemoteAddr) || r.Host != s.bound {
+		return http.StatusForbidden
+	}
+	if len(r.Header.Values("Origin")) > 0 {
+		return http.StatusForbidden
+	}
+	if !s.authorized(r) {
+		return http.StatusUnauthorized
+	}
+	return 0
 }
 
 func (s *Server) authorized(r *http.Request) bool {
@@ -432,7 +492,8 @@ func hasRequestBody(r *http.Request) bool {
 func writeError(w http.ResponseWriter, status int, code string) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
-	if status == http.StatusMethodNotAllowed {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if status == http.StatusMethodNotAllowed && w.Header().Get("Allow") == "" {
 		w.Header().Set("Allow", http.MethodGet)
 	}
 	w.WriteHeader(status)
