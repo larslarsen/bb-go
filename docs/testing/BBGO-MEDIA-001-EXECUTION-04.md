@@ -290,3 +290,16 @@ Not applicable — no executable consumes this isolated new package yet.
 Staged: 4 source files + EXECUTION-04.md.
 Secret scan: 0 leaks.
 Whitespace check: clean.
+
+#### Feature commit
+
+```
+3c6d8bd5 feat(publiccontent): M1P content codec with schema validation and size bounds
+5 files changed, 2445 insertions(+)
+```
+
+Push: `89c5fd2f..3c6d8bd5  HEAD -> master`
+
+#### CI
+
+GitHub Actions `Go 1.27` run 35480008025: **success** (completed 00:57:09 UTC).
