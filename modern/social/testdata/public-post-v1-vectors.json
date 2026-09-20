@@ -1,0 +1,42 @@
+[
+  {
+    "name": "legacy-control",
+    "author": "12D3KooWPM2uBkXKEjkmLp9JVwp7MFww9RWzFFJHmgddvXXe4xvK",
+    "payload": "{\"status\":\"legacy vector\"}",
+    "signature": "SLHwjccFWwXL3bw7iPiE9idUKc3NkGA6J5JsWXvc2GRqNpZUCWX90+SgE1f4DrOlTD0ef33KRLBnmeFoKWohDA==",
+    "publicKey": "CAESIMkDJgC3frInSKGwpIECG4n3ZIxCbtXlCmclxVx+g6lY",
+    "hash": "QmVxNEfzpiR9sCJzyPfDpTBHsqtu91WmfL7GRqRCYPNxDc",
+    "valid": true,
+    "legacy": true
+  },
+  {
+    "name": "text-only-rich",
+    "author": "12D3KooWPM2uBkXKEjkmLp9JVwp7MFww9RWzFFJHmgddvXXe4xvK",
+    "payload": "{\"schema\":\"bitbook.public-post/1\",\"id\":\"11111111111111111111111111111111\",\"vendorID\":{\"peerID\":\"12D3KooWPM2uBkXKEjkmLp9JVwp7MFww9RWzFFJHmgddvXXe4xvK\"},\"timestamp\":\"2026-09-20T00:00:00Z\",\"slug\":\"rich-11111111111111111111111111111111\",\"postType\":\"POST\",\"status\":\"fixture text\",\"content\":{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"fixture text\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}}",
+    "signature": "VvvWe94pOwQayQ398O0kbgyc52KHy8c6Pm/mlfJ7g+SXfb5u0LSEp6CyEb+fGBQ0APTL85iABO9FLabAijbQBw==",
+    "publicKey": "CAESIMkDJgC3frInSKGwpIECG4n3ZIxCbtXlCmclxVx+g6lY",
+    "hash": "QmQNeQzcdisyrQKCBh95Vdx62t81yNL3fM2UdRtoGrVHaA",
+    "valid": true,
+    "legacy": false
+  },
+  {
+    "name": "attachment-only-rich",
+    "author": "12D3KooWPM2uBkXKEjkmLp9JVwp7MFww9RWzFFJHmgddvXXe4xvK",
+    "payload": "{\"schema\":\"bitbook.public-post/1\",\"id\":\"22222222222222222222222222222222\",\"vendorID\":{\"peerID\":\"12D3KooWPM2uBkXKEjkmLp9JVwp7MFww9RWzFFJHmgddvXXe4xvK\"},\"timestamp\":\"2026-09-20T00:00:01Z\",\"slug\":\"rich-22222222222222222222222222222222\",\"postType\":\"POST\",\"status\":\"\",\"content\":{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"attachment\",\"attachmentId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]}],\"attachments\":[{\"attachmentId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"cid\":\"bafkreibnoelefnzgwbcacyt4vh52ymxvzbjq7mmqhtcnwarfq4lzegsiqe\",\"mediaType\":\"image/jpeg\",\"byteLength\":1,\"width\":1,\"height\":1,\"durationMs\":null,\"filename\":\"x.jpg\"}]}}",
+    "signature": "ag4eyTa4wT845wQb8v2rLESwqUs29ff0daYtVJtALNKvLn10P8JiZscyixAEBCt3L6i9IfythKPLtzvn+CNmBw==",
+    "publicKey": "CAESIMkDJgC3frInSKGwpIECG4n3ZIxCbtXlCmclxVx+g6lY",
+    "hash": "QmUjiHCoEtCGXC17DiLMYWQy1wqJUVpZuqRuRkJn3hZ33Z",
+    "valid": true,
+    "legacy": false
+  },
+  {
+    "name": "signed-invalid-status",
+    "author": "12D3KooWPM2uBkXKEjkmLp9JVwp7MFww9RWzFFJHmgddvXXe4xvK",
+    "payload": "{\"schema\":\"bitbook.public-post/1\",\"id\":\"11111111111111111111111111111111\",\"vendorID\":{\"peerID\":\"12D3KooWPM2uBkXKEjkmLp9JVwp7MFww9RWzFFJHmgddvXXe4xvK\"},\"timestamp\":\"2026-09-20T00:00:00Z\",\"slug\":\"rich-11111111111111111111111111111111\",\"postType\":\"POST\",\"status\":\"wrong\",\"content\":{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"fixture text\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}}",
+    "signature": "P4xCd/TMJqhizpZNF1OWIRC4I8fKJjvjNIMQkDFOqdi/uRceICSBpyUbk0V7aXsBTO2oROXmLnyzF6kBrnu8Dg==",
+    "publicKey": "CAESIMkDJgC3frInSKGwpIECG4n3ZIxCbtXlCmclxVx+g6lY",
+    "hash": "Qme9VscvQhd1DbGzi2YXmtShXzTZySiUYaszPadEdJCjxj",
+    "valid": false,
+    "legacy": false
+  }
+]

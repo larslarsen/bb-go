@@ -14,6 +14,8 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
+	"github.com/larslarsen/bb-go/modern/attachment"
 	"github.com/larslarsen/bb-go/modern/network"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -36,10 +38,15 @@ var (
 // Store persists local social state and publishes immutable snapshots through
 // the maintained BitBook network core.
 type Store struct {
-	node      *network.Node
-	now       func() time.Time
-	mu        sync.Mutex
-	publishMu sync.Mutex
+	node             *network.Node
+	now              func() time.Time
+	attachments      *attachment.Store
+	richLimits       RichPostLimits
+	richRecords      map[string]richRecord
+	richBytes        int64
+	recoveryRequired bool
+	mu               sync.Mutex
+	publishMu        sync.Mutex
 }
 
 func NewStore(node *network.Node) (*Store, error) {
@@ -49,7 +56,27 @@ func NewStore(node *network.Node) (*Store, error) {
 	if node.Datastore == nil {
 		return nil, errors.New("network node has no datastore")
 	}
+	hasRich, err := hasRichPostRecords(context.Background(), node)
+	if err != nil {
+		return nil, errors.Join(ErrRichPostUnavailable, err)
+	}
+	if hasRich {
+		return nil, ErrRichPostUnavailable
+	}
 	return &Store{node: node, now: time.Now}, nil
+}
+
+func hasRichPostRecords(ctx context.Context, node *network.Node) (bool, error) {
+	results, err := node.Datastore.Query(ctx, query.Query{Prefix: richRecordPrefix.String(), Limit: 1, KeysOnly: true})
+	if err != nil {
+		return false, err
+	}
+	defer results.Close()
+	result, ok := results.NextSync()
+	if !ok {
+		return false, nil
+	}
+	return result.Error == nil, result.Error
 }
 
 // SetProfile validates and persists an OpenBazaar-compatible JSON profile. It
@@ -109,6 +136,9 @@ func (s *Store) LocalProfile(ctx context.Context) (json.RawMessage, error) {
 func (s *Store) AddPost(ctx context.Context, raw json.RawMessage) (SignedPost, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.requirePostOperationsLocked(); err != nil {
+		return SignedPost{}, err
+	}
 
 	var post map[string]any
 	if err := json.Unmarshal(raw, &post); err != nil {
@@ -116,6 +146,11 @@ func (s *Store) AddPost(ctx context.Context, raw json.RawMessage) (SignedPost, e
 	}
 	if post == nil {
 		return SignedPost{}, errors.New("post must be a JSON object")
+	}
+	for _, reserved := range []string{"schema", "content", "requestId", "uploadReferences"} {
+		if _, exists := post[reserved]; exists {
+			return SignedPost{}, fmt.Errorf("legacy post field %q is reserved", reserved)
+		}
 	}
 	if err := validatePost(post); err != nil {
 		return SignedPost{}, err
@@ -126,9 +161,12 @@ func (s *Store) AddPost(ctx context.Context, raw json.RawMessage) (SignedPost, e
 	}
 
 	slug, _ := post["slug"].(string)
+	if strings.HasPrefix(slug, "rich-") {
+		return SignedPost{}, ErrInvalidRichPost
+	}
 	if slug == "" {
 		status, _ := post["status"].(string)
-		slug = uniqueSlug(slugify(status), posts)
+		slug = s.uniqueLocalSlugLocked(slugify(status), posts)
 	} else if postSlugExists(slug, posts) {
 		return SignedPost{}, fmt.Errorf("post %q already exists", slug)
 	}
@@ -171,6 +209,14 @@ func (s *Store) AddPost(ctx context.Context, raw json.RawMessage) (SignedPost, e
 func (s *Store) DeletePost(ctx context.Context, slug string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.requirePostOperationsLocked(); err != nil {
+		return err
+	}
+	for id, record := range s.richRecords {
+		if slug == "rich-"+id || (record.Envelope.CID != "" && record.Envelope.CID == slug) {
+			return ErrInvalidRichPost
+		}
+	}
 	posts, err := s.loadPosts(ctx)
 	if err != nil {
 		return err
@@ -190,7 +236,7 @@ func (s *Store) DeletePost(ctx context.Context, slug string) error {
 func (s *Store) LocalPosts(ctx context.Context) ([]SignedPost, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	posts, err := s.loadPosts(ctx)
+	posts, err := s.loadAllPostsLocked(ctx)
 	return clonePosts(posts), err
 }
 
@@ -301,6 +347,12 @@ func (s *Store) Publish(ctx context.Context) (cid.Cid, error) {
 // PublishRoot advertises an already committed root. Publication is serialized
 // so periodic refreshes cannot race an API-triggered IPNS sequence update.
 func (s *Store) PublishRoot(ctx context.Context, root cid.Cid) error {
+	s.mu.Lock()
+	err := s.requirePostOperationsLocked()
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 	s.publishMu.Lock()
 	defer s.publishMu.Unlock()
 	return s.node.PublishRoot(ctx, root)
@@ -363,8 +415,18 @@ func (s *Store) Fetch(ctx context.Context, owner peer.ID) (State, error) {
 }
 
 func VerifyPost(author peer.ID, post SignedPost) error {
+	isRich, classificationErr := classifyRichCandidate(post.Post)
+	if classificationErr != nil {
+		return errors.Join(ErrInvalidRichPost, classificationErr)
+	}
+	if isRich && (len(post.Post) > maxRichPayloadBytes || len(post.Signature) == 0 || len(post.Signature) > maxRichSignatureBytes || len(post.PublicKey) == 0 || len(post.PublicKey) > maxRichPublicKeyBytes) {
+		return ErrInvalidRichPost
+	}
 	publicKey, err := crypto.UnmarshalPublicKey(post.PublicKey)
 	if err != nil {
+		if isRich {
+			return errors.Join(ErrInvalidRichPost, err)
+		}
 		return fmt.Errorf("decoding post author key: %w", err)
 	}
 	claimedAuthor, err := peer.IDFromPublicKey(publicKey)
@@ -372,24 +434,41 @@ func VerifyPost(author peer.ID, post SignedPost) error {
 		return fmt.Errorf("deriving post author identity: %w", err)
 	}
 	if claimedAuthor != author {
+		if isRich {
+			return ErrInvalidRichPost
+		}
 		return fmt.Errorf("post public key belongs to %s, not %s", claimedAuthor, author)
 	}
 	valid, err := publicKey.Verify(post.Post, post.Signature)
 	if err != nil {
+		if isRich {
+			return errors.Join(ErrInvalidRichPost, err)
+		}
 		return fmt.Errorf("verifying post signature: %w", err)
 	}
 	if !valid {
+		if isRich {
+			return ErrInvalidRichPost
+		}
 		return errors.New("invalid post signature")
+	}
+	if isRich {
+		if _, err := validateRichEnvelope(author, post); err != nil {
+			return errors.Join(ErrInvalidRichPost, err)
+		}
 	}
 	return nil
 }
 
 func (s *Store) commitLocked(ctx context.Context) (cid.Cid, error) {
+	if err := s.requirePostOperationsLocked(); err != nil {
+		return cid.Undef, err
+	}
 	profile, err := s.loadProfile(ctx)
 	if err != nil {
 		return cid.Undef, err
 	}
-	posts, err := s.loadPosts(ctx)
+	posts, err := s.loadAllPostsLocked(ctx)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -472,6 +551,75 @@ func (s *Store) loadPosts(ctx context.Context) ([]SignedPost, error) {
 	var posts []SignedPost
 	if err := s.loadJSON(ctx, postsKey, &posts); err != nil {
 		return nil, err
+	}
+	return posts, nil
+}
+
+func (s *Store) requirePostOperationsLocked() error {
+	if s.recoveryRequired {
+		return ErrRichPostRecoveryRequired
+	}
+	return nil
+}
+
+func (s *Store) loadAllPostsLocked(ctx context.Context) ([]SignedPost, error) {
+	if err := s.requirePostOperationsLocked(); err != nil {
+		return nil, err
+	}
+	legacy, err := s.loadPosts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rich, err := s.liveRichPostsLocked(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(rich) == 0 {
+		return legacy, nil
+	}
+	type orderedPost struct {
+		post      SignedPost
+		timestamp time.Time
+		validTime bool
+		rich      bool
+		id        string
+	}
+	ordered := make([]orderedPost, 0, len(legacy)+len(rich))
+	for _, post := range legacy {
+		var payload struct {
+			Timestamp string `json:"timestamp"`
+		}
+		_ = json.Unmarshal(post.Post, &payload)
+		parsed, parseErr := time.Parse(time.RFC3339Nano, payload.Timestamp)
+		ordered = append(ordered, orderedPost{post: post, timestamp: parsed, validTime: parseErr == nil})
+	}
+	for _, record := range rich {
+		payload, parseErr := parseRichPayload(s.node.ID(), record.Envelope.Post)
+		if parseErr != nil {
+			s.recoveryRequired = true
+			return nil, errors.Join(ErrCorruptRichPostState, parseErr)
+		}
+		ordered = append(ordered, orderedPost{post: record.Envelope, timestamp: payload.Timestamp, validTime: true, rich: true, id: record.ID})
+	}
+	sort.SliceStable(ordered, func(left, right int) bool {
+		a, b := ordered[left], ordered[right]
+		if a.validTime != b.validTime {
+			return a.validTime
+		}
+		if a.validTime && !a.timestamp.Equal(b.timestamp) {
+			return a.timestamp.After(b.timestamp)
+		}
+		if a.rich != b.rich {
+			return !a.rich
+		}
+		if a.rich {
+			return a.id < b.id
+		}
+		return false
+	})
+	posts := make([]SignedPost, len(ordered))
+	for index := range ordered {
+		posts[index] = ordered[index].post
 	}
 	return posts, nil
 }
@@ -598,9 +746,41 @@ func uniqueSlug(base string, posts []SignedPost) string {
 	}
 }
 
+func (s *Store) uniqueLocalSlugLocked(base string, posts []SignedPost) string {
+	if !postSlugExists(base, posts) && !s.richSlugReservedLocked(base) {
+		return base
+	}
+	for suffix := 2; ; suffix++ {
+		candidate := fmt.Sprintf("%s-%d", base, suffix)
+		if !postSlugExists(candidate, posts) && !s.richSlugReservedLocked(candidate) {
+			return candidate
+		}
+	}
+}
+
+func (s *Store) richSlugReservedLocked(slug string) bool {
+	if !strings.HasPrefix(slug, "rich-") {
+		return false
+	}
+	_, reserved := s.richRecords[strings.TrimPrefix(slug, "rich-")]
+	return reserved
+}
+
 func postSlugExists(slug string, posts []SignedPost) bool {
 	for _, post := range posts {
 		if postSlug(post) == slug {
+			return true
+		}
+	}
+	return false
+}
+
+func legacyPostIDExists(id string, posts []SignedPost) bool {
+	for _, post := range posts {
+		var decoded struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(post.Post, &decoded) == nil && decoded.ID == id {
 			return true
 		}
 	}

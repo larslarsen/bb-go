@@ -97,9 +97,16 @@ func run() error {
 		MaxLogicalBytes: 4 << 30,
 	})
 	if err != nil {
-		return fmt.Errorf("opening attachment store: %w", err)
+		return daemonStartupError{message: "opening attachment store failed", cause: err}
 	}
 	defer attachmentStore.Close()
+	store, err := social.NewStoreWithAttachments(ctx, node.Node, attachmentStore, social.RichPostLimits{
+		MaxRecords: 4096,
+		MaxBytes:   64 << 20,
+	})
+	if err != nil {
+		return daemonStartupError{message: "opening social store failed", cause: err}
+	}
 	localAccess, err := localclient.StartWithMedia(*dataDir, node.ID(), paymentService, node.Node, attachmentStore)
 	if err != nil {
 		if !errors.Is(err, localclient.ErrUnavailable) {
@@ -116,10 +123,6 @@ func run() error {
 		}()
 	}
 
-	store, err := social.NewStore(node.Node)
-	if err != nil {
-		return err
-	}
 	directService, err := direct.NewService(node.Node, store)
 	if err != nil {
 		return err
@@ -177,6 +180,14 @@ func run() error {
 		return fmt.Errorf("local payment access: %w", err)
 	}
 }
+
+type daemonStartupError struct {
+	message string
+	cause   error
+}
+
+func (err daemonStartupError) Error() string { return err.message }
+func (err daemonStartupError) Unwrap() error { return err.cause }
 
 func retryPending(ctx context.Context, service *direct.Service) {
 	retry := func() {
