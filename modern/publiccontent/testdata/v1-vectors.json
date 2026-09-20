@@ -1,0 +1,100 @@
+[
+  {
+    "name": "text-only",
+    "input": "{ \"attachments\" : [ ], \"body\" : [ { \"children\" : [ { \"href\" : \"\", \"marks\" : [ ], \"text\" : \"Hello world\", \"type\" : \"text\" } ], \"type\" : \"paragraph\" } ], \"schema\" : \"bitbook.public-content/1\" }",
+    "canonical": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"Hello world\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "plainText": "Hello world",
+    "error": ""
+  },
+  {
+    "name": "unicode-emoji-combining",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"Hello 🙂 é\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "canonical": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"Hello 🙂 é\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "plainText": "Hello 🙂 é",
+    "error": ""
+  },
+  {
+    "name": "paragraphs-and-breaks",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"A\",\"marks\":[],\"href\":\"\"},{\"type\":\"break\"},{\"type\":\"text\",\"text\":\"B\",\"marks\":[],\"href\":\"\"}]},{\"type\":\"paragraph\",\"children\":[]},{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"C\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "canonical": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"A\",\"marks\":[],\"href\":\"\"},{\"type\":\"break\"},{\"type\":\"text\",\"text\":\"B\",\"marks\":[],\"href\":\"\"}]},{\"type\":\"paragraph\",\"children\":[]},{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"C\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "plainText": "A\nB\n\nC",
+    "error": ""
+  },
+  {
+    "name": "marks-and-safe-link",
+    "input": "{\"body\":[{\"children\":[{\"href\":\"https://example.com/a?x=1&y=2\",\"marks\":[\"code\",\"bold\",\"italic\"],\"text\":\"linked\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"schema\":\"bitbook.public-content/1\",\"attachments\":[]}",
+    "canonical": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"linked\",\"marks\":[\"bold\",\"italic\",\"code\"],\"href\":\"https://example.com/a?x=1\\u0026y=2\"}]}],\"attachments\":[]}",
+    "plainText": "linked",
+    "error": ""
+  },
+  {
+    "name": "mixed-attachment",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"Photo \",\"marks\":[],\"href\":\"\"},{\"type\":\"attachment\",\"attachmentId\":\"01010101010101010101010101010101\"}]}],\"attachments\":[{\"attachmentId\":\"01010101010101010101010101010101\",\"cid\":\"bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku\",\"mediaType\":\"image/jpeg\",\"byteLength\":1,\"width\":1,\"height\":1,\"durationMs\":null,\"filename\":\"x.jpg\"}]}",
+    "canonical": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"Photo \",\"marks\":[],\"href\":\"\"},{\"type\":\"attachment\",\"attachmentId\":\"01010101010101010101010101010101\"}]}],\"attachments\":[{\"attachmentId\":\"01010101010101010101010101010101\",\"cid\":\"bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku\",\"mediaType\":\"image/jpeg\",\"byteLength\":1,\"width\":1,\"height\":1,\"durationMs\":null,\"filename\":\"x.jpg\"}]}",
+    "plainText": "Photo ",
+    "error": ""
+  },
+  {
+    "name": "hostile-text-stays-text",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"<script>&\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "canonical": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"\\u003cscript\\u003e\\u0026\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "plainText": "<script>&",
+    "error": ""
+  },
+  {
+    "name": "escaped-surrogate-pair",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"\\ud83d\\ude42\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "canonical": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"🙂\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "plainText": "🙂",
+    "error": ""
+  },
+  {
+    "name": "literal-replacement-character",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"�\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "canonical": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"�\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "plainText": "�",
+    "error": ""
+  },
+  {
+    "name": "lone-high-surrogate",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"\\ud800\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "canonical": "",
+    "plainText": "",
+    "error": "invalid"
+  },
+  {
+    "name": "lone-low-surrogate",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"\\udc00\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[]}",
+    "canonical": "",
+    "plainText": "",
+    "error": "invalid"
+  },
+  {
+    "name": "unsupported-schema",
+    "input": "{\"schema\":\"bitbook.public-content/2\",\"body\":[{\"type\":\"paragraph\",\"children\":[]}],\"attachments\":[]}",
+    "canonical": "",
+    "plainText": "",
+    "error": "unsupported_schema"
+  },
+  {
+    "name": "unknown-private-field",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[]}],\"attachments\":[],\"recipientKey\":\"secret\"}",
+    "canonical": "",
+    "plainText": "",
+    "error": "invalid"
+  },
+  {
+    "name": "duplicate-escaped-schema-key",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"\\u0073chema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[]}],\"attachments\":[]}",
+    "canonical": "",
+    "plainText": "",
+    "error": "invalid"
+  },
+  {
+    "name": "unreferenced-attachment",
+    "input": "{\"schema\":\"bitbook.public-content/1\",\"body\":[{\"type\":\"paragraph\",\"children\":[{\"type\":\"text\",\"text\":\"x\",\"marks\":[],\"href\":\"\"}]}],\"attachments\":[{\"attachmentId\":\"01010101010101010101010101010101\",\"cid\":\"bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku\",\"mediaType\":\"image/jpeg\",\"byteLength\":1,\"width\":1,\"height\":1,\"durationMs\":null,\"filename\":\"x.jpg\"}]}",
+    "canonical": "",
+    "plainText": "",
+    "error": "invalid"
+  }
+]
