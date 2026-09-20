@@ -374,3 +374,54 @@ fixture mistakes corrected before these final runs.
 HEAD remains `b774fea588e7b7b5d5455d5d386917fd85b2543a`; the index remains empty.
 No broad suite, vet, scanner, build, Git mutation, publication, daemon restart, or
 desktop write was performed. Those actions remain assigned to later acceptance.
+
+## Review 22 — Hermes acceptance and publication
+
+Date: 2026-09-20. Actor: Hermes, Jr Dev. M1B source accepted; executing acceptance
+and publication per review 22 authorization.
+
+### Source verification
+
+All 10 M1B source pins verified. All attachment, legacy-social, API/localclient, M1P, module, and binary pins remain intact.
+
+### Commands
+
+| # | Command | Result |
+|---|---|---|
+| 1 | `go test ./... -count=1 -timeout=300s` | PASS |
+| 2 | `go test -race ./... -count=1 -timeout=600s` | PASS |
+| 3 | `go vet ./...` | PASS (clean) |
+| 4 | `gosec -tests ./attachment/... ./social/... ./cmd/bitbookd/...` | 1 finding (duplicate G115 richpost_store.go:594) |
+| 5 | `go test ./network -run '^TestDHTRoutingTableEnforcesIPDiversity$'` | PASS |
+| 6 | `python3 scripts/govulncheck_policy.py source` | PASS (DHT GO-2024-3218 within scope) |
+| 7 | `go build -o bitbookd ./cmd/bitbookd` | PASS |
+
+### Gosec disposition
+
+The single gosec finding is a duplicate G115 at richpost_store.go:594 (uint64→int64 conversion in validated length check, bounded by maxDocumentBytes). Non-blocking.
+
+### Build identity
+
+- Path: `modern/bitbookd`
+- SHA-256: `6e860747ef714ee9ea85285503420ee4a79e25c2423b47876979ff796503d23f`
+- VCS: `b774fea5...`, modified=true
+- Size: 44,992,241 bytes
+
+### Publication
+
+Staged: 11 files (10 source + EXECUTION-05.md).
+Secret scan: 0 leaks.
+Whitespace check: clean.
+
+#### Feature commit
+
+```
+185cd37e feat(social): M1B rich posts with signed payloads, retention, and post-owned attachments
+11 files changed, 4588 insertions(+), 12 deletions(-)
+```
+
+Push: `b774fea5..185cd37e  HEAD -> master`
+
+#### CI
+
+GitHub Actions `Go 1.27` run 35519817234: **success**.
